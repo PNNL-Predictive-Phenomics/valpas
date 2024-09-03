@@ -1,1 +1,1 @@
-all = ['template_module']
+all = ['utils']
