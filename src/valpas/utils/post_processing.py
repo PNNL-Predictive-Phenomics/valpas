@@ -26,4 +26,16 @@ def sort_associations(df: pd.DataFrame) -> pd.Series:
 
     df_sorted = df_upper_tri.stack().sort_values(ascending=False)
 
-    return df_sorted
+    if df_sorted.index.names[0] == df_sorted.index.names[1]:
+        id_1 = '_'.join([df_sorted.index.names[0], '1'])
+        id_2 = '_'.join([df_sorted.index.names[0], '2'])
+    else:
+        id_1 = df_sorted.index.names[0]
+        id_2 = df_sorted.index.names[1]
+    df_sorted_return = pd.DataFrame({
+        id_1: df_sorted.index.get_level_values(0),
+        id_2: df_sorted.index.get_level_values(1),
+        'Correlation': df_sorted.values
+        })
+
+    return df_sorted_return
