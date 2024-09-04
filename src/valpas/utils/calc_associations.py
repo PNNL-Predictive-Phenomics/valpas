@@ -8,8 +8,6 @@ from typing import Literal
 import pandas as pd
 
 from valpas.utils.data_handling import prep_data
-from valpas.utils.post_processing import sort_associations
-from valpas.utils.post_processing import beautify_series
 
 def calc_correlation(
         fpath_1: str,
@@ -24,9 +22,5 @@ def calc_correlation(
         df_2 = prep_data(fpath_2)
         df_corr = df_1.apply(df_2.corrwith)
 
-    # sort correlations by strength and return
-    # TODO: for visualization purposes (e.g. heatmap) maybe refactor out
-    s_corr = sort_associations(df_corr)
-    df_corr = beautify_series(s_corr)
     return df_corr
     

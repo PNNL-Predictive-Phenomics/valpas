@@ -7,6 +7,7 @@ import os
 import sys
 
 from valpas.utils.calc_associations import calc_correlation
+from valpas.utils.data_handling import write_outfile
 
 def main(args):
 
@@ -42,6 +43,21 @@ def main(args):
         dest="INFILE2",
         type=argparse.FileType('r'),
         )
+    p_associate.add_argument(
+        "-o", "--outfile",
+        dest="OUTFILE",
+        type=argparse.FileType('w'),
+        default=sys.stdout,
+    )
+    p_associate.add_argument(
+        "-ot", "--output_type",
+        dest="OUTPUT_TYPE",
+        choices=(
+            'sorted_list',
+            'correlation_matrix',
+        ),
+        default='sorted_list',
+    )
     p_associate.set_defaults(func=associate)
 
     args = argp.parse_args(args)
@@ -61,9 +77,13 @@ def associate(args):
 
 
 def correlate(args):
-    df_cross_corr = calc_correlation(
+    df_corr = calc_correlation(
         fpath_1=args.INFILE,
         fpath_2=args.INFILE2,
         corr_func=args.ASSOCIATION_TYPE
         )
-    print(df_cross_corr, file=sys.stdout)
+    write_outfile(
+        df=df_corr,
+        file_handle=args.OUTFILE,
+        output_type=args.OUTPUT_TYPE,
+        )
