@@ -5,9 +5,6 @@ package is properly installed this script can be moved at the users
 convenience and executed from their directory of choice.
 """
 
-__author__ = 'Yannick Mahlich'
-__email__ = 'ymahlich@bromberglab.org'
-
 from valpas.valpas import main
 
 if __name__ == '__main__':
