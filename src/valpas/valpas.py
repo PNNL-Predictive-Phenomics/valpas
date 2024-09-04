@@ -49,6 +49,15 @@ def main(args):
         type=argparse.FileType('w'),
         default=sys.stdout,
     )
+    p_associate.add_argument(
+        "-ot", "--output_type",
+        dest="OUTPUT_TYPE",
+        choices=(
+            'sorted_list',
+            'correlation_matrix',
+        ),
+        default='sorted_list',
+    )
     p_associate.set_defaults(func=associate)
 
     args = argp.parse_args(args)
@@ -73,5 +82,8 @@ def correlate(args):
         fpath_2=args.INFILE2,
         corr_func=args.ASSOCIATION_TYPE
         )
-    # df_corr
-    write_outfile(df_corr, args.OUTFILE)
+    write_outfile(
+        df=df_corr,
+        file_handle=args.OUTFILE,
+        output_type=args.OUTPUT_TYPE,
+        )
