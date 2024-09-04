@@ -25,3 +25,10 @@ def prep_data(file_handle: str) -> pd.DataFrame:
 
     return df_t
 
+def write_outfile(df: pd.DataFrame, file_handle: str) -> None:
+    """
+    Takes a `pd.DataFrame` object and writes it to a file handle. This 
+    can be either a file or sys.stdout.
+    """
+
+    df.to_csv(file_handle, encoding='utf-8', index=False)
