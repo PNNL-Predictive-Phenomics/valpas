@@ -14,9 +14,10 @@ def calc_correlation(
         fpath_1: str,
         fpath_2: str=None,
         corr_func: Literal['pearson', 'kendall', 'spearman']='pearson',
+        filter_cutoff: float=None,
     ) -> pd.DataFrame:
     
-    df_1 = prep_data(fpath_1)
+    df_1 = prep_data(fpath_1, filter_cutoff=filter_cutoff)
     if fpath_2 is None:
         df_corr = df_1.corr(method=corr_func)
     else:
@@ -25,9 +26,13 @@ def calc_correlation(
 
     return df_corr
 
-def calc_mut_info(fpath_1: str, fpath_2: str=None) -> pd.DataFrame:
+def calc_mut_info(
+        fpath_1: str,
+        fpath_2: str=None,
+        filter_cutoff: float=None,
+        ) -> pd.DataFrame:
     
-    df_1 = prep_data(fpath_1, cut=True)
+    df_1 = prep_data(fpath_1, cut=True, filter_cutoff=filter_cutoff)
     if fpath_2 is None:
         df_mut_inf = df_1.corr(method=mutual_info_score)
     else:

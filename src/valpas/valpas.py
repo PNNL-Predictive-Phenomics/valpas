@@ -59,10 +59,25 @@ def main(args):
         ),
         default='sorted_list',
     )
+    p_associate.add_argument(
+        "-f", "--filter_missing_values",
+        dest="FILTER_CUTOFF",
+        type=cutoff_range
+        )
     p_associate.set_defaults(func=associate)
 
     args = argp.parse_args(args)
     args.func(args)
+
+
+def cutoff_range(x):
+    try:
+        x = float(x)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f'{x} not a float')
+    if x < 0.0 or x > 1.0:
+        raise argparse.ArgumentTypeError(f'{x} not in range [0.0, 1.0]')
+    return x
 
 
 def associate(args):
@@ -83,7 +98,8 @@ def correlate(args):
     df_corr = calc_correlation(
         fpath_1=args.INFILE,
         fpath_2=args.INFILE2,
-        corr_func=args.ASSOCIATION_TYPE
+        corr_func=args.ASSOCIATION_TYPE,
+        filter_cutoff=args.FILTER_CUTOFF,
         )
     write_outfile(
         df=df_corr,
@@ -94,7 +110,8 @@ def correlate(args):
 def mutual_information(args):
     df_mut_inf = calc_mut_info(
         fpath_1=args.INFILE,
-        fpath_2=args.INFILE2
+        fpath_2=args.INFILE2,
+        filter_cutoff=args.FILTER_CUTOFF,
     )
     write_outfile(
         df=df_mut_inf,
