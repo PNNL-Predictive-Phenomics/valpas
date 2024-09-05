@@ -8,7 +8,7 @@ import pandas as pd
 from valpas.utils.post_processing import beautify_series
 from valpas.utils.post_processing import sort_associations
 
-def prep_data(file_handle: str) -> pd.DataFrame:
+def prep_data(file_handle: str, cut=False) -> pd.DataFrame:
     """
     Imports csv file from file_handle into pandas DataFrame object and 
     transposes the DataFrame such that row are experiment conditions 
@@ -18,12 +18,16 @@ def prep_data(file_handle: str) -> pd.DataFrame:
     """
 
     # TODO: more robust file path / file object handling
-    
+
     df = pd.read_csv(
         filepath_or_buffer=file_handle,
         index_col=0
     )
-    
+
+    # this is done if binning is necessary (e.g. for mutual information)
+    if cut:
+        df.apply(lambda x: pd.cut(x, bins=100), axis=0)
+
     df_t = df.transpose()
 
     return df_t
