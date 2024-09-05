@@ -40,7 +40,7 @@ def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
 
     # this is done if thersholding is necessary (e.g. for jaccard dist)
     if threshold:
-        df = threshold(df=df)
+        df = threshold_df(df=df)
 
     return df.transpose()
 
@@ -48,7 +48,7 @@ def bin(df: pd.DataFrame, num_bins: int=100) -> pd.DataFrame:
     df.apply(lambda x: pd.cut(x, bins=num_bins), axis=0)
     return df
 
-def threshold(df: pd.DataFrame) -> pd.DataFrame:
+def threshold_df(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.transpose()
 
