@@ -35,11 +35,14 @@ def prep_data(file_handle: str, cut=False, filter_cutoff=None) -> pd.DataFrame:
     
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
-        df.apply(lambda x: pd.cut(x, bins=100), axis=0)
+        df = bin(df=df)
 
-    df_t = df.transpose()
+    return df.transpose()
 
-    return df_t
+def bin(df: pd.DataFrame, num_bins: int=100) -> pd.DataFrame:
+    df.apply(lambda x: pd.cut(x, bins=num_bins), axis=0)
+    return df
+
 
 def filter_for_missing_values(df: pd.DataFrame, cutoff: float) -> tuple[
         pd.DataFrame, pd.Index]:
