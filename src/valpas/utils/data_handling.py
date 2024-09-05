@@ -64,6 +64,8 @@ def filter_for_missing_values(df: pd.DataFrame, cutoff: float) -> tuple[
         axis='columns', # drop based on columns
         ).transpose()
     
+    df_filtered.replace(np.nan, 0, inplace=True) # necessary for nan rows
+    
     return (df_filtered, index)
 
 def write_outfile(df: pd.DataFrame, file_handle: str,
