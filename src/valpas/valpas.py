@@ -7,6 +7,7 @@ import os
 import sys
 
 from valpas.utils.calc_associations import calc_correlation
+from valpas.utils.calc_associations import calc_mut_info
 from valpas.utils.data_handling import write_outfile
 
 def main(args):
@@ -67,6 +68,8 @@ def main(args):
 def associate(args):
     if args.ASSOCIATION_TYPE in ('pearson', 'spearman'):
         correlate(args)
+    elif args.ASSOCIATION_TYPE == 'mutual_information':
+        mutual_information(args)
     else:
         print(
             *("Association type", args.ASSOCIATION_TYPE,
@@ -87,3 +90,14 @@ def correlate(args):
         file_handle=args.OUTFILE,
         output_type=args.OUTPUT_TYPE,
         )
+
+def mutual_information(args):
+    df_mut_inf = calc_mut_info(
+        fpath_1=args.INFILE,
+        fpath_2=args.INFILE2
+    )
+    write_outfile(
+        df=df_mut_inf,
+        file_handle=args.OUTFILE,
+        output_type=args.OUTPUT_TYPE,
+    )
