@@ -10,7 +10,8 @@ import sys
 from valpas.utils.post_processing import beautify_series
 from valpas.utils.post_processing import sort_associations
 
-def prep_data(file_handle: str, cut=False, filter_cutoff=None) -> pd.DataFrame:
+def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
+              filter_cutoff: float=None) -> pd.DataFrame:
     """
     Imports csv file from file_handle into pandas DataFrame object and 
     transposes the DataFrame such that row are experiment conditions 
@@ -37,12 +38,37 @@ def prep_data(file_handle: str, cut=False, filter_cutoff=None) -> pd.DataFrame:
     if cut:
         df = bin(df=df)
 
+    # this is done if thersholding is necessary (e.g. for jaccard dist)
+    if threshold:
+        df = threshold(df=df)
+
     return df.transpose()
 
 def bin(df: pd.DataFrame, num_bins: int=100) -> pd.DataFrame:
     df.apply(lambda x: pd.cut(x, bins=num_bins), axis=0)
     return df
 
+def threshold(df: pd.DataFrame) -> pd.DataFrame:
+
+    df = df.transpose()
+
+    # replacing 0s with NaN such that they don't interfere with
+    # calulating the threshold
+    df.replace(0, np.nan, inplace=True)
+
+    # creating a Series containing thersholds for individual instances
+    # currently the threshold is calculated per instance & across
+    # different conditions (axis = 0)
+    s_thresh = (df.min(axis=0)) + (((df.max(axis=0)) - (df.min(axis=0))) / 2)
+    
+    # generating the return DataFrame
+    df_ret = (
+        df
+        .gt(s_thresh) # checks if the cell satisfies the thershold
+        .astype(int) # casts the boolean returned by `.gt()` to int(0,1)
+        ).transpose() # transpose to return df in original orientation
+    
+    return df_ret
 
 def filter_for_missing_values(df: pd.DataFrame, cutoff: float) -> tuple[
         pd.DataFrame, pd.Index]:
