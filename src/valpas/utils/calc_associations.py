@@ -6,7 +6,10 @@ ValPAS.
 from typing import Literal
 
 import pandas as pd
+
+from scipy.spatial.distance import cosine
 from sklearn.metrics import mutual_info_score
+from sklearn.metrics.pairwise import cosine_similarity
 
 from valpas.utils.data_handling import prep_data
 
@@ -40,3 +43,20 @@ def calc_mut_info(
         df_mut_inf = df_1.apply(df_2.corrwith, method=mutual_info_score)
     
     return df_mut_inf
+
+def calc_cosine_sim(
+        fpath_1: str,
+        fpath_2: str=None,
+        filter_cutoff: float=None,
+        ) -> pd.DataFrame:
+
+    df_1 = prep_data(fpath_1, threshold=True, filter_cutoff=filter_cutoff)
+    if fpath_2 is None:
+        df_cos_dist = df_1.corr(method=cosine)
+    else:
+        df_2 = prep_data(fpath_2, threshold=True)
+        df_cos_dist = df_1.apply(df_2.corrwith, method=cosine)
+    
+    df_cos_sim = df_cos_dist.rsub(1) # converting distance to similarity
+    
+    return df_cos_sim
