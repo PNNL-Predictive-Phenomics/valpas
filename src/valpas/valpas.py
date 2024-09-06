@@ -62,6 +62,11 @@ def main(args):
         default='sorted_list',
     )
     p_associate.add_argument(
+        "-or", "--reduced_output",
+        dest="REDUCED_OUTPUT",
+        action='store_true',
+    )
+    p_associate.add_argument(
         "-f", "--filter_missing_values",
         dest="FILTER_CUTOFF",
         type=cutoff_range
@@ -109,6 +114,7 @@ def correlate(args):
         df=df_corr,
         file_handle=args.OUTFILE,
         output_type=args.OUTPUT_TYPE,
+        reduced_output=args.REDUCED_OUTPUT,
         )
 
 def mutual_information(args):
@@ -121,6 +127,7 @@ def mutual_information(args):
         df=df_mut_inf,
         file_handle=args.OUTFILE,
         output_type=args.OUTPUT_TYPE,
+        reduced_output=args.REDUCED_OUTPUT,
     )
 
 def cosine_similarity(args):
@@ -133,4 +140,5 @@ def cosine_similarity(args):
         df=df_mut_inf,
         file_handle=args.OUTFILE,
         output_type=args.OUTPUT_TYPE,
+        reduced_output=args.REDUCED_OUTPUT,
     )

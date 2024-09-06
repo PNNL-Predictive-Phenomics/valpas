@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 import sys
 
+from typing import Literal
+
 from valpas.utils.post_processing import beautify_series
 from valpas.utils.post_processing import sort_associations
 
@@ -97,14 +99,16 @@ def filter_for_missing_values(df: pd.DataFrame, cutoff: float) -> tuple[
     
     return (df_filtered, index)
 
-def write_outfile(df: pd.DataFrame, file_handle: str,
-                  output_type: str) -> None:
+def write_outfile(df: pd.DataFrame, file_handle: str, reduced_output: bool=False,
+                  output_type: Literal[
+                      'sorted_list', 'correlation_matrix'
+                      ]='sorted_list') -> None:
     """
     Takes a `pd.DataFrame` object and writes it to a file handle. This 
     can be either a file or sys.stdout.
     """
     if output_type == 'sorted_list':
-        s_sorted = sort_associations(df)
+        s_sorted = sort_associations(df=df, reduced_output=reduced_output)
         df = beautify_series(s_sorted)
         df.to_csv(file_handle, encoding='utf-8', index=False)
     elif output_type == 'correlation_matrix':
