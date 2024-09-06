@@ -1,1 +1,1 @@
-all = ['utils']
+all = ['utils', 'visualization']

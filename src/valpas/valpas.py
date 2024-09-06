@@ -10,6 +10,9 @@ from valpas.utils.calc_associations import calc_correlation
 from valpas.utils.calc_associations import calc_mut_info
 from valpas.utils.calc_associations import calc_cosine_sim
 from valpas.utils.data_handling import write_outfile
+from valpas.utils.data_handling import import_asssociation_matrix
+
+from valpas.visualization.heatmap import create_fig
 
 def main(args):
 
@@ -73,6 +76,35 @@ def main(args):
         )
     p_associate.set_defaults(func=associate)
 
+    p_visualize = parsers.add_parser(
+        "visualize",
+        help=""
+    )
+
+    p_visualize.set_defaults(func=visualize)
+    p_visualize.add_argument(
+        "-i", "--infile",
+        dest="INFILE",
+        required=True,
+        type=argparse.FileType('r'),
+    )
+    p_visualize.add_argument(
+        "-t", "--visualization_type",
+        dest="TYPE",
+        choices=("heatmap", "graph"),
+        default="heatmap",
+    )
+    p_visualize.add_argument(
+        "-cl", "--color_bar_label",
+        dest="LABEL",
+        default="Association Strength",
+    )
+    p_visualize.add_argument(
+        "-o", "--outfile",
+        dest="OUTFILE",
+        type=str,
+    )
+
     args = argp.parse_args(args)
     args.func(args)
 
@@ -102,6 +134,12 @@ def associate(args):
             file=sys.stderr
             )
 
+def visualize(args):
+    if args.TYPE == "heatmap":
+        df = import_asssociation_matrix(file_handle=args.INFILE)
+        fig = create_fig(df=df, fig_out=args.OUTFILE, cbarlabel=args.LABEL)
+    else:
+        print("Not yet implemented.", file=sys.stderr)
 
 def correlate(args):
     df_corr = calc_correlation(
