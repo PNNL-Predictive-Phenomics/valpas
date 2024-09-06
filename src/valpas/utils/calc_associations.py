@@ -24,7 +24,7 @@ def calc_correlation(
     if fpath_2 is None:
         df_corr = df_1.corr(method=corr_func)
     else:
-        df_2 = prep_data(fpath_2)
+        df_2 = prep_data(fpath_2, filter_cutoff=filter_cutoff)
         df_corr = df_1.apply(df_2.corrwith)
 
     return df_corr
@@ -39,7 +39,7 @@ def calc_mut_info(
     if fpath_2 is None:
         df_mut_inf = df_1.corr(method=mutual_info_score)
     else:
-        df_2 = prep_data(fpath_2, cut=True)
+        df_2 = prep_data(fpath_2, cut=True, filter_cutoff=filter_cutoff)
         df_mut_inf = df_1.apply(df_2.corrwith, method=mutual_info_score)
     
     return df_mut_inf
@@ -54,7 +54,7 @@ def calc_cosine_sim(
     if fpath_2 is None:
         df_cos_dist = df_1.corr(method=cosine)
     else:
-        df_2 = prep_data(fpath_2, threshold=True)
+        df_2 = prep_data(fpath_2, threshold=True, filter_cutoff=filter_cutoff)
         df_cos_dist = df_1.apply(df_2.corrwith, method=cosine)
     
     df_cos_sim = df_cos_dist.rsub(1) # converting distance to similarity
