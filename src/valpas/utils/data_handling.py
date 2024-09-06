@@ -113,3 +113,19 @@ def write_outfile(df: pd.DataFrame, file_handle: str, reduced_output: bool=False
         df.to_csv(file_handle, encoding='utf-8', index=False)
     elif output_type == 'correlation_matrix':
         df.to_csv(file_handle, encoding='utf-8')
+
+def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
+    """
+    Imports a saved correlation / association matrix saved by 
+    `valpas.utils.write_outfile()` into a `pd.DataFrame` object and 
+    returns it.
+
+    Can for example be used to read in data necessary to plot a heatmap 
+    via the `valpas.visualize.heatmap` module. 
+    """
+    df = pd.read_csv(
+        filepath_or_buffer=file_handle,
+        index_col=0,
+        header=0,
+        )
+    return df
