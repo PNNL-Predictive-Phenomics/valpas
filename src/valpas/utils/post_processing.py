@@ -6,7 +6,7 @@ other parts of the valpas package
 import numpy as np
 import pandas as pd
 
-def sort_associations(df: pd.DataFrame) -> pd.Series:
+def sort_associations(df: pd.DataFrame, reduced_output: bool=False) -> pd.Series:
     """
     Takes a matrix like pandas Dataframe object, extracts the upper 
     triangle, stacks and sorts the cell values.
@@ -15,16 +15,36 @@ def sort_associations(df: pd.DataFrame) -> pd.Series:
     of index pairs from *df* as axis labels and the value of the *df* 
     cell as values.
     """
-    upper_tri = np.triu(df, -1)
-    upper_tri[np.tril_indices(upper_tri.shape[0], 0)] = np.nan
+    if reduced_output:
+        # use case for this block: if the correlation matrix is NxN and 
+        # each n in N is from only one data source we can reduce the 
+        # output to pervent *association(i,j)* and *association(j,i)*
+        # to show up in the output. Note that if the correlation matrix 
+        # contains NxM elements and N & M are two different sets of 
+        # data points, choosing to reduce the input will remove unique 
+        # results.
+        # 
+        # The code block extracts the upper triangle of the matrix, 
+        # sets the lower triangle (including the diagonal) to NaN.
+        # `pd.DataFrame.stack()` drops NaNs by default and therefore 
+        # excludes the pairs from sorting and being returned.
+        upper_tri = np.triu(df, -1)
+        upper_tri[np.tril_indices(upper_tri.shape[0], 0)] = np.nan
 
-    df_upper_tri = pd.DataFrame(
-        data=upper_tri,
-        index=df.index,
-        columns=df.columns
-        )
+        df_upper_tri = pd.DataFrame(
+            data=upper_tri,
+            index=df.index,
+            columns=df.columns
+            )
+        df_sorted = df_upper_tri.stack().sort_values(ascending=False)
+    
+    else:
+        # by default full output of the sorted list is generated to 
+        # guarantuee that all results are returned. This is especially 
+        # important if association between two different data types was 
+        # generated and no "self-hits" exsist
+        df_sorted = df.stack().sort_values(ascending=False) 
 
-    df_sorted = df_upper_tri.stack().sort_values(ascending=False)
 
     return df_sorted
 
