@@ -66,7 +66,7 @@ def threshold_df(df: pd.DataFrame) -> pd.DataFrame:
     # generating the return DataFrame
     df_ret = (
         df
-        .gt(s_thresh) # checks if the cell satisfies the thershold
+        .ge(s_thresh) # checks if the cell satisfies the thershold
         .astype(int) # casts the boolean returned by `.gt()` to int(0,1)
         ).transpose() # transpose to return df in original orientation
     
