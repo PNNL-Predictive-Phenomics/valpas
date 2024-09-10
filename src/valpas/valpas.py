@@ -9,6 +9,7 @@ import sys
 from valpas.utils.calc_associations import calc_correlation
 from valpas.utils.calc_associations import calc_mut_info
 from valpas.utils.calc_associations import calc_cosine_sim
+from valpas.utils.calc_associations import calc_jaccard_sim
 from valpas.utils.data_handling import write_outfile
 from valpas.utils.data_handling import import_asssociation_matrix
 
@@ -35,6 +36,7 @@ def main(args):
             'pearson',
             'mutual_information',
             'cosine_similarity',
+            'jaccard_similarity',
             ),
         default='pearson'
     )
@@ -126,6 +128,8 @@ def associate(args):
         mutual_information(args)
     elif args.ASSOCIATION_TYPE == 'cosine_similarity':
         cosine_similarity(args)
+    elif args.ASSOCIATION_TYPE == 'jaccard_similarity':
+        jaccard_similarity(args)
     else:
         print(
             *("Association type", args.ASSOCIATION_TYPE,
@@ -176,6 +180,19 @@ def cosine_similarity(args):
     )
     write_outfile(
         df=df_mut_inf,
+        file_handle=args.OUTFILE,
+        output_type=args.OUTPUT_TYPE,
+        reduced_output=args.REDUCED_OUTPUT,
+    )
+
+def jaccard_similarity(args):
+    df_jaccard_sim = calc_jaccard_sim(
+        fpath_1=args.INFILE,
+        fpath_2=args.INFILE2,
+        filter_cutoff=args.FILTER_CUTOFF,
+    )
+    write_outfile(
+        df=df_jaccard_sim,
         file_handle=args.OUTFILE,
         output_type=args.OUTPUT_TYPE,
         reduced_output=args.REDUCED_OUTPUT,
