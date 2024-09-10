@@ -4,9 +4,9 @@
 
 We recommend setting up a conda environment to handle dependencies. See [https://docs.conda.io/en/latest/](https://docs.conda.io/en/latest/) or [https://github.com/conda-forge/miniforge](https://github.com/conda-forge/miniforge) for more information on how to setup conda. Once conda is installed a conda environment containing all the required dependencies can be automatically setup by invoking the following command from the root folder of this repository.
 ```
-conda create --name valpas-prototype --file requirements.txt
+conda env create --file environment.yml
 ```
-This will cerate a conda environment with the name `valpas-prototype` satisfying the required dependencies. 
+This will cerate a conda environment with the name `valpas-prototype` satisfying the required dependencies. In case conda returns a `CondaValueError: prefix already exists: [...]` error, this is most likely due to the fact that the environment `valpas-prototype` already exsits. Either delete the environment via `conda env remove -n valpas-prototype` and reinstall or define a different environment name during setup (this can be done with the `-n` flag).
 
 ## Running the notebook
 ### Within a browser
