@@ -5,6 +5,7 @@ The main script that gets executed.
 import argparse
 import os
 import sys
+import textwrap
 
 from valpas.utils.calc_associations import calc_correlation
 from valpas.utils.calc_associations import calc_mut_info
@@ -17,7 +18,19 @@ from valpas.visualization.heatmap import create_fig
 
 def main(args):
 
-    argp = argparse.ArgumentParser()
+    argp = argparse.ArgumentParser(
+        add_help=False,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=textwrap.dedent(
+            '''
+            VaLPAS is a framework to establish and investigate functional 
+            relations between proteins and other "omics-data". It currently 
+            consits of the the two sub routines:
+            
+                - associate    (creates associations between data instances)
+                - visualize    (helps to visualize generated associations)
+            ''')
+    )
     parsers = argp.add_subparsers(
         dest="command",
         title="commands",
@@ -26,7 +39,15 @@ def main(args):
 
     p_associate = parsers.add_parser(
         "associate",
-        help="",
+        description=
+            '''
+            The association subroutine enables the generation of association 
+            scores between data points from either one or two omics data types.
+            Omics data types can be for example proteomics, transcriptomics or 
+            metabolomics. Typically each data type contains multiple values 
+            (conditions) per data point (e.g. a metabolite). Multiple types of 
+            association metrics are available to choose from (see below).
+            '''
     )
     p_associate.add_argument(
         "-a", "--association_type",
@@ -106,7 +127,9 @@ def main(args):
         dest="OUTFILE",
         type=str,
     )
-
+    if len(sys.argv) == 1:
+        argp.print_help(sys.stderr)
+        sys.exit(1)
     args = argp.parse_args(args)
     args.func(args)
 
