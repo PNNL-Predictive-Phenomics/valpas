@@ -12,6 +12,30 @@ from typing import Literal
 from valpas.utils.post_processing import beautify_series
 from valpas.utils.post_processing import sort_associations
 
+
+def reduce_to_shared_conditions(
+        df_1: pd.DataFrame, df_2: pd.DataFrame
+        ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    This function operates on already inmported and transposed 
+    pd.DataFrame objects. This means that the individual conditions in 
+    the raw data (columns) are represented as rows (index).  
+    """
+    intersect = df_1.index.intersection(df_2.index)
+    df_1_ret = df_1.filter(items=intersect, axis="index")
+    df_2_ret = df_2.filter(items=intersect, axis="index")
+
+    df_1_ret.replace(0, np.nan, inplace=True)
+    df_1_ret.dropna(axis="index", how="all", inplace=True)
+    df_1_ret.replace(np.nan, 0, inplace=True)
+
+    df_2_ret.replace(0, np.nan, inplace=True)
+    df_2_ret.dropna(axis="index", how="all", inplace=True)
+    df_2_ret.replace(np.nan, 0, inplace=True)
+   
+    return (df_1_ret, df_2_ret)
+
+
 def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
               filter_cutoff: float=None) -> pd.DataFrame:
     """
