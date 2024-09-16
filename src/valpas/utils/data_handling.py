@@ -47,7 +47,7 @@ def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
     return df.transpose()
 
 def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
-    df = df.apply(lambda x: pd.cut(x, bins=num_bins), axis=0)
+    df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
     return df
 
 def threshold_df(df: pd.DataFrame) -> pd.DataFrame:
