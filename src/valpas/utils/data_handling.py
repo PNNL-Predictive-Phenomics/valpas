@@ -12,6 +12,30 @@ from typing import Literal
 from valpas.utils.post_processing import beautify_series
 from valpas.utils.post_processing import sort_associations
 
+
+def reduce_to_shared_conditions(
+        df_1: pd.DataFrame, df_2: pd.DataFrame
+        ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    This function operates on already inmported and transposed 
+    pd.DataFrame objects. This means that the individual conditions in 
+    the raw data (columns) are represented as rows (index).  
+    """
+    intersect = df_1.index.intersection(df_2.index)
+    df_1_ret = df_1.filter(items=intersect, axis="index")
+    df_2_ret = df_2.filter(items=intersect, axis="index")
+
+    df_1_ret.replace(0, np.nan, inplace=True)
+    df_1_ret.dropna(axis="index", how="all", inplace=True)
+    df_1_ret.replace(np.nan, 0, inplace=True)
+
+    df_2_ret.replace(0, np.nan, inplace=True)
+    df_2_ret.dropna(axis="index", how="all", inplace=True)
+    df_2_ret.replace(np.nan, 0, inplace=True)
+   
+    return (df_1_ret, df_2_ret)
+
+
 def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
               filter_cutoff: float=None) -> pd.DataFrame:
     """
@@ -31,11 +55,12 @@ def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
 
     # if a filtering cut if is selected the filtering logic is executed
     if filter_cutoff is not None:
-        df, index = filter_for_missing_values(df=df, cutoff=filter_cutoff)
+        df, index = filter_for_missing_values(df=df, cutoff=filter_cutoff,
+                                              drop_na=True)
         if len(index.values) > 0:
             print("Removed items: ", end="", file=sys.stderr)
             print(*index.values, sep=", ", file=sys.stderr)
-    
+        
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
         df = bin(df=df)
@@ -72,8 +97,8 @@ def threshold_df(df: pd.DataFrame) -> pd.DataFrame:
     
     return df_ret
 
-def filter_for_missing_values(df: pd.DataFrame, cutoff: float) -> tuple[
-        pd.DataFrame, pd.Index]:
+def filter_for_missing_values(df: pd.DataFrame, cutoff: float,
+        drop_na: bool=False) -> tuple[pd.DataFrame, pd.Index]:
     
     # treating '0' as NaNs for easier counting of missing values
     df.replace(0, np.nan, inplace=True)
@@ -94,6 +119,10 @@ def filter_for_missing_values(df: pd.DataFrame, cutoff: float) -> tuple[
         labels=index, # using the defined index from above
         axis='columns', # drop based on columns
         ).transpose()
+    
+    if drop_na:
+        df_filtered.dropna(axis="columns", how="all", inplace=True)
+        # df_filtered.dropna(axis="columns", inplace=True)
     
     df_filtered.replace(np.nan, 0, inplace=True) # necessary for nan rows
     
