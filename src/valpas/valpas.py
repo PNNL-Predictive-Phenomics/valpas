@@ -192,7 +192,9 @@ def associate(args):
     if args.ASSOCIATION_TYPE in ('pearson', 'spearman'):
         correlate(args)
     elif args.ASSOCIATION_TYPE == 'mutual_information':
-        mutual_information(args)
+        print("Calculation of mutual information is currently disabled",
+              file=sys.stderr)
+        #mutual_information(args)
     elif args.ASSOCIATION_TYPE == 'cosine_similarity':
         cosine_similarity(args)
     elif args.ASSOCIATION_TYPE == 'jaccard_similarity':
