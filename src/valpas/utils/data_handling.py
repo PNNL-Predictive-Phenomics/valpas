@@ -3,11 +3,16 @@ Module containing helper functions to deal with data handling (i.e.
 input & output).
 """
 
-import pandas as pd
-import numpy as np
+
 import sys
 
+from io import TextIOWrapper
 from typing import Literal
+from typing import TextIO
+from os import PathLike
+
+import pandas as pd
+import numpy as np
 
 from valpas.utils.post_processing import beautify_series
 from valpas.utils.post_processing import sort_associations
@@ -35,6 +40,33 @@ def reduce_to_shared_conditions(
    
     return (df_1_ret, df_2_ret)
 
+def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
+    """
+    Imports a csv file. Returns a pandas DataFrame object containing 
+    the data.
+
+    Input can be either:
+      - a string that is the path to the infile 
+      - a path like object (e.g. generated via `os.path`) to the infile
+      - a file handle (e.g. opened via `argparse.FileType`)
+    """
+    filepath_or_buffer_ = filepath_or_buffer
+    if isinstance(filepath_or_buffer_, (str, PathLike, TextIOWrapper)):
+        try:
+            df = pd.read_csv(
+                filepath_or_buffer=filepath_or_buffer_,
+                index_col=0,
+            )
+        except FileNotFoundError as err:
+            raise FileNotFoundError(err)
+    else:
+        error = (
+            f"filepath_or_buffer must be of type str, PathLike or TextIO. "
+            f"Supplied argument is of type {type(filepath_or_buffer_)}."
+            )
+        raise TypeError(error)
+    
+    return df
 
 def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
               filter_cutoff: float=None) -> pd.DataFrame:
