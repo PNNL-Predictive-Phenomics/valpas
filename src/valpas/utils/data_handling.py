@@ -106,25 +106,40 @@ def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
     return df
 
-def threshold_df(df: pd.DataFrame) -> pd.DataFrame:
 
-    df = df.transpose()
+def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
+    """
+    function to threshold a pd.DataFrame containing aboslute or relative 
+    abunances for items (rows, e.g. metabolites) across different 
+    conditions (columns).
 
-    # replacing 0s with NaN such that they don't interfere with
-    # calulating the threshold
-    df.replace(0, np.nan, inplace=True)
+    Returns a truth table encoded with 0s and 1s denoting if the value 
+    falls above the determined threshold. Note that NA values in the DF 
+    passed to the function will automatically be cast to 'False' / 0
+    """
 
-    # creating a Series containing thersholds for individual instances
-    # currently the threshold is calculated per instance & across
-    # different conditions (axis = 0)
-    s_thresh = (df.min(axis=0)) + (((df.max(axis=0)) - (df.min(axis=0))) / 2)
+    # it is assumed that the DF that is passed to the function will not
+    # contain NaNs/NAs in place of 0s. If this is not the case the if 
+    # statement below is triggered and 0s are replaced with NaN such 
+    # that they don't interfere with calulating the threshold
+    if df.eq(0).any(axis=None):
+        df.replace(0, np.nan, inplace=True)
+    
+    # creating a Series containing thresholds for individual items
+    # currently the threshold is calculated per item across different
+    # conditions (axis = 1).
+    s_thresh = (
+        df.min(axis=1)
+        + (df.max(axis=1) - df.min(axis=1)) * threshold_rel
+    )
     
     # generating the return DataFrame
+    # ATTN: DataFrame.ge() will return 'False' for NaNs
     df_ret = (
         df
-        .ge(s_thresh) # checks if the cell satisfies the thershold
+        .ge(s_thresh, axis='index') # check if cell satisfies the threshold
         .astype(int) # casts the boolean returned by `.gt()` to int(0,1)
-        ).transpose() # transpose to return df in original orientation
+        )
     
     return df_ret
 
