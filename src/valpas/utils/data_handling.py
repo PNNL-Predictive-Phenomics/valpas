@@ -87,8 +87,7 @@ def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
 
     # if a filtering cut if is selected the filtering logic is executed
     if filter_cutoff is not None:
-        df, index = filter_for_missing_values(df=df, cutoff=filter_cutoff,
-                                              drop_na=True)
+        df, index = remove_low_confidence_items(df=df, cutoff=filter_cutoff)
         if len(index.values) > 0:
             print("Removed items: ", end="", file=sys.stderr)
             print(*index.values, sep=", ", file=sys.stderr)
@@ -129,35 +128,35 @@ def threshold_df(df: pd.DataFrame) -> pd.DataFrame:
     
     return df_ret
 
-def filter_for_missing_values(df: pd.DataFrame, cutoff: float,
-        drop_na: bool=False) -> tuple[pd.DataFrame, pd.Index]:
+
+def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
+        drop_na_cols: bool=True) -> tuple[pd.DataFrame, pd.Index]:
     
     # treating '0' as NaNs for easier counting of missing values
     df.replace(0, np.nan, inplace=True)
 
-    df = df.transpose()
-
-    # creating an index of rows to filter
-    s = (((
-        df[df.columns] # per column
-        .notna().sum()) # count all NaNs
-        /df.shape[0]) # divide by the total number of rows
-        .le(cutoff) # check if fraction is less or equal than cutoff
-    )
-    index = s[s].index # creating the actual index
+    # creating an index of rows (items) to filter
+    s = (
+        (df.isna() # create truth table whether values is NaN
+         .sum(axis=1) # sum "True" iterating over columns for each row
+         /df.shape[1]) # divide by the number of columns
+         .gt(cutoff) # check if fraction of NaNs (in row) is grater than cutoff
+        )
+    index = s[s].index # creating the actual index (i.e. which rows to drop)
 
     # filter the DataFrame
     df_filtered = df.drop(
         labels=index, # using the defined index from above
-        axis='columns', # drop based on columns
-        ).transpose()
+        axis='index', # drop based on rows
+        )
     
-    if drop_na:
+    # if the above procedure generated columns (conditions) that contain
+    # only NAs as values, those will be removed. The behaviour can be 
+    # toggled with a function argument (default = True)
+    if drop_na_cols:
         df_filtered.dropna(axis="columns", how="all", inplace=True)
-        # df_filtered.dropna(axis="columns", inplace=True)
     
-    df_filtered.replace(np.nan, 0, inplace=True) # necessary for nan rows
-    
+    # return both the filtered df and the index of dropped items
     return (df_filtered, index)
 
 def write_outfile(df: pd.DataFrame, file_handle: str, reduced_output: bool=False,
