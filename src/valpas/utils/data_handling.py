@@ -26,19 +26,20 @@ def reduce_to_shared_conditions(
     pd.DataFrame objects. This means that the individual conditions in 
     the raw data (columns) are represented as rows (index).  
     """
-    intersect = df_1.index.intersection(df_2.index)
-    df_1_ret = df_1.filter(items=intersect, axis="index")
-    df_2_ret = df_2.filter(items=intersect, axis="index")
+    intersect = df_1.columns.intersection(df_2.columns)
+    df_1_ret = df_1.filter(items=intersect, axis="columns")
+    df_2_ret = df_2.filter(items=intersect, axis="columns")
 
     df_1_ret.replace(0, np.nan, inplace=True)
-    df_1_ret.dropna(axis="index", how="all", inplace=True)
+    df_1_ret.dropna(axis="columns", how="all", inplace=True)
     df_1_ret.replace(np.nan, 0, inplace=True)
 
     df_2_ret.replace(0, np.nan, inplace=True)
-    df_2_ret.dropna(axis="index", how="all", inplace=True)
+    df_2_ret.dropna(axis="columns", how="all", inplace=True)
     df_2_ret.replace(np.nan, 0, inplace=True)
    
     return (df_1_ret, df_2_ret)
+
 
 def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     """
