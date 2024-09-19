@@ -77,9 +77,16 @@ def prep_data(
         cut: bool=False, threshold: bool=False
         ) -> pd.DataFrame:
     """
-    Imports csv file from file_handle into pandas DataFrame object and 
-    transposes the DataFrame such that row are experiment conditions 
-    and columns are identifier (e.g. protein identifier or metabolite).
+    Imports data file(s) from file_path_or_buffer into pandas DataFrame
+    object(s). If tow data files are provided, the two imported 
+    DataFrames are concatenated over their shared columns (conditions). 
+    Finally, (depending on the arguments passed to the function call) 
+    the resulting DataFrame is:
+
+    - cleaned of low confidence items (rows) that contain to many 0 
+      values.
+    - binned (necessary for mutual information)
+    - thresholded (necessary for Jaccard Index/Similarity)
 
     Returns pandas DataFrame object containing transposed data.
     """
