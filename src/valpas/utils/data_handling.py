@@ -74,7 +74,7 @@ def prep_data(
         filepath_or_buffer: str | PathLike | TextIO,
         filepath_or_buffer_2: (str | PathLike | TextIO)=None,
         filter_cutoff: float=0.9,
-        cut: bool=False, threshold: bool=False
+        cut: bool=False, threshold: float=0.5
         ) -> pd.DataFrame:
     """
     Imports data file(s) from file_path_or_buffer into pandas DataFrame
@@ -110,7 +110,7 @@ def prep_data(
 
     # this is done if thersholding is necessary (e.g. for jaccard dist)
     if threshold:
-        df = threshold_df(df=df)
+        df = threshold_df(df=df, threshold_rel=threshold)
 
     return df.transpose()
 
