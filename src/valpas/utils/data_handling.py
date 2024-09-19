@@ -22,6 +22,8 @@ def reduce_to_shared_conditions(
         df_1: pd.DataFrame, df_2: pd.DataFrame
         ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
+    (!DEPRECATED!)
+        
     This function operates on already inmported and transposed 
     pd.DataFrame objects. This means that the individual conditions in 
     the raw data (columns) are represented as rows (index).  
