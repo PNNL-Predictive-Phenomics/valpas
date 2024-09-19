@@ -76,7 +76,7 @@ def prep_data(
         filepath_or_buffer: str | PathLike | TextIO,
         filepath_or_buffer_2: (str | PathLike | TextIO)=None,
         filter_cutoff: float=0.9,
-        cut: bool=False, threshold: float=0.5
+        cut: bool=False, threshold: float=None
         ) -> pd.DataFrame:
     """
     Imports data file(s) from file_path_or_buffer into pandas DataFrame
