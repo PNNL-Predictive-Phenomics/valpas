@@ -69,8 +69,13 @@ def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     
     return df
 
-def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
-              filter_cutoff: float=None) -> pd.DataFrame:
+
+def prep_data(
+        filepath_or_buffer: str | PathLike | TextIO,
+        filepath_or_buffer_2: (str | PathLike | TextIO)=None,
+        filter_cutoff: float=0.9,
+        cut: bool=False, threshold: bool=False
+        ) -> pd.DataFrame:
     """
     Imports csv file from file_handle into pandas DataFrame object and 
     transposes the DataFrame such that row are experiment conditions 
@@ -79,19 +84,18 @@ def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
     Returns pandas DataFrame object containing transposed data.
     """
 
-    # TODO: more robust file path / file object handling
+    df = import_csv(filepath_or_buffer)
 
-    df = pd.read_csv(
-        filepath_or_buffer=file_handle,
-        index_col=0
-    )
+    if filepath_or_buffer_2 is not None:
+        df_2 = import_csv(filepath_or_buffer_2)
+        df = pd.concat([df, df_2], join='inner')
 
-    # if a filtering cut if is selected the filtering logic is executed
-    if filter_cutoff is not None:
-        df, index = remove_low_confidence_items(df=df, cutoff=filter_cutoff)
-        if len(index.values) > 0:
-            print("Removed items: ", end="", file=sys.stderr)
-            print(*index.values, sep=", ", file=sys.stderr)
+
+    # removing low confidence items
+    df, index = remove_low_confidence_items(df=df, cutoff=filter_cutoff)
+    if len(index.values) > 0:
+        print("Removed items: ", end="", file=sys.stderr)
+        print(*index.values, sep=", ", file=sys.stderr)
         
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
