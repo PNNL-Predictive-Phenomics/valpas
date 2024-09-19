@@ -158,16 +158,26 @@ def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
 
 def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
         drop_na_cols: bool=True) -> tuple[pd.DataFrame, pd.Index]:
+    """
+    Takes a pd.DataFrame and removes low confidence (to many NAs) 
+    items (rows) from the DataFrame. The `cutoff` argument passed to 
+    the function determines how complete (i.e. the fraction of non-NA 
+    values) an item (row) needs to be to retained in the DataFrame.
+    Additionally, the function can be told to keep any columns that 
+    are completely populated with NAs/0s as a result of removing items 
+    from the DataFrame. By default those columns are dropped.
+    """
     
     # treating '0' as NaNs for easier counting of missing values
     df.replace(0, np.nan, inplace=True)
 
-    # creating an index of rows (items) to filter
+    # creating an index of rows (items) to filter i.e. finding the rows
+    # that where the fraction of NAs is larger than 1-cutoff
     s = (
         (df.isna() # create truth table whether values is NaN
          .sum(axis=1) # sum "True" iterating over columns for each row
          /df.shape[1]) # divide by the number of columns
-         .gt(cutoff) # check if fraction of NaNs (in row) is grater than cutoff
+         .gt(1-cutoff) # check if fraction of NAs (in row) is > cutoff
         )
     index = s[s].index # creating the actual index (i.e. which rows to drop)
 
