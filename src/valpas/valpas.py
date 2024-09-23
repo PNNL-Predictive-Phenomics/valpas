@@ -13,6 +13,8 @@ from valpas.utils.calc_associations import calc_cosine_sim
 from valpas.utils.calc_associations import calc_jaccard_sim
 from valpas.utils.data_handling import write_outfile
 from valpas.utils.data_handling import import_asssociation_matrix
+from valpas.utils.post_processing import rm_duplicates
+from valpas.utils.post_processing import idx_name
 
 from valpas.visualization.heatmap import create_fig
 
@@ -118,6 +120,7 @@ def main(args):
         "-f", "--filter_missing_values",
         dest="FILTER_CUTOFF",
         type=cutoff_range,
+        default=0.9,
         help="Can be set to a float between [0.0, 1.0]. If passed to the "
              "command a datapoint e.g. metabolite has to be detected (a value "
              "recorded larger than 0) in at least x of a fraction of the "
@@ -215,12 +218,16 @@ def visualize(args):
         print("Not yet implemented.", file=sys.stderr)
 
 def correlate(args):
-    df_corr = calc_correlation(
-        fpath_1=args.INFILE,
-        fpath_2=args.INFILE2,
+    df_corr, idx1, idx2 = calc_correlation(
+        filepath_or_buffer=args.INFILE,
+        filepath_or_buffer_2=args.INFILE2,
         corr_func=args.ASSOCIATION_TYPE,
         filter_cutoff=args.FILTER_CUTOFF,
         )
+    if idx2 is not None and not args.REDUCED_OUTPUT:
+        df_corr = rm_duplicates(df=df_corr, idx1=idx1, idx2=idx2)
+    df_corr = idx_name(df_corr, idx1=idx1, idx2=idx2)
+
     write_outfile(
         df=df_corr,
         file_handle=args.OUTFILE,
@@ -230,8 +237,8 @@ def correlate(args):
 
 def mutual_information(args):
     df_mut_inf = calc_mut_info(
-        fpath_1=args.INFILE,
-        fpath_2=args.INFILE2,
+        filepath_or_buffer=args.INFILE,
+        filepath_or_buffer_2=args.INFILE2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
     write_outfile(
@@ -243,8 +250,8 @@ def mutual_information(args):
 
 def cosine_similarity(args):
     df_mut_inf = calc_cosine_sim(
-        fpath_1=args.INFILE,
-        fpath_2=args.INFILE2,
+        filepath_or_buffer=args.INFILE,
+        filepath_or_buffer_2=args.INFILE2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
     write_outfile(
@@ -256,8 +263,8 @@ def cosine_similarity(args):
 
 def jaccard_similarity(args):
     df_jaccard_sim = calc_jaccard_sim(
-        fpath_1=args.INFILE,
-        fpath_2=args.INFILE2,
+        filepath_or_buffer=args.INFILE,
+        filepath_or_buffer_2=args.INFILE2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
     write_outfile(

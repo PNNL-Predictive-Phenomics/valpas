@@ -3,11 +3,16 @@ Module containing helper functions to deal with data handling (i.e.
 input & output).
 """
 
-import pandas as pd
-import numpy as np
+
 import sys
 
+from io import TextIOWrapper
 from typing import Literal
+from typing import TextIO
+from os import PathLike
+
+import pandas as pd
+import numpy as np
 
 from valpas.utils.post_processing import beautify_series
 from valpas.utils.post_processing import sort_associations
@@ -17,116 +22,197 @@ def reduce_to_shared_conditions(
         df_1: pd.DataFrame, df_2: pd.DataFrame
         ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
+    (!DEPRECATED!)
+        
     This function operates on already inmported and transposed 
     pd.DataFrame objects. This means that the individual conditions in 
     the raw data (columns) are represented as rows (index).  
     """
-    intersect = df_1.index.intersection(df_2.index)
-    df_1_ret = df_1.filter(items=intersect, axis="index")
-    df_2_ret = df_2.filter(items=intersect, axis="index")
+    intersect = df_1.columns.intersection(df_2.columns)
+    df_1_ret = df_1.filter(items=intersect, axis="columns")
+    df_2_ret = df_2.filter(items=intersect, axis="columns")
 
     df_1_ret.replace(0, np.nan, inplace=True)
-    df_1_ret.dropna(axis="index", how="all", inplace=True)
+    df_1_ret.dropna(axis="columns", how="all", inplace=True)
     df_1_ret.replace(np.nan, 0, inplace=True)
 
     df_2_ret.replace(0, np.nan, inplace=True)
-    df_2_ret.dropna(axis="index", how="all", inplace=True)
+    df_2_ret.dropna(axis="columns", how="all", inplace=True)
     df_2_ret.replace(np.nan, 0, inplace=True)
    
     return (df_1_ret, df_2_ret)
 
 
-def prep_data(file_handle: str, cut: bool=False, threshold: bool=False,
-              filter_cutoff: float=None) -> pd.DataFrame:
+def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     """
-    Imports csv file from file_handle into pandas DataFrame object and 
-    transposes the DataFrame such that row are experiment conditions 
-    and columns are identifier (e.g. protein identifier or metabolite).
+    Imports a csv file. Returns a pandas DataFrame object containing 
+    the data.
 
-    Returns pandas DataFrame object containing transposed data.
+    Input can be either:
+      - a string that is the path to the infile 
+      - a path like object (e.g. generated via `os.path`) to the infile
+      - a file handle (e.g. opened via `argparse.FileType`)
+    """
+    filepath_or_buffer_ = filepath_or_buffer
+    if isinstance(filepath_or_buffer_, (str, PathLike, TextIOWrapper)):
+        try:
+            df = pd.read_csv(
+                filepath_or_buffer=filepath_or_buffer_,
+                index_col=0,
+            )
+        except FileNotFoundError as err:
+            raise FileNotFoundError(err)
+    else:
+        error = (
+            f"filepath_or_buffer must be of type str, PathLike or TextIO. "
+            f"Supplied argument is of type {type(filepath_or_buffer_)}."
+            )
+        raise TypeError(error)
+    
+    return df
+
+
+def prep_data(
+        filepath_or_buffer: str | PathLike | TextIO,
+        filepath_or_buffer_2: (str | PathLike | TextIO)=None,
+        filter_cutoff: float=0.9,
+        cut: bool=False, threshold: float=None
+        ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
+    """
+    Imports data file(s) from file_path_or_buffer into pandas DataFrame
+    object(s). If tow data files are provided, the two imported 
+    DataFrames are concatenated over their shared columns (conditions). 
+    Finally, (depending on the arguments passed to the function call) 
+    the resulting DataFrame is:
+
+    - cleaned of low confidence items (rows) that contain to many 0 
+      values.
+    - binned (necessary for mutual information)
+    - thresholded (necessary for Jaccard Index/Similarity)
+
+    Returns a tuple containing:
+    
+    1. a pandas DataFrame object containing transposed data
+    2. a pandas Index object containing the index of the DataFrame
+    resulting from importing `filepath_or_buffer`
+    3. a pandas Index object containing the index of the DataFrame
+    resulting from importing `filepath_or_buffer_2` or if 
+    `filepath_or_buffer_2` was not passed to the function (i.e. `None`) 
+    then `None` is returned as the 3rd position of the tuple
     """
 
-    # TODO: more robust file path / file object handling
+    df = import_csv(filepath_or_buffer)
+    idx1 = df.index
+    idx2 = None
 
-    df = pd.read_csv(
-        filepath_or_buffer=file_handle,
-        index_col=0
-    )
+    if filepath_or_buffer_2 is not None:
+        df_2 = import_csv(filepath_or_buffer_2)
+        idx2 = df_2.index
+        df = pd.concat([df, df_2], join='inner')
 
-    # if a filtering cut if is selected the filtering logic is executed
-    if filter_cutoff is not None:
-        df, index = filter_for_missing_values(df=df, cutoff=filter_cutoff,
-                                              drop_na=True)
-        if len(index.values) > 0:
-            print("Removed items: ", end="", file=sys.stderr)
-            print(*index.values, sep=", ", file=sys.stderr)
-        
+
+    # removing low confidence items
+    df, index = remove_low_confidence_items(df=df, cutoff=filter_cutoff)
+    if len(index.values) > 0:
+        print("Removed items: ", end="", file=sys.stderr)
+        print(*index.values, sep=", ", file=sys.stderr)
+        idx1_ret = idx1.difference(index)
+        idx1_ret.name = idx1.name
+        if idx2 is not None:
+            idx2_ret = idx2.difference(index)
+            idx2_ret.name = idx2.name
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
         df = bin(df=df)
 
     # this is done if thersholding is necessary (e.g. for jaccard dist)
     if threshold:
-        df = threshold_df(df=df)
+        df = threshold_df(df=df, threshold_rel=threshold)
 
-    return df.transpose()
+    return (df.transpose(), idx1_ret, idx2_ret)
 
 def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
     return df
 
-def threshold_df(df: pd.DataFrame) -> pd.DataFrame:
 
-    df = df.transpose()
+def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
+    """
+    function to threshold a pd.DataFrame containing aboslute or relative 
+    abunances for items (rows, e.g. metabolites) across different 
+    conditions (columns).
 
-    # replacing 0s with NaN such that they don't interfere with
-    # calulating the threshold
-    df.replace(0, np.nan, inplace=True)
+    Returns a truth table encoded with 0s and 1s denoting if the value 
+    falls above the determined threshold. Note that NA values in the DF 
+    passed to the function will automatically be cast to 'False' / 0
+    """
 
-    # creating a Series containing thersholds for individual instances
-    # currently the threshold is calculated per instance & across
-    # different conditions (axis = 0)
-    s_thresh = (df.min(axis=0)) + (((df.max(axis=0)) - (df.min(axis=0))) / 2)
+    # it is assumed that the DF that is passed to the function will not
+    # contain NaNs/NAs in place of 0s. If this is not the case the if 
+    # statement below is triggered and 0s are replaced with NaN such 
+    # that they don't interfere with calulating the threshold
+    if df.eq(0).any(axis=None):
+        df.replace(0, np.nan, inplace=True)
+    
+    # creating a Series containing thresholds for individual items
+    # currently the threshold is calculated per item across different
+    # conditions (axis = 1).
+    s_thresh = (
+        df.min(axis=1)
+        + (df.max(axis=1) - df.min(axis=1)) * threshold_rel
+    )
     
     # generating the return DataFrame
+    # ATTN: DataFrame.ge() will return 'False' for NaNs
     df_ret = (
         df
-        .ge(s_thresh) # checks if the cell satisfies the thershold
+        .ge(s_thresh, axis='index') # check if cell satisfies the threshold
         .astype(int) # casts the boolean returned by `.gt()` to int(0,1)
-        ).transpose() # transpose to return df in original orientation
+        )
     
     return df_ret
 
-def filter_for_missing_values(df: pd.DataFrame, cutoff: float,
-        drop_na: bool=False) -> tuple[pd.DataFrame, pd.Index]:
+
+def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
+        drop_na_cols: bool=True) -> tuple[pd.DataFrame, pd.Index]:
+    """
+    Takes a pd.DataFrame and removes low confidence (to many NAs) 
+    items (rows) from the DataFrame. The `cutoff` argument passed to 
+    the function determines how complete (i.e. the fraction of non-NA 
+    values) an item (row) needs to be to retained in the DataFrame.
+    Additionally, the function can be told to keep any columns that 
+    are completely populated with NAs/0s as a result of removing items 
+    from the DataFrame. By default those columns are dropped.
+    """
     
     # treating '0' as NaNs for easier counting of missing values
     df.replace(0, np.nan, inplace=True)
 
-    df = df.transpose()
-
-    # creating an index of rows to filter
-    s = (((
-        df[df.columns] # per column
-        .notna().sum()) # count all NaNs
-        /df.shape[0]) # divide by the total number of rows
-        .le(cutoff) # check if fraction is less or equal than cutoff
-    )
-    index = s[s].index # creating the actual index
+    # creating an index of rows (items) to filter i.e. finding the rows
+    # that where the fraction of NAs is larger than 1-cutoff
+    s = (
+        (df.isna() # create truth table whether values is NaN
+         .sum(axis=1) # sum "True" iterating over columns for each row
+         /df.shape[1]) # divide by the number of columns
+         .gt(1-cutoff) # check if fraction of NAs (in row) is > cutoff
+        )
+    index = s[s].index # creating the actual index (i.e. which rows to drop)
 
     # filter the DataFrame
     df_filtered = df.drop(
         labels=index, # using the defined index from above
-        axis='columns', # drop based on columns
-        ).transpose()
+        axis='index', # drop based on rows
+        )
     
-    if drop_na:
+    # if the above procedure generated columns (conditions) that contain
+    # only NAs as values, those will be removed. The behaviour can be 
+    # toggled with a function argument (default = True)
+    if drop_na_cols:
         df_filtered.dropna(axis="columns", how="all", inplace=True)
-        # df_filtered.dropna(axis="columns", inplace=True)
     
-    df_filtered.replace(np.nan, 0, inplace=True) # necessary for nan rows
-    
+    # return both the filtered df and the index of dropped items
     return (df_filtered, index)
+
 
 def write_outfile(df: pd.DataFrame, file_handle: str, reduced_output: bool=False,
                   output_type: Literal[
@@ -137,11 +223,11 @@ def write_outfile(df: pd.DataFrame, file_handle: str, reduced_output: bool=False
     can be either a file or sys.stdout.
     """
     if output_type == 'sorted_list':
-        s_sorted = sort_associations(df=df, reduced_output=reduced_output)
-        df = beautify_series(s_sorted)
+        df = beautify_series(df=df)
         df.to_csv(file_handle, encoding='utf-8', index=False)
     elif output_type == 'correlation_matrix':
         df.to_csv(file_handle, encoding='utf-8')
+
 
 def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
     """
