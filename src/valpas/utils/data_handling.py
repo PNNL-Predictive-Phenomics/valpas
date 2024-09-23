@@ -77,7 +77,7 @@ def prep_data(
         filepath_or_buffer_2: (str | PathLike | TextIO)=None,
         filter_cutoff: float=0.9,
         cut: bool=False, threshold: float=None
-        ) -> pd.DataFrame:
+        ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
     """
     Imports data file(s) from file_path_or_buffer into pandas DataFrame
     object(s). If tow data files are provided, the two imported 
@@ -90,13 +90,24 @@ def prep_data(
     - binned (necessary for mutual information)
     - thresholded (necessary for Jaccard Index/Similarity)
 
-    Returns pandas DataFrame object containing transposed data.
+    Returns a tuple containing:
+    
+    1. a pandas DataFrame object containing transposed data
+    2. a pandas Index object containing the index of the DataFrame
+    resulting from importing `filepath_or_buffer`
+    3. a pandas Index object containing the index of the DataFrame
+    resulting from importing `filepath_or_buffer_2` or if 
+    `filepath_or_buffer_2` was not passed to the function (i.e. `None`) 
+    then `None` is returned as the 3rd position of the tuple
     """
 
     df = import_csv(filepath_or_buffer)
+    idx_1 = df.index
+    idx_2 = None
 
     if filepath_or_buffer_2 is not None:
         df_2 = import_csv(filepath_or_buffer_2)
+        idx_2 = df_2.index
         df = pd.concat([df, df_2], join='inner')
 
 
@@ -114,7 +125,7 @@ def prep_data(
     if threshold:
         df = threshold_df(df=df, threshold_rel=threshold)
 
-    return df.transpose()
+    return (df.transpose(), idx_1, idx_2)
 
 def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
