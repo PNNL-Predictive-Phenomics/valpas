@@ -3,80 +3,81 @@ Module containing functions for the calculation of associations used by
 ValPAS.
 """
 
+
+from os import PathLike
 from typing import Literal
+from typing import TextIO
 
 import pandas as pd
 
 from scipy.spatial.distance import cosine
 from sklearn.metrics import mutual_info_score
-from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import jaccard_score
 
 from valpas.utils.data_handling import prep_data
-from valpas.utils.data_handling import reduce_to_shared_conditions
 
 def calc_correlation(
-        fpath_1: str,
-        fpath_2: str=None,
+        filepath_or_buffer: str | PathLike | TextIO,
+        filepath_or_buffer_2: (str | PathLike | TextIO)=None,
         corr_func: Literal['pearson', 'kendall', 'spearman']='pearson',
-        filter_cutoff: float=None,
+        filter_cutoff: float=0.9,
     ) -> pd.DataFrame:
     
-    df_1 = prep_data(fpath_1, filter_cutoff=filter_cutoff)
-    if fpath_2 is None:
-        df_corr = df_1.corr(method=corr_func)
-    else:
-        df_2 = prep_data(fpath_2, filter_cutoff=filter_cutoff)
-        df_1, df_2 = reduce_to_shared_conditions(df_1, df_2)
-        df_corr = df_1.apply(df_2.corrwith)
+    df, idx1, idx2 = prep_data(
+        filepath_or_buffer=filepath_or_buffer,
+        filepath_or_buffer_2=filepath_or_buffer_2,
+        filter_cutoff=filter_cutoff)
+    df_corr = df.corr(method=corr_func)
 
-    return df_corr
+    return df_corr, idx1, idx2
 
 def calc_mut_info(
-        fpath_1: str,
-        fpath_2: str=None,
-        filter_cutoff: float=None,
+        filepath_or_buffer: str | PathLike | TextIO,
+        filepath_or_buffer_2: (str | PathLike | TextIO)=None,
+        filter_cutoff: float=0.9,
+        cut: bool=True
         ) -> pd.DataFrame:
     
-    df_1 = prep_data(fpath_1, cut=True, filter_cutoff=filter_cutoff)
-    if fpath_2 is None:
-        df_mut_inf = df_1.corr(method=mutual_info_score)
-    else:
-        df_2 = prep_data(fpath_2, cut=True, filter_cutoff=filter_cutoff)
-        df_1, df_2 = reduce_to_shared_conditions(df_1, df_2)
-        df_mut_inf = df_1.apply(df_2.corrwith, method=mutual_info_score)
+    df, idx1, idx2 = prep_data(
+        filepath_or_buffer=filepath_or_buffer,
+        filepath_or_buffer_2=filepath_or_buffer_2,
+        filter_cutoff=filter_cutoff,
+        cut=cut)
+    df_mut_inf = df.corr(method=mutual_info_score)
     
-    return df_mut_inf
+    return df_mut_inf, idx1, idx2
 
 def calc_cosine_sim(
-        fpath_1: str,
-        fpath_2: str=None,
-        filter_cutoff: float=None,
+        filepath_or_buffer: str | PathLike | TextIO,
+        filepath_or_buffer_2: (str | PathLike | TextIO)=None,
+        filter_cutoff: float=0.9,
+        threshold: float=None
         ) -> pd.DataFrame:
 
-    df_1 = prep_data(fpath_1, threshold=True, filter_cutoff=filter_cutoff)
-    if fpath_2 is None:
-        df_cos_dist = df_1.corr(method=cosine)
-    else:
-        df_2 = prep_data(fpath_2, threshold=True, filter_cutoff=filter_cutoff)
-        df_1, df_2 = reduce_to_shared_conditions(df_1, df_2)
-        df_cos_dist = df_1.apply(df_2.corrwith, method=cosine)
-    
+    df, idx1, idx2 = prep_data(
+        filepath_or_buffer=filepath_or_buffer,
+        filepath_or_buffer_2=filepath_or_buffer_2,
+        filter_cutoff=filter_cutoff,
+        threshold=threshold
+    )
+    df_cos_dist = df.corr(method=cosine)
     df_cos_sim = df_cos_dist.rsub(1) # converting distance to similarity
     
-    return df_cos_sim
+    return df_cos_sim, idx1, idx2
 
 def calc_jaccard_sim(
-        fpath_1: str,
-        fpath_2: str=None,
-        filter_cutoff: float=None,
+        filepath_or_buffer: str | PathLike | TextIO,
+        filepath_or_buffer_2: (str | PathLike | TextIO)=None,
+        filter_cutoff: float=0.9,
+        threshold: float=0.5
         ) -> pd.DataFrame:
-    df_1 = prep_data(fpath_1, threshold=True, filter_cutoff=filter_cutoff)
-    if fpath_2 is None:
-        df_jaccard_sim = df_1.corr(method=jaccard_score)
-    else:
-        df_2 = prep_data(fpath_2, threshold=True, filter_cutoff=filter_cutoff)
-        df_1, df_2 = reduce_to_shared_conditions(df_1, df_2)
-        df_jaccard_sim = df_1.apply(df_2.corrwith, method=jaccard_score)
     
-    return df_jaccard_sim
+    df, idx1, idx2 = prep_data(
+        filepath_or_buffer=filepath_or_buffer,
+        filepath_or_buffer_2=filepath_or_buffer_2,
+        filter_cutoff=filter_cutoff,
+        threshold=threshold
+    )
+    df_jaccard_sim = df.corr(method=jaccard_score)
+    
+    return df_jaccard_sim, idx1, idx2
