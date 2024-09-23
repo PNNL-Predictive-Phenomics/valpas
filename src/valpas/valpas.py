@@ -69,7 +69,7 @@ def main(args):
         "-i", "--infile",
         dest="INFILE",
         required=True,
-        type=argparse.FileType('r'),
+        # type=argparse.FileType('r'),
         help="Path to input file containing data points for which "
              "associations are to be generated. If used on it's own (without "
              "'-I') associations between data instances of only this input "
@@ -78,11 +78,27 @@ def main(args):
     p_associate.add_argument(
         "-I", "--infile2",
         dest="INFILE2",
-        type=argparse.FileType('r'),
+        # type=argparse.FileType('r'),
         help="Path to an optional second input file. If passed to command "
              "associations between data instances of INFILE1 and INFILE2 will "
              "be generated."
         )
+    p_associate.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+    p_associate.add_argument(
+        "-S", "--excel_sheet_name_2",
+        dest="SHEET2",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE2 "
+             "if INFILE2 is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
     p_associate.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
@@ -221,6 +237,8 @@ def correlate(args):
     df_corr, idx1, idx2 = calc_correlation(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         corr_func=args.ASSOCIATION_TYPE,
         filter_cutoff=args.FILTER_CUTOFF,
         )

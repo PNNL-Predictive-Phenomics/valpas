@@ -30,6 +30,7 @@ dependencies:
   - decorator=5.1.1
   - defusedxml=0.7.1
   - entrypoints=0.4
+  - et_xmlfile=1.1.0
   - exceptiongroup=1.2.2
   - executing=2.0.1
   - fonttools=4.53.1
@@ -111,6 +112,7 @@ dependencies:
   - notebook-shim=0.2.4
   - numpy=2.1.0
   - openjpeg=2.5.2
+  - openpyxl=3.1.5
   - openssl=3.3.2
   - overrides=7.7.0
   - packaging=24.1

@@ -72,9 +72,35 @@ def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     return df
 
 
+def import_xls(
+        filepath_or_buffer: str | PathLike | TextIO,
+        sheet: str
+        ) -> pd.DataFrame:
+    filepath_or_buffer_ = filepath_or_buffer
+    if isinstance(filepath_or_buffer_, (str, PathLike, TextIOWrapper)):
+        try:
+            df = pd.read_excel(
+                io=filepath_or_buffer_,
+                sheet_name=sheet,
+                index_col=0,
+            )
+        except FileNotFoundError as err:
+            raise FileNotFoundError(err)
+    else:
+        error = (
+            f"filepath_or_buffer must be of type str, PathLike or TextIO. "
+            f"Supplied argument is of type {type(filepath_or_buffer_)}."
+            )
+        raise TypeError(error)
+    
+    return df
+
+
 def prep_data(
         filepath_or_buffer: str | PathLike | TextIO,
         filepath_or_buffer_2: (str | PathLike | TextIO)=None,
+        sheet1: str=None,
+        sheet2: str=None,
         filter_cutoff: float=0.9,
         cut: bool=False, threshold: float=None
         ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
@@ -101,12 +127,20 @@ def prep_data(
     then `None` is returned as the 3rd position of the tuple
     """
 
-    df = import_csv(filepath_or_buffer)
+    if sheet1 is not None:
+        df = import_xls(filepath_or_buffer=filepath_or_buffer, sheet=sheet1)
+    else:
+        df = import_csv(filepath_or_buffer)
     idx1 = df.index
     idx2 = None
 
     if filepath_or_buffer_2 is not None:
-        df_2 = import_csv(filepath_or_buffer_2)
+        if sheet2 is not None:
+            df_2 = import_xls(
+                filepath_or_buffer=filepath_or_buffer_2, sheet=sheet2
+                )
+        else:
+            df_2 = import_csv(filepath_or_buffer_2)
         idx2 = df_2.index
         df = pd.concat([df, df_2], join='inner')
 
