@@ -119,6 +119,7 @@ def beautify_series(df: pd.Series) -> pd.DataFrame:
     Series into a `pd.DataFrame` with column 1 & 2 being the indices 
     of the Series and column 3 the value.
     """
+    df = df.stack().sort_values(ascending=False)
     try:
         if df.index.names[0] == df.index.names[1]:
             id_1 = '_'.join([df.index.names[0], '1'])
@@ -133,7 +134,6 @@ def beautify_series(df: pd.Series) -> pd.DataFrame:
         id_2: df.index.get_level_values(1),
         'Correlation': df.values
         })
-    df_return = df_return.stack().sort_values(ascending=False) 
     return df_return
 
 

@@ -213,6 +213,7 @@ def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
     # return both the filtered df and the index of dropped items
     return (df_filtered, index)
 
+
 def write_outfile(df: pd.DataFrame, file_handle: str, reduced_output: bool=False,
                   output_type: Literal[
                       'sorted_list', 'correlation_matrix'
@@ -222,11 +223,11 @@ def write_outfile(df: pd.DataFrame, file_handle: str, reduced_output: bool=False
     can be either a file or sys.stdout.
     """
     if output_type == 'sorted_list':
-        s_sorted = sort_associations(df=df, reduced_output=reduced_output)
-        df = beautify_series(s_sorted)
+        df = beautify_series(df=df)
         df.to_csv(file_handle, encoding='utf-8', index=False)
     elif output_type == 'correlation_matrix':
         df.to_csv(file_handle, encoding='utf-8')
+
 
 def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
     """
