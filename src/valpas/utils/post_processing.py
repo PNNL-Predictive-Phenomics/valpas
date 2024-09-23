@@ -67,3 +67,16 @@ def beautify_series(df: pd.Series) -> pd.DataFrame:
         'Correlation': df.values
         })
     return df_return
+
+
+def idx_name(
+        df: pd.DataFrame, idx1: pd.Index, idx2: pd.DataFrame=None
+        ) -> pd.DataFrame:
+    
+    df.index.name = idx1.name
+    if idx2 is None:
+        df.columns.name = idx1.name
+    else:
+        df.columns.name = idx2.name
+    
+    return df
