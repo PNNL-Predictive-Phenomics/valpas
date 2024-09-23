@@ -102,12 +102,12 @@ def prep_data(
     """
 
     df = import_csv(filepath_or_buffer)
-    idx_1 = df.index
-    idx_2 = None
+    idx1 = df.index
+    idx2 = None
 
     if filepath_or_buffer_2 is not None:
         df_2 = import_csv(filepath_or_buffer_2)
-        idx_2 = df_2.index
+        idx2 = df_2.index
         df = pd.concat([df, df_2], join='inner')
 
 
@@ -116,7 +116,11 @@ def prep_data(
     if len(index.values) > 0:
         print("Removed items: ", end="", file=sys.stderr)
         print(*index.values, sep=", ", file=sys.stderr)
-        
+        idx1_ret = idx1.difference(index)
+        idx1_ret.name = idx1.name
+        if idx2 is not None:
+            idx2_ret = idx2.difference(index)
+            idx2_ret.name = idx2.name
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
         df = bin(df=df)
@@ -125,7 +129,7 @@ def prep_data(
     if threshold:
         df = threshold_df(df=df, threshold_rel=threshold)
 
-    return (df.transpose(), idx_1, idx_2)
+    return (df.transpose(), idx1_ret, idx2_ret)
 
 def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
