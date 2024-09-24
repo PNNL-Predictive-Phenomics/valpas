@@ -92,6 +92,15 @@ def main(args):
              "generated will be piped to stdout."
     )
     p_associate.add_argument(
+        "-O", "--outfile_counts",
+        dest="OUTFILE_COUNTS",
+        type=argparse.FileType('w'),
+        default=sys.stdout,
+        help="Path to an optional output file, that lists how many values "
+             "were used in the calculation of each association score. If "
+             "omitted, any output generated will be piped to stdout."
+    )
+    p_associate.add_argument(
         "-ot", "--output_type",
         dest="OUTPUT_TYPE",
         choices=(
@@ -218,15 +227,17 @@ def visualize(args):
         print("Not yet implemented.", file=sys.stderr)
 
 def correlate(args):
-    df_corr, idx1, idx2 = calc_correlation(
+    df_corr, idx1, idx2, df_counts = calc_correlation(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
         corr_func=args.ASSOCIATION_TYPE,
         filter_cutoff=args.FILTER_CUTOFF,
         )
-    if idx2 is not None and not args.REDUCED_OUTPUT:
+    if idx2 is not None or args.REDUCED_OUTPUT:
         df_corr = rm_duplicates(df=df_corr, idx1=idx1, idx2=idx2)
+        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_corr = idx_name(df_corr, idx1=idx1, idx2=idx2)
+    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
 
     write_outfile(
         df=df_corr,
@@ -234,6 +245,12 @@ def correlate(args):
         output_type=args.OUTPUT_TYPE,
         reduced_output=args.REDUCED_OUTPUT,
         )
+    write_outfile(
+        df=df_counts,
+        file_handle=args.OUTFILE_COUNTS,
+        output_type='correlation_matrix'
+    )
+
 
 def mutual_information(args):
     df_mut_inf = calc_mut_info(
@@ -249,27 +266,51 @@ def mutual_information(args):
     )
 
 def cosine_similarity(args):
-    df_mut_inf = calc_cosine_sim(
+    df_cosine_sim, idx1, idx2, df_counts = calc_cosine_sim(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
+    if idx2 is not None or args.REDUCED_OUTPUT:
+        df_cosine_sim = rm_duplicates(df=df_cosine_sim, idx1=idx1, idx2=idx2)
+        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+    df_cosine_sim = idx_name(df_cosine_sim, idx1=idx1, idx2=idx2)
+    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
+    
     write_outfile(
-        df=df_mut_inf,
+        df=df_cosine_sim,
         file_handle=args.OUTFILE,
         output_type=args.OUTPUT_TYPE,
         reduced_output=args.REDUCED_OUTPUT,
     )
+    write_outfile(
+        df=df_counts,
+        file_handle=args.OUTFILE_COUNTS,
+        output_type='correlation_matrix'
+    )
+
 
 def jaccard_similarity(args):
-    df_jaccard_sim = calc_jaccard_sim(
+    df_jaccard_sim, idx1, idx2, df_counts = calc_jaccard_sim(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
+    if idx2 is not None or args.REDUCED_OUTPUT:
+        df_jaccard_sim = rm_duplicates(df=df_jaccard_sim, idx1=idx1, idx2=idx2)
+        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+    df_jaccard_sim = idx_name(df_jaccard_sim, idx1=idx1, idx2=idx2)
+    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
+
     write_outfile(
         df=df_jaccard_sim,
         file_handle=args.OUTFILE,
         output_type=args.OUTPUT_TYPE,
         reduced_output=args.REDUCED_OUTPUT,
     )
+    write_outfile(
+        df=df_counts,
+        file_handle=args.OUTFILE_COUNTS,
+        output_type='correlation_matrix'
+    )
+
