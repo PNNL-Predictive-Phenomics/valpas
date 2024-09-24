@@ -94,3 +94,23 @@ def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:
             )
         )
     return sum(a_logical.astype(int)) # converts True to 1 and sums
+
+
+def count_vals_in_thresholded_association(
+        a: ArrayLike, b: ArrayLike) -> int:
+    # find positions i in a and b where no NaNs are present
+    a_logical = np.logical_not( # inverts T/F values from below
+        np.logical_or( # compares the two arrays from below
+            np.isnan(a), # returns logical array where NaNs -> True
+            np.isnan(b) # same as above
+            )
+        )
+    # add only where no NaNs are present
+    # positions where at least either a or b = 1 and neither of them is 
+    # NaN will add up to >=1
+    a_counts = np.add(a, b, where=a_logical)
+
+    # count positions where a_count >= 1
+    ret_val = sum(np.greater_equal(a_counts, 1).astype(int))
+
+    return ret_val
