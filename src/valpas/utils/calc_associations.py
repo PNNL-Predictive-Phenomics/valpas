@@ -30,8 +30,9 @@ def calc_correlation(
         filepath_or_buffer_2=filepath_or_buffer_2,
         filter_cutoff=filter_cutoff)
     df_corr = df.corr(method=corr_func)
+    df_counts = df.corr(method=count_vals_in_association)
 
-    return df_corr, idx1, idx2
+    return df_corr, idx1, idx2, df_counts
 
 def calc_mut_info(
         filepath_or_buffer: str | PathLike | TextIO,
@@ -64,8 +65,12 @@ def calc_cosine_sim(
     )
     df_cos_dist = df.corr(method=cosine)
     df_cos_sim = df_cos_dist.rsub(1) # converting distance to similarity
-    
-    return df_cos_sim, idx1, idx2
+    if threshold is None:
+        df_counts = df.corr(method=count_vals_in_association)
+    else:
+        df_counts = df.corr(method=count_vals_in_thresholded_association)
+
+    return df_cos_sim, idx1, idx2, df_counts
 
 def calc_jaccard_sim(
         filepath_or_buffer: str | PathLike | TextIO,
@@ -81,12 +86,13 @@ def calc_jaccard_sim(
         threshold=threshold
     )
     df_jaccard_sim = df.corr(method=jaccard_score)
-    
-    return df_jaccard_sim, idx1, idx2
+    df_counts = df.corr(method=count_vals_in_thresholded_association)
+
+    return df_jaccard_sim, idx1, idx2, df_counts
 
 
 def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:
-    # a_logical lists positions as True where both values are !NaN 
+    # find positions i in a and b where no NaNs are present
     a_logical = np.logical_not( # inverts T/F values from below
         np.logical_or( # compares the two arrays from below
             np.isnan(a), # returns logical array where NaNs -> True
