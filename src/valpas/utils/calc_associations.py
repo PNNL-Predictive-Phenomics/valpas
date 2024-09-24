@@ -8,6 +8,8 @@ from os import PathLike
 from typing import Literal
 from typing import TextIO
 
+import numpy as np
+from numpy.typing import ArrayLike
 import pandas as pd
 
 from scipy.spatial.distance import cosine
@@ -81,3 +83,14 @@ def calc_jaccard_sim(
     df_jaccard_sim = df.corr(method=jaccard_score)
     
     return df_jaccard_sim, idx1, idx2
+
+
+def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:
+    # a_logical lists positions as True where both values are !NaN 
+    a_logical = np.logical_not( # inverts T/F values from below
+        np.logical_or( # compares the two arrays from below
+            np.isnan(a), # returns logical array where NaNs -> True
+            np.isnan(b) # same as above
+            )
+        )
+    return sum(a_logical.astype(int)) # converts True to 1 and sums
