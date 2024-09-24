@@ -121,6 +121,8 @@ def prep_data(
         if idx2 is not None:
             idx2_ret = idx2.difference(index)
             idx2_ret.name = idx2.name
+        else:
+            idx2_ret = idx2
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
         df = bin(df=df)
