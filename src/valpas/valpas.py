@@ -19,7 +19,13 @@ from valpas.utils.post_processing import idx_name
 from valpas.visualization.heatmap import create_fig
 
 def main(args):
+    """
+    The main method.
+    """
 
+    # Defining the argument parser. There are sereval (currently two)
+    # subroutines (commands) that can be executed. For each of those a
+    # seperate subparser is instanciated.
     argp = argparse.ArgumentParser(
         add_help=False,
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -39,6 +45,11 @@ def main(args):
         required=True,
     )
 
+    # p_associate contains all arguments needed for the subroutine that
+    # establishes association values between items (proteins, lipids,
+    # metabolites, etc.). This can be either associations between items
+    # of one omics datatype (e.g. protein-protein) or across two
+    # different omics datatypes (e.g. protein-metabolite)
     p_associate = parsers.add_parser(
         "associate",
         description=
@@ -51,6 +62,10 @@ def main(args):
             association metrics are available to choose from (see below).
             '''
     )
+    # by default the function "associate" is executed with the arguments
+    # that are passed to the tool on the command line (see also 
+    # args.func(args) further down)
+    p_associate.set_defaults(func=associate)
     p_associate.add_argument(
         "-a", "--association_type",
         dest="ASSOCIATION_TYPE",
@@ -135,8 +150,8 @@ def main(args):
              "recorded larger than 0) in at least x of a fraction of the "
              "investigated conditions."
         )
-    p_associate.set_defaults(func=associate)
 
+    # the subparser definition for the visulatization component
     p_visualize = parsers.add_parser(
         "visualize",
         description=
@@ -148,7 +163,7 @@ def main(args):
             """
 
     )
-
+    # definition of default function call
     p_visualize.set_defaults(func=visualize)
     p_visualize.add_argument(
         "-i", "--infile",
@@ -183,6 +198,10 @@ def main(args):
              "jupyter notebook, where you might only want to display the "
              "generated plot but not necessarily store it."
     )
+
+    # small check if a command / subparser has been passed to valpas.py
+    # if not then the help will be printed (this is not standard
+    # behaviour in argparse for what ever reason...) 
     if len(sys.argv) == 1:
         argp.print_help(sys.stderr)
         sys.exit(1)
@@ -191,6 +210,11 @@ def main(args):
 
 
 def cutoff_range(x):
+    """
+    Helper function that checks if a value passed on the command line
+    is a float and whether it is in a predefined range of [0.0, 1.0].
+    Used in conjunction with argparser.add_argument(*, type=...). 
+    """
     try:
         x = float(x)
     except ValueError:
@@ -239,12 +263,23 @@ def correlate(args):
     df_corr = idx_name(df_corr, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
 
+    # print(
+    #     *("-----","Generating association score output...", "-----"),
+    #     sep='\n',
+    #     file=sys.stderr
+    #     )
     write_outfile(
         df=df_corr,
         file_handle=args.OUTFILE,
         output_type=args.OUTPUT_TYPE,
         reduced_output=args.REDUCED_OUTPUT,
         )
+    
+    # print(
+    #     *("-----","Generating association score metadata...", "-----"),
+    #     sep='\n',
+    #     file=sys.stderr
+    #     )
     write_outfile(
         df=df_counts,
         file_handle=args.OUTFILE_COUNTS,

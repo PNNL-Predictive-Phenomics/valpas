@@ -134,6 +134,9 @@ def prep_data(
     return (df.transpose(), idx1_ret, idx2_ret)
 
 def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
+    """
+    Helper function for binning the values of rows in a DataFrame
+    """
     df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
     return df
 
