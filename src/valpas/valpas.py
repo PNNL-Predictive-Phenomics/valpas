@@ -12,6 +12,7 @@ from valpas.utils.calc_associations import calc_mut_info
 from valpas.utils.calc_associations import calc_cosine_sim
 from valpas.utils.calc_associations import calc_jaccard_sim
 from valpas.utils.checker import check_file
+from valpas.utils.checker import check_cutoff_range
 from valpas.utils.data_handling import write_outfile
 from valpas.utils.data_handling import import_asssociation_matrix
 from valpas.utils.post_processing import rm_duplicates
@@ -136,7 +137,7 @@ def main(args):
     p_associate.add_argument(
         "-f", "--filter_missing_values",
         dest="FILTER_CUTOFF",
-        type=cutoff_range,
+        type=check_cutoff_range,
         default=0.9,
         help="Can be set to a float between [0.0, 1.0]. If passed to the "
              "command a datapoint e.g. metabolite has to be detected (a value "
@@ -196,16 +197,6 @@ def main(args):
         sys.exit(1)
     args = argp.parse_args(args)
     args.func(args)
-
-
-def cutoff_range(x):
-    try:
-        x = float(x)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f'{x} not a float')
-    if x < 0.0 or x > 1.0:
-        raise argparse.ArgumentTypeError(f'{x} not in range [0.0, 1.0]')
-    return x
 
 
 def associate(args):
