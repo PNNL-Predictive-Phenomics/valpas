@@ -7,6 +7,7 @@ ValPAS.
 from os import PathLike
 from typing import Literal
 from typing import TextIO
+import sys
 
 import pandas as pd
 
@@ -25,12 +26,15 @@ def calc_correlation(
         filter_cutoff: float=0.9,
     ) -> pd.DataFrame:
     
-    df, idx1, idx2 = prep_data(
-        filepath_or_buffer=filepath_or_buffer,
-        filepath_or_buffer_2=filepath_or_buffer_2,
-        sheet1=sheet1,
-        sheet2=sheet2,
-        filter_cutoff=filter_cutoff)
+    try:
+        df, idx1, idx2 = prep_data(
+            filepath_or_buffer=filepath_or_buffer,
+            filepath_or_buffer_2=filepath_or_buffer_2,
+            sheet1=sheet1,
+            sheet2=sheet2,
+            filter_cutoff=filter_cutoff)
+    except ValueError as e:
+        sys.exit(e)
     df_corr = df.corr(method=corr_func)
 
     return df_corr, idx1, idx2

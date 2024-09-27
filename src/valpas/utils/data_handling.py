@@ -7,8 +7,10 @@ input & output).
 import sys
 
 from io import TextIOWrapper
+from pathlib import Path
 from typing import Literal
 from typing import TextIO
+from typing import BinaryIO
 from os import PathLike
 
 import pandas as pd
@@ -73,7 +75,7 @@ def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
 
 
 def import_xls(
-        filepath_or_buffer: str | PathLike | TextIO,
+        filepath_or_buffer: str | PathLike | BinaryIO,
         sheet: str
         ) -> pd.DataFrame:
     filepath_or_buffer_ = filepath_or_buffer
@@ -97,8 +99,8 @@ def import_xls(
 
 
 def prep_data(
-        filepath_or_buffer: str | PathLike | TextIO,
-        filepath_or_buffer_2: (str | PathLike | TextIO)=None,
+        filepath_or_buffer: str | PathLike | Path,
+        filepath_or_buffer_2: (str | PathLike | Path )=None,
         sheet1: str=None,
         sheet2: str=None,
         filter_cutoff: float=0.9,
@@ -127,19 +129,41 @@ def prep_data(
     then `None` is returned as the 3rd position of the tuple
     """
 
-    if sheet1 is not None:
+    if not isinstance(filepath_or_buffer, Path):
+        filepath_or_buffer = Path(filepath_or_buffer).absolute()
+
+    f_suffix = filepath_or_buffer.suffix
+    if f_suffix == '.xlsx':
+        if sheet1 is None:
+            raise ValueError(
+                f"No Sheet name provided for file {filepath_or_buffer}"
+            )
         df = import_xls(filepath_or_buffer=filepath_or_buffer, sheet=sheet1)
-    else:
+    elif f_suffix == '.csv':
         df = import_csv(filepath_or_buffer)
+    else:
+        
+        raise ValueError(
+            f"Supplied file is of type '{suffix}'. Expected '.csv' or '.xlsx'."
+            )
+    
     idx1 = df.index
     idx2 = None
 
     if filepath_or_buffer_2 is not None:
-        if sheet2 is not None:
+        if not isinstance(filepath_or_buffer_2, Path):
+            filepath_or_buffer_2 = Path(filepath_or_buffer_2).absolute()
+
+        f_suffix = filepath_or_buffer_2.suffix
+        if f_suffix == '.xlsx':    
+            if sheet2 is None:
+                raise ValueError(
+                    f"No Sheet name provided for file {filepath_or_buffer_2}"
+                )
             df_2 = import_xls(
                 filepath_or_buffer=filepath_or_buffer_2, sheet=sheet2
                 )
-        else:
+        elif f_suffix == '.csv':
             df_2 = import_csv(filepath_or_buffer_2)
         idx2 = df_2.index
         df = pd.concat([df, df_2], join='inner')

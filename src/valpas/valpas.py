@@ -195,7 +195,12 @@ def main(args):
     if len(sys.argv) == 1:
         argp.print_help(sys.stderr)
         sys.exit(1)
-    args = argp.parse_args(args)
+    try:
+        args = argp.parse_args(args)
+    except FileNotFoundError as e:
+        sys.exit(e)
+    except ValueError as e:
+        sys.exit(e)
     args.func(args)
 
 
