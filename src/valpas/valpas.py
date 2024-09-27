@@ -11,6 +11,7 @@ from valpas.utils.calc_associations import calc_correlation
 from valpas.utils.calc_associations import calc_mut_info
 from valpas.utils.calc_associations import calc_cosine_sim
 from valpas.utils.calc_associations import calc_jaccard_sim
+from valpas.utils.checker import check_file
 from valpas.utils.data_handling import write_outfile
 from valpas.utils.data_handling import import_asssociation_matrix
 from valpas.utils.post_processing import rm_duplicates
@@ -69,7 +70,7 @@ def main(args):
         "-i", "--infile",
         dest="INFILE",
         required=True,
-        # type=argparse.FileType('r'),
+        type=check_file,
         help="Path to input file containing data points for which "
              "associations are to be generated. If used on it's own (without "
              "'-I') associations between data instances of only this input "
@@ -78,7 +79,7 @@ def main(args):
     p_associate.add_argument(
         "-I", "--infile2",
         dest="INFILE2",
-        # type=argparse.FileType('r'),
+        type=check_file,
         help="Path to an optional second input file. If passed to command "
              "associations between data instances of INFILE1 and INFILE2 will "
              "be generated."
