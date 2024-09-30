@@ -231,6 +231,7 @@ def visualize(args):
         print("Not yet implemented.", file=sys.stderr)
 
 def correlate(args):
+    
     df_corr, idx1, idx2 = calc_correlation(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
@@ -251,11 +252,17 @@ def correlate(args):
         )
 
 def mutual_information(args):
-    df_mut_inf = calc_mut_info(
+    df_mut_inf, idx1, idx2 = calc_mut_info(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
+    if idx2 is not None and not args.REDUCED_OUTPUT:
+        df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
+    df_mut_inf = idx_name(df_mut_inf, idx1=idx1, idx2=idx2)
+
     write_outfile(
         df=df_mut_inf,
         file_handle=args.OUTFILE,
@@ -264,11 +271,17 @@ def mutual_information(args):
     )
 
 def cosine_similarity(args):
-    df_mut_inf = calc_cosine_sim(
+    df_mut_inf, idx1, idx2 = calc_cosine_sim(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
+    if idx2 is not None and not args.REDUCED_OUTPUT:
+        df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
+    df_mut_inf = idx_name(df_mut_inf, idx1=idx1, idx2=idx2)
+
     write_outfile(
         df=df_mut_inf,
         file_handle=args.OUTFILE,
@@ -277,11 +290,17 @@ def cosine_similarity(args):
     )
 
 def jaccard_similarity(args):
-    df_jaccard_sim = calc_jaccard_sim(
+    df_jaccard_sim, idx1, idx2 = calc_jaccard_sim(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
+    if idx2 is not None and not args.REDUCED_OUTPUT:
+        df_jaccard_sim = rm_duplicates(df=df_jaccard_sim, idx1=idx1, idx2=idx2)
+    df_jaccard_sim = idx_name(df_jaccard_sim, idx1=idx1, idx2=idx2)
+
     write_outfile(
         df=df_jaccard_sim,
         file_handle=args.OUTFILE,
