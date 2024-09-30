@@ -78,8 +78,28 @@ def import_xls(
         filepath_or_buffer: str | PathLike | BinaryIO,
         sheet: str
         ) -> pd.DataFrame:
+    """
+    Imports a sheet within a xlsx file into a pandas DataFrame.
+
+    Input for filepath_or_buffer can be either:
+      - a string that is the path to the infile 
+      - a path like object (e.g. generated via `os.path`) to the infile
+      - a file handle (e.g. opened via `argparse.FileType`)
+    
+    Requires the name of the sheet to be imported (`sheet`).
+      
+    Raises:
+        - FileNotFoundError: If supplied path to file does not resolve
+        to a file
+        - TypeError: If the supplied filepath_or_buffer is not an
+        instance of `str`, `PathLike` or `BinaryIO`
+
+    Returns:
+        - `pandas.DataFrame` containing the contents of the defined
+        sheet
+    """
     filepath_or_buffer_ = filepath_or_buffer
-    if isinstance(filepath_or_buffer_, (str, PathLike, TextIOWrapper)):
+    if isinstance(filepath_or_buffer_, (str, PathLike, BinaryIO)):
         try:
             df = pd.read_excel(
                 io=filepath_or_buffer_,
@@ -108,7 +128,7 @@ def prep_data(
         ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
     """
     Imports data file(s) from file_path_or_buffer into pandas DataFrame
-    object(s). If tow data files are provided, the two imported 
+    object(s). If two data files are provided, the two imported 
     DataFrames are concatenated over their shared columns (conditions). 
     Finally, (depending on the arguments passed to the function call) 
     the resulting DataFrame is:
@@ -141,11 +161,11 @@ def prep_data(
         df = import_xls(filepath_or_buffer=filepath_or_buffer, sheet=sheet1)
     elif f_suffix == '.csv':
         df = import_csv(filepath_or_buffer)
-    else:
-        
+    else: 
         raise ValueError(
-            f"Supplied file is of type '{suffix}'. Expected '.csv' or '.xlsx'."
-            )
+            f"Supplied file is of type '{f_suffix}'. "
+            "Expected '.csv' or '.xlsx'."
+         )
     
     idx1 = df.index
     idx2 = None
@@ -165,6 +185,11 @@ def prep_data(
                 )
         elif f_suffix == '.csv':
             df_2 = import_csv(filepath_or_buffer_2)
+        else:
+            raise ValueError(
+                f"Supplied file is of type '{f_suffix}'. "
+                "Expected '.csv' or '.xlsx'."
+            )
         idx2 = df_2.index
         df = pd.concat([df, df_2], join='inner')
 
