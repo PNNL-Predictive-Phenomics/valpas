@@ -204,6 +204,8 @@ def prep_data(
         if idx2 is not None:
             idx2_ret = idx2.difference(index)
             idx2_ret.name = idx2.name
+        else:
+            idx2_ret = idx2
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
         df = bin(df=df)
@@ -247,11 +249,14 @@ def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     
     # generating the return DataFrame
     # ATTN: DataFrame.ge() will return 'False' for NaNs
+    # An additional step (see mask) is needed to cast NaNs back into 
+    # the return DF.
     df_ret = (
         df
         .ge(s_thresh, axis='index') # check if cell satisfies the threshold
         .astype(int) # casts the boolean returned by `.gt()` to int(0,1)
         )
+    df_ret.mask(df.isna(), df, inplace=True)
     
     return df_ret
 
