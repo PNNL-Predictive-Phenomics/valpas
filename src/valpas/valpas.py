@@ -11,6 +11,8 @@ from valpas.utils.calc_associations import calc_correlation
 from valpas.utils.calc_associations import calc_mut_info
 from valpas.utils.calc_associations import calc_cosine_sim
 from valpas.utils.calc_associations import calc_jaccard_sim
+from valpas.utils.checker import check_file
+from valpas.utils.checker import check_cutoff_range
 from valpas.utils.data_handling import write_outfile
 from valpas.utils.data_handling import import_asssociation_matrix
 from valpas.utils.post_processing import rm_duplicates
@@ -69,7 +71,7 @@ def main(args):
         "-i", "--infile",
         dest="INFILE",
         required=True,
-        type=argparse.FileType('r'),
+        type=check_file,
         help="Path to input file containing data points for which "
              "associations are to be generated. If used on it's own (without "
              "'-I') associations between data instances of only this input "
@@ -78,11 +80,27 @@ def main(args):
     p_associate.add_argument(
         "-I", "--infile2",
         dest="INFILE2",
-        type=argparse.FileType('r'),
+        type=check_file,
         help="Path to an optional second input file. If passed to command "
              "associations between data instances of INFILE1 and INFILE2 will "
              "be generated."
         )
+    p_associate.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+    p_associate.add_argument(
+        "-S", "--excel_sheet_name_2",
+        dest="SHEET2",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE2 "
+             "if INFILE2 is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
     p_associate.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
@@ -128,7 +146,7 @@ def main(args):
     p_associate.add_argument(
         "-f", "--filter_missing_values",
         dest="FILTER_CUTOFF",
-        type=cutoff_range,
+        type=check_cutoff_range,
         default=0.9,
         help="Can be set to a float between [0.0, 1.0]. If passed to the "
              "command a datapoint e.g. metabolite has to be detected (a value "
@@ -186,18 +204,13 @@ def main(args):
     if len(sys.argv) == 1:
         argp.print_help(sys.stderr)
         sys.exit(1)
-    args = argp.parse_args(args)
-    args.func(args)
-
-
-def cutoff_range(x):
     try:
-        x = float(x)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f'{x} not a float')
-    if x < 0.0 or x > 1.0:
-        raise argparse.ArgumentTypeError(f'{x} not in range [0.0, 1.0]')
-    return x
+        args = argp.parse_args(args)
+    except FileNotFoundError as e:
+        sys.exit(e)
+    except ValueError as e:
+        sys.exit(e)
+    args.func(args)
 
 
 def associate(args):
@@ -230,6 +243,8 @@ def correlate(args):
     df_corr, idx1, idx2, df_counts = calc_correlation(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         corr_func=args.ASSOCIATION_TYPE,
         filter_cutoff=args.FILTER_CUTOFF,
         )
@@ -253,11 +268,17 @@ def correlate(args):
 
 
 def mutual_information(args):
-    df_mut_inf = calc_mut_info(
+    df_mut_inf, idx1, idx2 = calc_mut_info(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
+    if idx2 is not None and not args.REDUCED_OUTPUT:
+        df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
+    df_mut_inf = idx_name(df_mut_inf, idx1=idx1, idx2=idx2)
+
     write_outfile(
         df=df_mut_inf,
         file_handle=args.OUTFILE,
@@ -269,6 +290,8 @@ def cosine_similarity(args):
     df_cosine_sim, idx1, idx2, df_counts = calc_cosine_sim(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
     if idx2 is not None or args.REDUCED_OUTPUT:
@@ -294,6 +317,8 @@ def jaccard_similarity(args):
     df_jaccard_sim, idx1, idx2, df_counts = calc_jaccard_sim(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
     if idx2 is not None or args.REDUCED_OUTPUT:

@@ -7,8 +7,10 @@ input & output).
 import sys
 
 from io import TextIOWrapper
+from pathlib import Path
 from typing import Literal
 from typing import TextIO
+from typing import BinaryIO
 from os import PathLike
 
 import pandas as pd
@@ -72,15 +74,61 @@ def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     return df
 
 
+def import_xls(
+        filepath_or_buffer: str | PathLike | BinaryIO,
+        sheet: str
+        ) -> pd.DataFrame:
+    """
+    Imports a sheet within a xlsx file into a pandas DataFrame.
+
+    Input for filepath_or_buffer can be either:
+      - a string that is the path to the infile 
+      - a path like object (e.g. generated via `os.path`) to the infile
+      - a file handle (e.g. opened via `argparse.FileType`)
+    
+    Requires the name of the sheet to be imported (`sheet`).
+      
+    Raises:
+        - FileNotFoundError: If supplied path to file does not resolve
+        to a file
+        - TypeError: If the supplied filepath_or_buffer is not an
+        instance of `str`, `PathLike` or `BinaryIO`
+
+    Returns:
+        - `pandas.DataFrame` containing the contents of the defined
+        sheet
+    """
+    filepath_or_buffer_ = filepath_or_buffer
+    if isinstance(filepath_or_buffer_, (str, PathLike, BinaryIO)):
+        try:
+            df = pd.read_excel(
+                io=filepath_or_buffer_,
+                sheet_name=sheet,
+                index_col=0,
+            )
+        except FileNotFoundError as err:
+            raise FileNotFoundError(err)
+    else:
+        error = (
+            f"filepath_or_buffer must be of type str, PathLike or TextIO. "
+            f"Supplied argument is of type {type(filepath_or_buffer_)}."
+            )
+        raise TypeError(error)
+    
+    return df
+
+
 def prep_data(
-        filepath_or_buffer: str | PathLike | TextIO,
-        filepath_or_buffer_2: (str | PathLike | TextIO)=None,
+        filepath_or_buffer: str | PathLike | Path,
+        filepath_or_buffer_2: (str | PathLike | Path )=None,
+        sheet1: str=None,
+        sheet2: str=None,
         filter_cutoff: float=0.9,
         cut: bool=False, threshold: float=None
         ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
     """
     Imports data file(s) from file_path_or_buffer into pandas DataFrame
-    object(s). If tow data files are provided, the two imported 
+    object(s). If two data files are provided, the two imported 
     DataFrames are concatenated over their shared columns (conditions). 
     Finally, (depending on the arguments passed to the function call) 
     the resulting DataFrame is:
@@ -101,12 +149,47 @@ def prep_data(
     then `None` is returned as the 3rd position of the tuple
     """
 
-    df = import_csv(filepath_or_buffer)
+    if not isinstance(filepath_or_buffer, Path):
+        filepath_or_buffer = Path(filepath_or_buffer).absolute()
+
+    f_suffix = filepath_or_buffer.suffix
+    if f_suffix == '.xlsx':
+        if sheet1 is None:
+            raise ValueError(
+                f"No Sheet name provided for file {filepath_or_buffer}"
+            )
+        df = import_xls(filepath_or_buffer=filepath_or_buffer, sheet=sheet1)
+    elif f_suffix == '.csv':
+        df = import_csv(filepath_or_buffer)
+    else: 
+        raise ValueError(
+            f"Supplied file is of type '{f_suffix}'. "
+            "Expected '.csv' or '.xlsx'."
+         )
+    
     idx1 = df.index
     idx2 = None
 
     if filepath_or_buffer_2 is not None:
-        df_2 = import_csv(filepath_or_buffer_2)
+        if not isinstance(filepath_or_buffer_2, Path):
+            filepath_or_buffer_2 = Path(filepath_or_buffer_2).absolute()
+
+        f_suffix = filepath_or_buffer_2.suffix
+        if f_suffix == '.xlsx':    
+            if sheet2 is None:
+                raise ValueError(
+                    f"No Sheet name provided for file {filepath_or_buffer_2}"
+                )
+            df_2 = import_xls(
+                filepath_or_buffer=filepath_or_buffer_2, sheet=sheet2
+                )
+        elif f_suffix == '.csv':
+            df_2 = import_csv(filepath_or_buffer_2)
+        else:
+            raise ValueError(
+                f"Supplied file is of type '{f_suffix}'. "
+                "Expected '.csv' or '.xlsx'."
+            )
         idx2 = df_2.index
         df = pd.concat([df, df_2], join='inner')
 
