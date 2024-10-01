@@ -47,15 +47,74 @@ def reduce_to_shared_conditions(
     return (df_1_ret, df_2_ret)
 
 
-def export_xlsx(filepath_or_buffer: str | PathLike | Path,
+def export_csv(
+        filepath: str | PathLike | Path,
+        data: pd.DataFrame,
+        overwrite=False
+        ) -> None:
+    """
+    Helper function to export computed DataFrame to csv formated plain 
+    text.
+
+    Parameters
+    ----------
+    filepath : str | PathLike | Path
+        Path to the *.csv that should be used for the export of data
+    data : pandas.DataFrame
+        Single pandas.DataFrame that contains the data to be stored.
+    overwrite : bool, default=False
+        If passed to the function as 'True', then the csv-file that is 
+        pointed to by **filepath** will be overwritten if it already 
+        exists.
+    
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    FileExistsError
+        If file pointed to by **filepath** already exists and 
+        **overwrite**==False
+    TypeError
+        If **filepath** passed to function is not of a 'legal' type. 
+    """
+
+    # check if filepath is of 'legal' type
+    if not isinstance(filepath, (str, PathLike, Path)):
+        raise TypeError(
+            f"filepath must be of type str, PathLike or Path. "
+            f"Supplied argument is of type {type(filepath)}."
+        )
+    
+    # making sure that the filepath does not point to an existing file
+    # and overwrite has been set to False
+    filepath_ = Path(filepath).absolute()
+    if filepath_.is_file() and not overwrite:
+        raise FileExistsError(
+            f"File '{filepath_}' already exists. If you want to overwrite the "
+            f"file please specify so with argument -oo/--overwrite_output."
+        )
+    # if filepath points to a new file or overwrite==True then write the
+    # file
+    else:
+        data.to_csv(filepath_, encoding='utf-8')
+
+    return None
+
+
+def export_xlsx(
+        filepath: str | PathLike | Path,
         dfs: pd.DataFrame | list[pd.DataFrame],
-        sheets: str | list[str], overwrite=False) -> None:
+        sheets: str | list[str],
+        overwrite=False
+        ) -> None:
     """
     Helper function to export computed DataFrame(s) to an Excel file
 
     Parameters
     ----------
-    filepath_or_buffer : str | PathLike | Path
+    filepath : str | PathLike | Path
         Path to *.xlsx file that should be used for the export of data
     dfs : pandas.DataFrame | list[pandas.DataFrame]
         Either a single pandas.DataFrame object or a list of objects. 
@@ -77,7 +136,7 @@ def export_xlsx(filepath_or_buffer: str | PathLike | Path,
     Raises
     ------
     TypeError
-        If the passed filepath_or_buffer is not the correct type
+        If the passed filepath is not the correct type
     TypeError
         If dfs or sheets is not the correct type or they don't match
         in type (e.g. type(dfs)==list & type(sheets)==str)
@@ -87,17 +146,16 @@ def export_xlsx(filepath_or_buffer: str | PathLike | Path,
     """
 
     # check to make sure the filepath passed to the function is 'legal'
-    filepath_or_buffer_ = filepath_or_buffer
-    if not isinstance(filepath_or_buffer_, (str, PathLike, Path)):
+    if not isinstance(filepath, (str, PathLike, Path)):
         raise TypeError(
-            f"filepath_or_buffer must be of type str, PathLike or Path. "
-            f"Supplied argument is of type {type(filepath_or_buffer_)}."
+            f"filepath must be of type str, PathLike or Path. "
+            f"Supplied argument is of type {type(filepath)}."
         )
     else:
         # determining the mode to pass to ExcelWriter depending on 
         # whether the file already exists
-        filepath_or_buffer_ = Path(filepath_or_buffer_).absolute()
-        if filepath_or_buffer_.is_file():
+        filepath_ = Path(filepath).absolute()
+        if filepath_.is_file():
             mode = 'a'
         else:
             mode = 'w'
@@ -126,7 +184,7 @@ def export_xlsx(filepath_or_buffer: str | PathLike | Path,
         # elements
         if len(dfs) != len(sheets):
             raise ValueError(
-                f"Number of DataFrames to write to {filepath_or_buffer_} does "
+                f"Number of DataFrames to write to {filepath_} does "
                 "not match number of supplied Sheet names."
             )
         # If we append to the Excel file (we previously checked if the 
@@ -136,7 +194,7 @@ def export_xlsx(filepath_or_buffer: str | PathLike | Path,
         # Sheets should be overwritten.
         if mode == 'a':
             try:
-                with ExcelWriter(filepath_or_buffer_, mode='a',
+                with ExcelWriter(filepath_, mode='a',
                              if_sheet_exists=if_sheet_exists_) as writer:
                     for i in range(0, len(dfs)): # export all DFs
                         dfs[i].to_excel(writer, sheet_name=sheets[i])
@@ -146,14 +204,14 @@ def export_xlsx(filepath_or_buffer: str | PathLike | Path,
                 # overwritten.
                 sys.exit(
                     f"Sheet '{sheets[i]}' already exists in "
-                    f"{filepath_or_buffer_}. Please choose a different sheet "
+                    f"{filepath_}. Please choose a different sheet "
                     f"name or use -oo/--overwrite_output, to overwrite "
                     f"contents in sheet '{sheets[i]}."
                 )
         # If a new file is being generated we don't need to try/catch
         # the "exsisting sheet" error
         elif mode == 'w':
-            with ExcelWriter(filepath_or_buffer_, mode='w') as writer:
+            with ExcelWriter(filepath_, mode='w') as writer:
                 for i in range(0, len(dfs)):
                     dfs[i].to_excel(writer, sheet_name=sheets[i])
     
