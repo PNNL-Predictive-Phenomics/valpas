@@ -50,60 +50,118 @@ def reduce_to_shared_conditions(
 def export_xlsx(filepath_or_buffer: str | PathLike | Path,
         dfs: pd.DataFrame | list[pd.DataFrame],
         sheets: str | list[str], overwrite=False) -> None:
-    
-    if overwrite:
-        if_sheet_exists_ = 'replace'
-    else:
-        if_sheet_exists_ = 'error'
+    """
+    Helper function to export computed DataFrame(s) to an Excel file
 
+    Parameters
+    ----------
+    filepath_or_buffer : str | PathLike | Path
+        Path to *.xlsx file that should be used for the export of data
+    dfs : pandas.DataFrame | list[pandas.DataFrame]
+        Either a single pandas.DataFrame object or a list of objects. 
+        If a list is passed to the function, **sheets** must also be a 
+        list and the number of elements in both must be identical.
+    sheets : str | list[str]
+        Either a single String or a list of Strings containing the names
+        that the sheets should be stored as in the *.xlsx file. If a 
+        list is passed to the function, **dfs** also needs to be a list
+        and both need to contain the same number of elements.
+    overwrite : bool, default=False
+        Indicates if sheets should be overwritten if they already exist
+        in the *.xlsx file that is passed to the function.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    TypeError
+        If the passed filepath_or_buffer is not the correct type
+    TypeError
+        If dfs or sheets is not the correct type or they don't match
+        in type (e.g. type(dfs)==list & type(sheets)==str)
+    ValueError
+        If both dfs and sheets are of type list, but the don't hold the
+        same number of items.
+    """
+
+    # check to make sure the filepath passed to the function is 'legal'
     filepath_or_buffer_ = filepath_or_buffer
     if not isinstance(filepath_or_buffer_, (str, PathLike, Path)):
         raise TypeError(
             f"filepath_or_buffer must be of type str, PathLike or Path. "
             f"Supplied argument is of type {type(filepath_or_buffer_)}."
         )
-    if isinstance(dfs, str) and isinstance(sheets, str):
-        try:
-            with ExcelWriter(filepath_or_buffer_, mode='a',
-                             if_sheet_exists=if_sheet_exists_) as writer:
-                dfs.to_excel(writer, sheet_name=sheets)
-        except FileNotFoundError:
-            with ExcelWriter(filepath_or_buffer_, mode='w') as writer:
-                dfs.to_excel(writer, sheet_name=sheets)
-        except ValueError as e:
-            sys.exit(
-                f"Sheet '{sheets[i]}' already exists in "
-                f"{filepath_or_buffer_}. Please choose a different sheet name "
-                f"or use -oo/--overwrite_output, to overwrite contents in "
-                f"sheet '{sheets[i]}."
+    else:
+        # determining the mode to pass to ExcelWriter depending on 
+        # whether the file already exists
+        filepath_or_buffer_ = Path(filepath_or_buffer_).absolute()
+        if filepath_or_buffer_.is_file():
+            mode = 'a'
+        else:
+            mode = 'w'
+    
+    # 'translating' the strategy of what to do if a give sheet already
+    # exists in the xlsx file (if xlsx is also already present) for 
+    # later use  
+    if overwrite:
+        if_sheet_exists_ = 'replace'
+    else:
+        if_sheet_exists_ = 'error'
 
-            )
-    elif isinstance(dfs, list) and isinstance(sheets, list):
+
+    # if only one DF needs to be saved we cast dfs and sheets into lists 
+    # with only one element each to consolidate ExcelWriter calls 
+    if isinstance(dfs, pd.DataFrame) and isinstance(sheets, str):
+        dfs = [dfs]
+        sheets = [sheets]
+            
+    # Main logic saving the DataFrame(s) into (a) Sheet(s). The else
+    # blocks (raising Errors) are only called if dfs and sheets contain
+    # unexpected variable types
+    if isinstance(dfs, list) and isinstance(sheets, list):
+        
+        # Make sure that both dfs and sheets contain the same number of 
+        # elements
         if len(dfs) != len(sheets):
             raise ValueError(
                 f"Number of DataFrames to write to {filepath_or_buffer_} does "
                 "not match number of supplied Sheet names."
             )
-        try:
-            with ExcelWriter(filepath_or_buffer_, mode='a',
+        # If we append to the Excel file (we previously checked if the 
+        # Excel file passed to the function exsits) we need to define 
+        # additional parameters in the ExcelWriter call. Specifically 
+        # we need to add the information whether already exsisting
+        # Sheets should be overwritten.
+        if mode == 'a':
+            try:
+                with ExcelWriter(filepath_or_buffer_, mode='a',
                              if_sheet_exists=if_sheet_exists_) as writer:
-                for i in range(0, len(dfs)):
-                    dfs[i].to_excel(writer, sheet_name=sheets[i])
-        except FileNotFoundError:
+                    for i in range(0, len(dfs)): # export all DFs
+                        dfs[i].to_excel(writer, sheet_name=sheets[i])
+            except ValueError as e:
+                # This happens only if the sheet named already exists
+                # and we didn't specify that the sheet should be
+                # overwritten.
+                sys.exit(
+                    f"Sheet '{sheets[i]}' already exists in "
+                    f"{filepath_or_buffer_}. Please choose a different sheet "
+                    f"name or use -oo/--overwrite_output, to overwrite "
+                    f"contents in sheet '{sheets[i]}."
+                )
+        # If a new file is being generated we don't need to try/catch
+        # the "exsisting sheet" error
+        elif mode == 'w':
             with ExcelWriter(filepath_or_buffer_, mode='w') as writer:
                 for i in range(0, len(dfs)):
                     dfs[i].to_excel(writer, sheet_name=sheets[i])
-        except ValueError as e:
-            sys.exit(
-                f"Sheet '{sheets[i]}' already exists in "
-                f"{filepath_or_buffer_}. Please choose a different sheet name "
-                f"or use -oo/--overwrite_output, to overwrite contents in "
-                f"sheet '{sheets[i]}."
-
-            )
-    elif not (isinstance(dfs, list) or isinstance(dfs, str)):
+    
+    # The remaining elif/else statements cover / raise exceptions if the
+    # variables passed to the function are not 'legal'
+    elif not (isinstance(dfs, list) or isinstance(dfs, pd.DataFrame)):
         raise TypeError(
-            f"dfs must be either of type str or list. "
+            f"dfs must be either of type pandas.DataFrame or list. "
             f"Suppied dfs is of type {type(dfs)}."
         )
     elif not (isinstance(sheets, list) or isinstance(sheets, str)):
@@ -115,7 +173,8 @@ def export_xlsx(filepath_or_buffer: str | PathLike | Path,
         raise TypeError(
             "dfs and sheets must type match."
         )
-        
+    
+    return None
 
 def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     """
