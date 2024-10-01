@@ -16,6 +16,8 @@ from os import PathLike
 import pandas as pd
 import numpy as np
 
+from pandas import ExcelWriter
+
 from valpas.utils.post_processing import beautify_series
 from valpas.utils.post_processing import sort_associations
 
@@ -44,6 +46,53 @@ def reduce_to_shared_conditions(
    
     return (df_1_ret, df_2_ret)
 
+
+def export_xlsx(filepath_or_buffer: str | PathLike | Path,
+        dfs: pd.DataFrame | list[pd.DataFrame],
+        sheets: str | list[str]) -> None:
+    
+    filepath_or_buffer_ = filepath_or_buffer
+    if not isinstance(filepath_or_buffer_, (str, PathLike, Path)):
+        raise TypeError(
+            f"filepath_or_buffer must be of type str, PathLike or Path. "
+            f"Supplied argument is of type {type(filepath_or_buffer_)}."
+        )
+    if isinstance(dfs, str) and isinstance(sheets, str):
+        try:
+            with ExcelWriter(filepath_or_buffer_, mode='a') as writer:
+                dfs.to_excel(writer, sheet_name=sheets)
+        except FileNotFoundError:
+            with ExcelWriter(filepath_or_buffer_, mode='w') as writer:
+                dfs.to_excel(writer, sheet_name=sheets)
+    elif isinstance(dfs, list) and isinstance(sheets, list):
+        if len(dfs) != len(sheets):
+            raise ValueError(
+                f"Number of DataFrames to write to {filepath_or_buffer_} does "
+                "not match number of supplied Sheet names."
+            )
+        try:
+            with ExcelWriter(filepath_or_buffer_, mode='a', if_sheet_exists='new') as writer:
+                for i in range(0, len(dfs)):
+                    dfs[i].to_excel(writer, sheet_name=sheets[i])
+        except FileNotFoundError:
+            with ExcelWriter(filepath_or_buffer_, mode='w') as writer:
+                for i in range(0, len(dfs)):
+                    dfs[i].to_excel(writer, sheet_name=sheets[i])
+    elif not (isinstance(dfs, list) or isinstance(dfs, str)):
+        raise TypeError(
+            f"dfs must be either of type str or list. "
+            f"Suppied dfs is of type {type(dfs)}."
+        )
+    elif not (isinstance(sheets, list) or isinstance(sheets, str)):
+        raise TypeError(
+            f"sheets must be either of type str or list. "
+            f"Suppied sheets is of type {type(sheets)}."
+        )
+    else:
+        raise TypeError(
+            "dfs and sheets must type match."
+        )
+        
 
 def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     """
@@ -214,7 +263,10 @@ def prep_data(
     if threshold:
         df = threshold_df(df=df, threshold_rel=threshold)
 
-    return (df.transpose(), idx1_ret, idx2_ret)
+    if idx2 is None:
+        return (df.transpose(), idx1_ret, None)
+    else:
+        return (df.transpose(), idx1_ret, idx2_ret)
 
 def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
