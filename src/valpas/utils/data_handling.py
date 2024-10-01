@@ -49,8 +49,13 @@ def reduce_to_shared_conditions(
 
 def export_xlsx(filepath_or_buffer: str | PathLike | Path,
         dfs: pd.DataFrame | list[pd.DataFrame],
-        sheets: str | list[str]) -> None:
+        sheets: str | list[str], overwrite=False) -> None:
     
+    if overwrite:
+        if_sheet_exists_ = 'replace'
+    else:
+        if_sheet_exists_ = 'error'
+
     filepath_or_buffer_ = filepath_or_buffer
     if not isinstance(filepath_or_buffer_, (str, PathLike, Path)):
         raise TypeError(
@@ -59,11 +64,20 @@ def export_xlsx(filepath_or_buffer: str | PathLike | Path,
         )
     if isinstance(dfs, str) and isinstance(sheets, str):
         try:
-            with ExcelWriter(filepath_or_buffer_, mode='a') as writer:
+            with ExcelWriter(filepath_or_buffer_, mode='a',
+                             if_sheet_exists=if_sheet_exists_) as writer:
                 dfs.to_excel(writer, sheet_name=sheets)
         except FileNotFoundError:
             with ExcelWriter(filepath_or_buffer_, mode='w') as writer:
                 dfs.to_excel(writer, sheet_name=sheets)
+        except ValueError as e:
+            sys.exit(
+                f"Sheet '{sheets[i]}' already exists in "
+                f"{filepath_or_buffer_}. Please choose a different sheet name "
+                f"or use -oo/--overwrite_output, to overwrite contents in "
+                f"sheet '{sheets[i]}."
+
+            )
     elif isinstance(dfs, list) and isinstance(sheets, list):
         if len(dfs) != len(sheets):
             raise ValueError(
@@ -71,13 +85,22 @@ def export_xlsx(filepath_or_buffer: str | PathLike | Path,
                 "not match number of supplied Sheet names."
             )
         try:
-            with ExcelWriter(filepath_or_buffer_, mode='a', if_sheet_exists='new') as writer:
+            with ExcelWriter(filepath_or_buffer_, mode='a',
+                             if_sheet_exists=if_sheet_exists_) as writer:
                 for i in range(0, len(dfs)):
                     dfs[i].to_excel(writer, sheet_name=sheets[i])
         except FileNotFoundError:
             with ExcelWriter(filepath_or_buffer_, mode='w') as writer:
                 for i in range(0, len(dfs)):
                     dfs[i].to_excel(writer, sheet_name=sheets[i])
+        except ValueError as e:
+            sys.exit(
+                f"Sheet '{sheets[i]}' already exists in "
+                f"{filepath_or_buffer_}. Please choose a different sheet name "
+                f"or use -oo/--overwrite_output, to overwrite contents in "
+                f"sheet '{sheets[i]}."
+
+            )
     elif not (isinstance(dfs, list) or isinstance(dfs, str)):
         raise TypeError(
             f"dfs must be either of type str or list. "
