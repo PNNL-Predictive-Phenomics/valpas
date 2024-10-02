@@ -104,19 +104,16 @@ def main(args):
     p_associate.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
-        type=argparse.FileType('w'),
+        type=check_file,
         default=sys.stdout,
         help="Path to an optional output file. If omitted, any output "
              "generated will be piped to stdout."
     )
     p_associate.add_argument(
-        "-O", "--outfile_counts",
-        dest="OUTFILE_COUNTS",
-        type=argparse.FileType('w'),
-        default=sys.stdout,
-        help="Path to an optional output file, that lists how many values "
-             "were used in the calculation of each association score. If "
-             "omitted, any output generated will be piped to stdout."
+        '-O', '--overwrite_output',
+        dest='OVERWRITE_OUTPUT',
+        action='store_true',
+        help=''
     )
     p_associate.add_argument(
         "-ot", "--output_type",
@@ -253,37 +250,47 @@ def correlate(args):
         df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_corr = idx_name(df_corr, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '1'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
     write_outfile(
-        df=df_corr,
+        data=(df_corr, df_counts),
         file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        reduced_output=args.REDUCED_OUTPUT,
-        )
-    write_outfile(
-        df=df_counts,
-        file_handle=args.OUTFILE_COUNTS,
-        output_type='correlation_matrix'
+        overwrite=args.OVERWRITE_OUTPUT
     )
 
 
+
 def mutual_information(args):
-    df_mut_inf, idx1, idx2 = calc_mut_info(
+    df_mut_inf, idx1, idx2, df_counts = calc_mut_info(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
         sheet1=args.SHEET,
         sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
-    if idx2 is not None and not args.REDUCED_OUTPUT:
+    if idx2 is not None or args.REDUCED_OUTPUT:
         df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
+        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_mut_inf = idx_name(df_mut_inf, idx1=idx1, idx2=idx2)
-
+    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '1'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
     write_outfile(
-        df=df_mut_inf,
+        data=(df_mut_inf, df_counts),
         file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        reduced_output=args.REDUCED_OUTPUT,
+        overwrite=args.OVERWRITE_OUTPUT
     )
 
 def cosine_similarity(args):
@@ -299,17 +306,18 @@ def cosine_similarity(args):
         df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_cosine_sim = idx_name(df_cosine_sim, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '1'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
     write_outfile(
-        df=df_cosine_sim,
+        data=(df_cosine_sim, df_counts),
         file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        reduced_output=args.REDUCED_OUTPUT,
-    )
-    write_outfile(
-        df=df_counts,
-        file_handle=args.OUTFILE_COUNTS,
-        output_type='correlation_matrix'
+        overwrite=args.OVERWRITE_OUTPUT
     )
 
 
@@ -326,16 +334,17 @@ def jaccard_similarity(args):
         df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_jaccard_sim = idx_name(df_jaccard_sim, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '1'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
     write_outfile(
-        df=df_jaccard_sim,
+        data=(df_jaccard_sim, df_counts),
         file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        reduced_output=args.REDUCED_OUTPUT,
-    )
-    write_outfile(
-        df=df_counts,
-        file_handle=args.OUTFILE_COUNTS,
-        output_type='correlation_matrix'
+        overwrite=args.OVERWRITE_OUTPUT
     )
 
