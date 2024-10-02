@@ -48,7 +48,7 @@ def reduce_to_shared_conditions(
 
 
 def export_csv(
-        filepath: str | PathLike | Path,
+        filepath_or_buffer: str | PathLike | Path | TextIOWrapper,
         data: pd.DataFrame,
         overwrite=False
         ) -> None:
@@ -58,8 +58,10 @@ def export_csv(
 
     Parameters
     ----------
-    filepath : str | PathLike | Path
-        Path to the *.csv that should be used for the export of data
+    filepath_or_buffer : str | PathLike | Path | TextIOWrapper
+        Path to the *.csv that should be used for the export of data. 
+        Can also be of type TextIOWrapper e.g. if the passed argument 
+        is a stream to sys.stdout
     data : pandas.DataFrame
         Single pandas.DataFrame that contains the data to be stored.
     overwrite : bool, default=False
@@ -81,24 +83,28 @@ def export_csv(
     """
 
     # check if filepath is of 'legal' type
-    if not isinstance(filepath, (str, PathLike, Path)):
+    if not isinstance(filepath_or_buffer,
+                      (str, PathLike, Path, TextIOWrapper)):
         raise TypeError(
-            f"filepath must be of type str, PathLike or Path. "
-            f"Supplied argument is of type {type(filepath)}."
+            f"filepath_or_buffer must be of type str, PathLike or Path."
+            f" Supplied argument is of type {type(filepath_or_buffer)}."
         )
     
-    # making sure that the filepath does not point to an existing file
-    # and overwrite has been set to False
-    filepath_ = Path(filepath).absolute()
-    if filepath_.is_file() and not overwrite:
-        raise FileExistsError(
-            f"File '{filepath_}' already exists. If you want to overwrite the "
-            f"file please specify so with argument -oo/--overwrite_output."
-        )
-    # if filepath points to a new file or overwrite==True then write the
-    # file
+    # making sure that the filepath_or_buffer does not point to an
+    # existing file and overwrite has been set to False
+    if not isinstance(filepath_or_buffer, TextIOWrapper):
+        filepath_or_buffer_ = Path(filepath_or_buffer).absolute()
+        if filepath_or_buffer_.is_file() and not overwrite:
+            raise FileExistsError(
+                f"File '{filepath_or_buffer_}' already exists. If you want to "
+                f"overwrite the file please specify so with argument "
+                f"-oo/--overwrite_output."
+            )
     else:
-        data.to_csv(filepath_, encoding='utf-8')
+        filepath_or_buffer_ = filepath_or_buffer
+    # if filepath_or_buffer points to a new file, overwrite==True or the
+    # output is written to stdout then write the file
+    data.to_csv(filepath_or_buffer_, encoding='utf-8')
 
     return None
 
