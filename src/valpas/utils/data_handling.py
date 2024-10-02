@@ -500,19 +500,65 @@ def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
     return (df_filtered, index)
 
 
-def write_outfile(df: pd.DataFrame, file_handle: str, reduced_output: bool=False,
-                  output_type: Literal[
-                      'sorted_list', 'correlation_matrix'
-                      ]='sorted_list') -> None:
+def write_outfile(
+        data: tuple[pd.DataFrame, pd.DataFrame],
+        file_handle: str | PathLike | Path | TextIOWrapper, 
+        idx: tuple[str, str],
+        output_type: Literal[
+            'sorted_list', 'correlation_matrix'
+            ]='sorted_list',
+        overwrite: bool=False
+        ) -> None:
     """
     Takes a `pd.DataFrame` object and writes it to a file handle. This 
     can be either a file or sys.stdout.
     """
-    if output_type == 'sorted_list':
-        df = beautify_series(df=df)
-        df.to_csv(file_handle, encoding='utf-8', index=False)
-    elif output_type == 'correlation_matrix':
-        df.to_csv(file_handle, encoding='utf-8')
+
+    if isinstance(file_handle, (str, PathLike, Path)):
+        filepath_or_buffer = Path(file_handle).absolute()
+        f_suffix = filepath_or_buffer.suffix
+        if f_suffix == '.xlsx':
+            f_type = 'xlsx'
+        elif f_suffix == '.csv':
+            f_type = 'csv'
+        elif f_suffix == '.tsv':
+            f_type = 'tsv'
+        else:
+            raise ValueError(
+                f"Supplied file '{filepath_or_buffer} is of type '{f_suffix}'."
+                f" Expected *.xlsx, *.csv or *.tsv."
+            )
+    elif isinstance(file_handle, TextIOWrapper):
+        f_type = 'csv'
+    else:
+        raise Exception(
+            f"Reached point that shouldn't be reachable. file_handle is of "
+            f"type '{type(file_handle)}', which is not supported.")
+    
+    
+    data_association = data[0]
+    data_counts = data[1]
+
+    if f_type in ('csv', 'tsv') and output_type == 'sorted_list':
+        data_association = beautify_series(df=data_association)
+        data_counts = beautify_series(df=data_counts)
+        data_ = data_association.merge(
+            data_counts,
+            on=[idx[0],idx[1]],
+            how='inner'
+            )
+        export_csv(filepath_or_buffer=file_handle, data=data_, overwrite=overwrite)
+
+    else:
+        raise NotImplementedError("currently not yet implemented")
+    
+
+
+    # if output_type == 'sorted_list':
+    #     df = beautify_series(df=df)
+    #     df.to_csv(file_handle, encoding='utf-8', index=False)
+    # elif output_type == 'correlation_matrix':
+    #     df.to_csv(file_handle, encoding='utf-8')
 
 
 def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
