@@ -263,3 +263,20 @@ def visualize(args):
     else:
         print("Not yet implemented.", file=sys.stderr)
 
+
+def df_to_pyvis(file_path, index_name, net, threshold):
+    #read in data
+    df = pd.read_csv(file_path)
+    #set row names
+    df = df.set_index(index_name)
+    df.index.names = [None]
+    #collect data for nodes, only grab edges over a given threshold
+    for column in df:
+        net.add_node(column, label=column)
+        for row in df.index:
+            net.add_node(row, label=row)
+            value = df.loc[row, column]
+            if abs(value) > threshold:
+                net.add_edge(column, row, weight = value)
+    return net
+
