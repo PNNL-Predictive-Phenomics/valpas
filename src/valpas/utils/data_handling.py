@@ -6,12 +6,12 @@ input & output).
 
 import sys
 
-from io import TextIOWrapper
 from pathlib import Path
 from typing import Literal
 from typing import TextIO
 from typing import BinaryIO
 from os import PathLike
+from io import TextIOBase
 
 import pandas as pd
 import numpy as np
@@ -48,7 +48,7 @@ def reduce_to_shared_conditions(
 
 
 def export_csv(
-        filepath_or_buffer: str | PathLike | Path | TextIOWrapper,
+        filepath_or_buffer: str | PathLike | Path | TextIOBase,
         data: pd.DataFrame,
         overwrite=False
         ) -> None:
@@ -58,9 +58,9 @@ def export_csv(
 
     Parameters
     ----------
-    filepath_or_buffer : str | PathLike | Path | TextIOWrapper
+    filepath_or_buffer : str | PathLike | Path | TextIOBase
         Path to the *.csv that should be used for the export of data. 
-        Can also be of type TextIOWrapper e.g. if the passed argument 
+        Can also be of type TextIOBase e.g. if the passed argument 
         is a stream to sys.stdout
     data : pandas.DataFrame
         Single pandas.DataFrame that contains the data to be stored.
@@ -84,7 +84,7 @@ def export_csv(
 
     # check if filepath is of 'legal' type
     if not isinstance(filepath_or_buffer,
-                      (str, PathLike, Path, TextIOWrapper)):
+                      (str, PathLike, Path, TextIOBase)):
         raise TypeError(
             f"filepath_or_buffer must be of type str, PathLike or Path."
             f" Supplied argument is of type {type(filepath_or_buffer)}."
@@ -92,7 +92,7 @@ def export_csv(
     
     # making sure that the filepath_or_buffer does not point to an
     # existing file and overwrite has been set to False
-    if not isinstance(filepath_or_buffer, TextIOWrapper):
+    if not isinstance(filepath_or_buffer, TextIOBase):
         filepath_or_buffer_ = Path(filepath_or_buffer).absolute()
         if filepath_or_buffer_.is_file() and not overwrite:
             raise FileExistsError(
@@ -251,7 +251,7 @@ def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
       - a file handle (e.g. opened via `argparse.FileType`)
     """
     filepath_or_buffer_ = filepath_or_buffer
-    if isinstance(filepath_or_buffer_, (str, PathLike, TextIOWrapper)):
+    if isinstance(filepath_or_buffer_, (str, PathLike, TextIOBase)):
         try:
             df = pd.read_csv(
                 filepath_or_buffer=filepath_or_buffer_,
@@ -502,7 +502,7 @@ def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
 
 def write_outfile(
         data: tuple[pd.DataFrame, pd.DataFrame],
-        file_handle: str | PathLike | Path | TextIOWrapper, 
+        file_handle: str | PathLike | Path | TextIOBase, 
         idx: tuple[str, str],
         output_type: Literal[
             'sorted_list', 'correlation_matrix'
@@ -528,7 +528,7 @@ def write_outfile(
                 f"Supplied file '{filepath_or_buffer} is of type '{f_suffix}'."
                 f" Expected *.xlsx, *.csv or *.tsv."
             )
-    elif isinstance(file_handle, TextIOWrapper):
+    elif isinstance(file_handle, TextIOBase):
         f_type = 'csv'
     else:
         raise Exception(
