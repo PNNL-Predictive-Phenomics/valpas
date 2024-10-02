@@ -542,23 +542,48 @@ def write_outfile(
     if f_type in ('csv', 'tsv') and output_type == 'sorted_list':
         data_association = beautify_series(df=data_association)
         data_counts = beautify_series(df=data_counts)
-        data_ = data_association.merge(
-            data_counts,
-            on=[idx[0],idx[1]],
-            how='inner'
+        if f_type in ('csv', 'tsv'): 
+            data_ = data_association.merge(
+                data_counts,
+                on=[idx[0],idx[1]],
+                how='inner'
+                )
+            export_csv(
+                filepath_or_buffer=file_handle,
+                data=data_,
+                overwrite=overwrite
+                )
+    elif f_type in ('csv', 'tsv') and output_type == 'correlation_matrix':
+        data_ = (
+            data_association
+                .round(decimals=5) # we only want to display 5 decimals
+                .astype(str) # need to cast to String for concatenation 
+            + ':' # concatenating using a ':' as field seperator 
+            + data_counts.astype(str) # see above
+        )
+        export_csv(
+            filepath_or_buffer=file_handle,
+            data=data_,
+            overwrite=overwrite
             )
-        export_csv(filepath_or_buffer=file_handle, data=data_, overwrite=overwrite)
-
+    elif f_type == 'xlsx':
+            if output_type == 'sorted_list':
+                data_association = beautify_series(df=data_association)
+                data_counts = beautify_series(df=data_counts)
+            dfs = [data_association, data_counts]
+            sheets = [
+                f"{idx[0]}-{idx[1]}_associations",
+                f"{idx[0]}-{idx[1]}_counts"
+            ]
+            export_xlsx(
+                filepath=file_handle,
+                dfs=dfs,
+                sheets=sheets,
+                overwrite=overwrite)
     else:
-        raise NotImplementedError("currently not yet implemented")
-    
-
-
-    # if output_type == 'sorted_list':
-    #     df = beautify_series(df=df)
-    #     df.to_csv(file_handle, encoding='utf-8', index=False)
-    # elif output_type == 'correlation_matrix':
-    #     df.to_csv(file_handle, encoding='utf-8')
+        raise Exception(
+            f"Reached point that shouldn't be reachable. file_handle is of "
+            f"type '{type(file_handle)}', which is not supported.")
 
 
 def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
