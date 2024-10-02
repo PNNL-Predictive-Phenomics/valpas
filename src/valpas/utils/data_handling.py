@@ -98,7 +98,7 @@ def export_csv(
             raise FileExistsError(
                 f"File '{filepath_or_buffer_}' already exists. If you want to "
                 f"overwrite the file please specify so with argument "
-                f"-oo/--overwrite_output."
+                f"-O/--overwrite_output."
             )
     else:
         filepath_or_buffer_ = filepath_or_buffer
@@ -211,7 +211,7 @@ def export_xlsx(
                 sys.exit(
                     f"Sheet '{sheets[i]}' already exists in "
                     f"{filepath_}. Please choose a different sheet "
-                    f"name or use -oo/--overwrite_output, to overwrite "
+                    f"name or use -O/--overwrite_output, to overwrite "
                     f"contents in sheet '{sheets[i]}."
                 )
         # If a new file is being generated we don't need to try/catch
