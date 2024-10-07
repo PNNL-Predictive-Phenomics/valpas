@@ -11,6 +11,8 @@ from valpas.utils.calc_associations import calc_correlation
 from valpas.utils.calc_associations import calc_mut_info
 from valpas.utils.calc_associations import calc_cosine_sim
 from valpas.utils.calc_associations import calc_jaccard_sim
+from valpas.utils.checker import check_file
+from valpas.utils.checker import check_cutoff_range
 from valpas.utils.data_handling import write_outfile
 from valpas.utils.data_handling import import_asssociation_matrix
 from valpas.utils.post_processing import rm_duplicates
@@ -69,7 +71,7 @@ def main(args):
         "-i", "--infile",
         dest="INFILE",
         required=True,
-        type=argparse.FileType('r'),
+        type=check_file,
         help="Path to input file containing data points for which "
              "associations are to be generated. If used on it's own (without "
              "'-I') associations between data instances of only this input "
@@ -78,27 +80,40 @@ def main(args):
     p_associate.add_argument(
         "-I", "--infile2",
         dest="INFILE2",
-        type=argparse.FileType('r'),
+        type=check_file,
         help="Path to an optional second input file. If passed to command "
              "associations between data instances of INFILE1 and INFILE2 will "
              "be generated."
         )
     p_associate.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+    p_associate.add_argument(
+        "-S", "--excel_sheet_name_2",
+        dest="SHEET2",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE2 "
+             "if INFILE2 is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+    p_associate.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
-        type=argparse.FileType('w'),
+        type=check_file,
         default=sys.stdout,
         help="Path to an optional output file. If omitted, any output "
              "generated will be piped to stdout."
     )
     p_associate.add_argument(
-        "-O", "--outfile_counts",
-        dest="OUTFILE_COUNTS",
-        type=argparse.FileType('w'),
-        default=sys.stdout,
-        help="Path to an optional output file, that lists how many values "
-             "were used in the calculation of each association score. If "
-             "omitted, any output generated will be piped to stdout."
+        '-O', '--overwrite_output',
+        dest='OVERWRITE_OUTPUT',
+        action='store_true',
+        help=''
     )
     p_associate.add_argument(
         "-ot", "--output_type",
@@ -128,7 +143,7 @@ def main(args):
     p_associate.add_argument(
         "-f", "--filter_missing_values",
         dest="FILTER_CUTOFF",
-        type=cutoff_range,
+        type=check_cutoff_range,
         default=0.9,
         help="Can be set to a float between [0.0, 1.0]. If passed to the "
              "command a datapoint e.g. metabolite has to be detected (a value "
@@ -186,27 +201,20 @@ def main(args):
     if len(sys.argv) == 1:
         argp.print_help(sys.stderr)
         sys.exit(1)
-    args = argp.parse_args(args)
-    args.func(args)
-
-
-def cutoff_range(x):
     try:
-        x = float(x)
-    except ValueError:
-        raise argparse.ArgumentTypeError(f'{x} not a float')
-    if x < 0.0 or x > 1.0:
-        raise argparse.ArgumentTypeError(f'{x} not in range [0.0, 1.0]')
-    return x
+        args = argp.parse_args(args)
+    except FileNotFoundError as e:
+        sys.exit(e)
+    except ValueError as e:
+        sys.exit(e)
+    args.func(args)
 
 
 def associate(args):
     if args.ASSOCIATION_TYPE in ('pearson', 'spearman'):
         correlate(args)
     elif args.ASSOCIATION_TYPE == 'mutual_information':
-        print("Calculation of mutual information is currently disabled",
-              file=sys.stderr)
-        #mutual_information(args)
+        mutual_information(args)
     elif args.ASSOCIATION_TYPE == 'cosine_similarity':
         cosine_similarity(args)
     elif args.ASSOCIATION_TYPE == 'jaccard_similarity':
@@ -230,6 +238,8 @@ def correlate(args):
     df_corr, idx1, idx2, df_counts = calc_correlation(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         corr_func=args.ASSOCIATION_TYPE,
         filter_cutoff=args.FILTER_CUTOFF,
         )
@@ -238,37 +248,55 @@ def correlate(args):
         df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_corr = idx_name(df_corr, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '1'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
     write_outfile(
-        df=df_corr,
+        data=(df_corr, df_counts),
         file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        reduced_output=args.REDUCED_OUTPUT,
-        )
-    write_outfile(
-        df=df_counts,
-        file_handle=args.OUTFILE_COUNTS,
-        output_type='correlation_matrix'
+        overwrite=args.OVERWRITE_OUTPUT
     )
+
 
 
 def mutual_information(args):
-    df_mut_inf = calc_mut_info(
+    df_mut_inf, idx1, idx2, df_counts = calc_mut_info(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
+    if idx2 is not None or args.REDUCED_OUTPUT:
+        df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
+        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+    df_mut_inf = idx_name(df_mut_inf, idx1=idx1, idx2=idx2)
+    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '1'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
     write_outfile(
-        df=df_mut_inf,
+        data=(df_mut_inf, df_counts),
         file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        reduced_output=args.REDUCED_OUTPUT,
+        overwrite=args.OVERWRITE_OUTPUT
     )
 
 def cosine_similarity(args):
     df_cosine_sim, idx1, idx2, df_counts = calc_cosine_sim(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
     if idx2 is not None or args.REDUCED_OUTPUT:
@@ -276,17 +304,18 @@ def cosine_similarity(args):
         df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_cosine_sim = idx_name(df_cosine_sim, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '1'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
     write_outfile(
-        df=df_cosine_sim,
+        data=(df_cosine_sim, df_counts),
         file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        reduced_output=args.REDUCED_OUTPUT,
-    )
-    write_outfile(
-        df=df_counts,
-        file_handle=args.OUTFILE_COUNTS,
-        output_type='correlation_matrix'
+        overwrite=args.OVERWRITE_OUTPUT
     )
 
 
@@ -294,6 +323,8 @@ def jaccard_similarity(args):
     df_jaccard_sim, idx1, idx2, df_counts = calc_jaccard_sim(
         filepath_or_buffer=args.INFILE,
         filepath_or_buffer_2=args.INFILE2,
+        sheet1=args.SHEET,
+        sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
     if idx2 is not None or args.REDUCED_OUTPUT:
@@ -301,16 +332,17 @@ def jaccard_similarity(args):
         df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_jaccard_sim = idx_name(df_jaccard_sim, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '1'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
     write_outfile(
-        df=df_jaccard_sim,
+        data=(df_jaccard_sim, df_counts),
         file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        reduced_output=args.REDUCED_OUTPUT,
-    )
-    write_outfile(
-        df=df_counts,
-        file_handle=args.OUTFILE_COUNTS,
-        output_type='correlation_matrix'
+        overwrite=args.OVERWRITE_OUTPUT
     )
 
