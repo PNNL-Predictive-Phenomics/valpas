@@ -19,6 +19,7 @@ from sklearn.metrics import mutual_info_score
 from sklearn.metrics import jaccard_score
 
 from valpas.utils.data_handling import prep_data
+from valpas.utils.b_spline import mutual_information
 
 def calc_correlation(
         filepath_or_buffer: str | PathLike | Path,
@@ -58,13 +59,13 @@ def calc_mut_info(
             filepath_or_buffer_2=filepath_or_buffer_2,
             sheet1=sheet1,
             sheet2=sheet2,
-            filter_cutoff=filter_cutoff,
-            cut=cut)
+            filter_cutoff=filter_cutoff)
     except ValueError as e:
         sys.exit(e)
-    df_mut_inf = df.corr(method=mutual_info_score)
+    df_mut_inf = df.corr(method=mutual_information)
+    df_counts = df.corr(method=count_vals_in_association)
     
-    return df_mut_inf, idx1, idx2
+    return df_mut_inf, idx1, idx2, df_counts
 
 def calc_cosine_sim(
         filepath_or_buffer: str | PathLike | Path,
