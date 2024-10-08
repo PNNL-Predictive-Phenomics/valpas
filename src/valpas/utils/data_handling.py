@@ -18,8 +18,8 @@ import numpy as np
 
 from pandas import ExcelWriter
 
-from valpas.utils.post_processing import beautify_series
-from valpas.utils.post_processing import sort_associations
+from .post_processing import beautify_series
+from .post_processing import sort_associations
 
 
 def reduce_to_shared_conditions(
@@ -388,6 +388,20 @@ def prep_data(
             )
         idx2 = df_2.index
         df = pd.concat([df, df_2], join='inner')
+    
+    # routine that happens only if
+    # - only one infile has been defined
+    # - that file is an excel file (xlsx)
+    # - a second sheet has been defined as import
+    # - the second sheet is not the same as the first sheet  
+    # If those cases are satisfied, the additional sheet is imported and
+    # the concatenated DF is generated
+    elif sheet2 is not None and f_suffix == '.xlsx' and sheet1 != sheet2:
+        df_2 = import_xls(
+            filepath_or_buffer=filepath_or_buffer, sheet=sheet2
+            )
+        idx2 = df_2.index
+        df = pd.concat([df, df_2], join='inner')
 
 
     # removing low confidence items
@@ -511,7 +525,8 @@ def write_outfile(
         output_type: Literal[
             'sorted_list', 'correlation_matrix'
             ]='sorted_list',
-        overwrite: bool=False
+        overwrite: bool=False,
+        association_type: str='correlation',
         ) -> None:
     """
     Takes a `pd.DataFrame` object and writes it to a file handle. This 
@@ -556,9 +571,10 @@ def write_outfile(
     data_counts.drop(labels=idx_to_drop.values, axis="index", inplace=True)
 
     if f_type in ('csv', 'tsv') and output_type == 'sorted_list':
-        data_association = beautify_series(df=data_association)
-        data_counts = beautify_series(df=data_counts)
-        if f_type in ('csv', 'tsv'): 
+        data_association = beautify_series(df=data_association,
+                                           value=association_type)
+        data_counts = beautify_series(df=data_counts, value='counts')
+        if f_type in ('csv', 'tsv'):
             data_ = data_association.merge(
                 data_counts,
                 on=[idx[0],idx[1]],
@@ -585,12 +601,13 @@ def write_outfile(
             )
     elif f_type == 'xlsx':
             if output_type == 'sorted_list':
-                data_association = beautify_series(df=data_association)
-                data_counts = beautify_series(df=data_counts)
+                data_association = beautify_series(df=data_association,
+                                                   value=association_type)
+                data_counts = beautify_series(df=data_counts, value='counts')
             dfs = [data_association, data_counts]
             sheets = [
-                f"{idx[0]}-{idx[1]}_associations",
-                f"{idx[0]}-{idx[1]}_counts"
+                f"assoc_{idx[0]}-{idx[1]}"[:30],
+                f"count_{idx[0]}-{idx[1]}"[:30]
             ]
             export_xlsx(
                 filepath=file_handle,
