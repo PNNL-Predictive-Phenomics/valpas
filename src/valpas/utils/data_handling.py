@@ -543,6 +543,18 @@ def write_outfile(
     data_association = data[0]
     data_counts = data[1]
 
+    # remove idx and cols from data_associations where all values are
+    # NaN / None
+    data_association.dropna(axis="index", how="all", inplace=True)
+    data_association.dropna(axis="columns", how="all", inplace=True)
+    
+    # Do the same for data_counts by checking which cols in 
+    # data_associations have been dropped
+    cols_to_drop = data_counts.columns.difference(data_association.columns)
+    idx_to_drop = data_counts.index.difference(data_association.index)
+    data_counts.drop(labels=cols_to_drop.values, axis="columns", inplace=True)
+    data_counts.drop(labels=idx_to_drop.values, axis="index", inplace=True)
+
     if f_type in ('csv', 'tsv') and output_type == 'sorted_list':
         data_association = beautify_series(df=data_association)
         data_counts = beautify_series(df=data_counts)
