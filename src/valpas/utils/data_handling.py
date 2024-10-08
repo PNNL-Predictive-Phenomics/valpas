@@ -393,9 +393,10 @@ def prep_data(
     # - only one infile has been defined
     # - that file is an excel file (xlsx)
     # - a second sheet has been defined as import
+    # - the second sheet is not the same as the first sheet  
     # If those cases are satisfied, the additional sheet is imported and
     # the concatenated DF is generated
-    elif sheet2 is not None and f_suffix == '.xlsx':
+    elif sheet2 is not None and f_suffix == '.xlsx' and sheet1 != sheet2:
         df_2 = import_xls(
             filepath_or_buffer=filepath_or_buffer, sheet=sheet2
             )
@@ -571,7 +572,7 @@ def write_outfile(
     if f_type in ('csv', 'tsv') and output_type == 'sorted_list':
         data_association = beautify_series(df=data_association)
         data_counts = beautify_series(df=data_counts)
-        if f_type in ('csv', 'tsv'): 
+        if f_type in ('csv', 'tsv'):
             data_ = data_association.merge(
                 data_counts,
                 on=[idx[0],idx[1]],

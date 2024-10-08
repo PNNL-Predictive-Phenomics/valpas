@@ -146,17 +146,6 @@ def main(args):
              "correlation matrix (comma separated)."
     )
     p_associate.add_argument(
-        "-or", "--reduced_output",
-        dest="REDUCED_OUTPUT",
-        action='store_true',
-        help="By default the full list of associations is returned if " 
-             "'-ot sorted_list' is chosen. Adding this flag will reduce the "
-             "output to not include self hits and only one of the two "
-             "permutations of a data pair. Note that enabeling this flag if "
-             "two input files are passed to the command will cause incomplete "
-             "results to be returned!" 
-    )
-    p_associate.add_argument(
         "-f", "--filter_missing_values",
         dest="FILTER_CUTOFF",
         type=check_cutoff_range,
@@ -263,14 +252,14 @@ def correlate(args):
         corr_func=args.ASSOCIATION_TYPE,
         filter_cutoff=args.FILTER_CUTOFF,
         )
-    if idx2 is not None or args.REDUCED_OUTPUT:
-        df_corr = rm_duplicates(df=df_corr, idx1=idx1, idx2=idx2)
-        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+
+    df_corr = rm_duplicates(df=df_corr, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_corr = idx_name(df_corr, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:
         idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
     else:
         idx1_name = idx1.name
         idx2_name = idx2.name
@@ -292,14 +281,14 @@ def mutual_information(args):
         sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
-    if idx2 is not None or args.REDUCED_OUTPUT:
-        df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
-        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+
+    df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_mut_inf = idx_name(df_mut_inf, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:
         idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
     else:
         idx1_name = idx1.name
         idx2_name = idx2.name
@@ -319,14 +308,14 @@ def cosine_similarity(args):
         sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
-    if idx2 is not None or args.REDUCED_OUTPUT:
-        df_cosine_sim = rm_duplicates(df=df_cosine_sim, idx1=idx1, idx2=idx2)
-        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+    
+    df_cosine_sim = rm_duplicates(df=df_cosine_sim, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_cosine_sim = idx_name(df_cosine_sim, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:
         idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
     else:
         idx1_name = idx1.name
         idx2_name = idx2.name
@@ -347,14 +336,14 @@ def jaccard_similarity(args):
         sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
-    if idx2 is not None or args.REDUCED_OUTPUT:
-        df_jaccard_sim = rm_duplicates(df=df_jaccard_sim, idx1=idx1, idx2=idx2)
-        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+    
+    df_jaccard_sim = rm_duplicates(df=df_jaccard_sim, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_jaccard_sim = idx_name(df_jaccard_sim, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:
         idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
     else:
         idx1_name = idx1.name
         idx2_name = idx2.name
