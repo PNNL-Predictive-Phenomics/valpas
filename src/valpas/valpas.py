@@ -7,18 +7,19 @@ import os
 import sys
 import textwrap
 
-from valpas.utils.calc_associations import calc_correlation
-from valpas.utils.calc_associations import calc_mut_info
-from valpas.utils.calc_associations import calc_cosine_sim
-from valpas.utils.calc_associations import calc_jaccard_sim
-from valpas.utils.checker import check_file
-from valpas.utils.checker import check_cutoff_range
-from valpas.utils.data_handling import write_outfile
-from valpas.utils.data_handling import import_asssociation_matrix
-from valpas.utils.post_processing import rm_duplicates
-from valpas.utils.post_processing import idx_name
+from .utils.calc_associations import calc_correlation
+from .utils.calc_associations import calc_mut_info
+from .utils.calc_associations import calc_cosine_sim
+from .utils.calc_associations import calc_jaccard_sim
+from .utils.checker import check_infile
+from .utils.checker import check_outfile
+from .utils.checker import check_cutoff_range
+from .utils.data_handling import write_outfile
+from .utils.data_handling import import_asssociation_matrix
+from .utils.post_processing import rm_duplicates
+from .utils.post_processing import idx_name
 
-from valpas.visualization.heatmap import create_fig
+from .visualization.heatmap import create_fig
 
 def main(args):
     """
@@ -86,7 +87,7 @@ def main(args):
         "-i", "--infile",
         dest="INFILE",
         required=True,
-        type=check_file,
+        type=check_infile,
         help="Path to input file containing data points for which "
              "associations are to be generated. If used on it's own (without "
              "'-I') associations between data instances of only this input "
@@ -95,7 +96,7 @@ def main(args):
     p_associate.add_argument(
         "-I", "--infile2",
         dest="INFILE2",
-        type=check_file,
+        type=check_infile,
         help="Path to an optional second input file. If passed to command "
              "associations between data instances of INFILE1 and INFILE2 will "
              "be generated."
@@ -119,7 +120,7 @@ def main(args):
     p_associate.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
-        type=check_file,
+        type=check_outfile,
         default=sys.stdout,
         help="Path to an optional output file. If omitted, any output "
              "generated will be piped to stdout."

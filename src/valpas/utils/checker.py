@@ -8,7 +8,7 @@ from os import PathLike
 from pathlib import Path
 import sys
 
-def check_file(path: str | PathLike | Path) -> str:
+def check_infile(path: str | PathLike | Path) -> str:
     
 
     if not isinstance(path, (str, PathLike, Path)):
@@ -36,6 +36,30 @@ def check_file(path: str | PathLike | Path) -> str:
                 f"Supplied file is of type '{suffix}'. "
                 f"Expected '.csv' or '.xlsx'."
                 )
+
+def check_outfile(path: str | PathLike | Path) -> str:
+    
+
+    if not isinstance(path, (str, PathLike, Path)):
+        error = (
+            f"filepath_or_buffer must be of type str, PathLike or TextIO. "
+            f"Supplied argument is of type {type(filepath_or_buffer_)}."
+            )
+        raise TypeError(error)
+    
+    if not isinstance(path, Path):
+        abs_path = Path(path).absolute()
+    else:
+        abs_path = path.absolute()
+
+    suffix = abs_path.suffix
+    if suffix in ['.csv', '.xlsx']:
+        return abs_path
+    else:
+        raise ValueError(
+            f"Supplied file is of type '{suffix}'. "
+            f"Expected '.csv' or '.xlsx'."
+            )
 
 
 def check_cutoff_range(x):
