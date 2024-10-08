@@ -18,8 +18,8 @@ import numpy as np
 
 from pandas import ExcelWriter
 
-from valpas.utils.post_processing import beautify_series
-from valpas.utils.post_processing import sort_associations
+from .post_processing import beautify_series
+from .post_processing import sort_associations
 
 
 def reduce_to_shared_conditions(
@@ -602,8 +602,8 @@ def write_outfile(
                 data_counts = beautify_series(df=data_counts)
             dfs = [data_association, data_counts]
             sheets = [
-                f"{idx[0]}-{idx[1]}_associations",
-                f"{idx[0]}-{idx[1]}_counts"
+                f"assoc_{idx[0]}-{idx[1]}"[:30],
+                f"count_{idx[0]}-{idx[1]}"[:30]
             ]
             export_xlsx(
                 filepath=file_handle,
