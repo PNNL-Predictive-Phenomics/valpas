@@ -525,7 +525,8 @@ def write_outfile(
         output_type: Literal[
             'sorted_list', 'correlation_matrix'
             ]='sorted_list',
-        overwrite: bool=False
+        overwrite: bool=False,
+        association_type: str='correlation',
         ) -> None:
     """
     Takes a `pd.DataFrame` object and writes it to a file handle. This 
@@ -570,8 +571,9 @@ def write_outfile(
     data_counts.drop(labels=idx_to_drop.values, axis="index", inplace=True)
 
     if f_type in ('csv', 'tsv') and output_type == 'sorted_list':
-        data_association = beautify_series(df=data_association)
-        data_counts = beautify_series(df=data_counts)
+        data_association = beautify_series(df=data_association,
+                                           value=association_type)
+        data_counts = beautify_series(df=data_counts, value='counts')
         if f_type in ('csv', 'tsv'):
             data_ = data_association.merge(
                 data_counts,
@@ -599,8 +601,9 @@ def write_outfile(
             )
     elif f_type == 'xlsx':
             if output_type == 'sorted_list':
-                data_association = beautify_series(df=data_association)
-                data_counts = beautify_series(df=data_counts)
+                data_association = beautify_series(df=data_association,
+                                                   value=association_type)
+                data_counts = beautify_series(df=data_counts, value='counts')
             dfs = [data_association, data_counts]
             sheets = [
                 f"assoc_{idx[0]}-{idx[1]}"[:30],

@@ -268,7 +268,8 @@ def correlate(args):
         file_handle=args.OUTFILE,
         idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
     )
 
 
@@ -297,7 +298,8 @@ def mutual_information(args):
         file_handle=args.OUTFILE,
         idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
     )
 
 def cosine_similarity(args):
@@ -324,7 +326,8 @@ def cosine_similarity(args):
         file_handle=args.OUTFILE,
         idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
     )
 
 
@@ -352,6 +355,7 @@ def jaccard_similarity(args):
         file_handle=args.OUTFILE,
         idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
     )
 
