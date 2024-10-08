@@ -50,7 +50,8 @@ def reduce_to_shared_conditions(
 def export_csv(
         filepath_or_buffer: str | PathLike | Path | TextIOBase,
         data: pd.DataFrame,
-        overwrite=False
+        overwrite: bool=False,
+        index : bool=True
         ) -> None:
     """
     Helper function to export computed DataFrame to csv formated plain 
@@ -104,7 +105,7 @@ def export_csv(
         filepath_or_buffer_ = filepath_or_buffer
     # if filepath_or_buffer points to a new file, overwrite==True or the
     # output is written to stdout then write the file
-    data.to_csv(filepath_or_buffer_, encoding='utf-8')
+    data.to_csv(filepath_or_buffer_, encoding='utf-8', index=index)
 
     return None
 
@@ -554,7 +555,8 @@ def write_outfile(
             export_csv(
                 filepath_or_buffer=file_handle,
                 data=data_,
-                overwrite=overwrite
+                overwrite=overwrite,
+                index=False
                 )
     elif f_type in ('csv', 'tsv') and output_type == 'correlation_matrix':
         data_ = (
