@@ -7,18 +7,19 @@ import os
 import sys
 import textwrap
 
-from valpas.utils.calc_associations import calc_correlation
-from valpas.utils.calc_associations import calc_mut_info
-from valpas.utils.calc_associations import calc_cosine_sim
-from valpas.utils.calc_associations import calc_jaccard_sim
-from valpas.utils.checker import check_file
-from valpas.utils.checker import check_cutoff_range
-from valpas.utils.data_handling import write_outfile
-from valpas.utils.data_handling import import_asssociation_matrix
-from valpas.utils.post_processing import rm_duplicates
-from valpas.utils.post_processing import idx_name
+from .utils.calc_associations import calc_correlation
+from .utils.calc_associations import calc_mut_info
+from .utils.calc_associations import calc_cosine_sim
+from .utils.calc_associations import calc_jaccard_sim
+from .utils.checker import check_infile
+from .utils.checker import check_outfile
+from .utils.checker import check_cutoff_range
+from .utils.data_handling import write_outfile
+from .utils.data_handling import import_asssociation_matrix
+from .utils.post_processing import rm_duplicates
+from .utils.post_processing import idx_name
 
-from valpas.visualization.heatmap import create_fig
+from .visualization.heatmap import create_fig
 
 def main(args):
     """
@@ -86,7 +87,7 @@ def main(args):
         "-i", "--infile",
         dest="INFILE",
         required=True,
-        type=check_file,
+        type=check_infile,
         help="Path to input file containing data points for which "
              "associations are to be generated. If used on it's own (without "
              "'-I') associations between data instances of only this input "
@@ -95,7 +96,7 @@ def main(args):
     p_associate.add_argument(
         "-I", "--infile2",
         dest="INFILE2",
-        type=check_file,
+        type=check_infile,
         help="Path to an optional second input file. If passed to command "
              "associations between data instances of INFILE1 and INFILE2 will "
              "be generated."
@@ -119,7 +120,7 @@ def main(args):
     p_associate.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
-        type=check_file,
+        type=check_outfile,
         default=sys.stdout,
         help="Path to an optional output file. If omitted, any output "
              "generated will be piped to stdout."
@@ -143,17 +144,6 @@ def main(args):
              "computed associations as comma separated file, sorted in "
              "descending order starting with the highest association. (2) A "
              "correlation matrix (comma separated)."
-    )
-    p_associate.add_argument(
-        "-or", "--reduced_output",
-        dest="REDUCED_OUTPUT",
-        action='store_true',
-        help="By default the full list of associations is returned if " 
-             "'-ot sorted_list' is chosen. Adding this flag will reduce the "
-             "output to not include self hits and only one of the two "
-             "permutations of a data pair. Note that enabeling this flag if "
-             "two input files are passed to the command will cause incomplete "
-             "results to be returned!" 
     )
     p_associate.add_argument(
         "-f", "--filter_missing_values",
@@ -262,14 +252,14 @@ def correlate(args):
         corr_func=args.ASSOCIATION_TYPE,
         filter_cutoff=args.FILTER_CUTOFF,
         )
-    if idx2 is not None or args.REDUCED_OUTPUT:
-        df_corr = rm_duplicates(df=df_corr, idx1=idx1, idx2=idx2)
-        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+
+    df_corr = rm_duplicates(df=df_corr, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_corr = idx_name(df_corr, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:
         idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
     else:
         idx1_name = idx1.name
         idx2_name = idx2.name
@@ -278,7 +268,8 @@ def correlate(args):
         file_handle=args.OUTFILE,
         idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
     )
 
 
@@ -291,14 +282,14 @@ def mutual_information(args):
         sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
-    if idx2 is not None or args.REDUCED_OUTPUT:
-        df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
-        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+
+    df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_mut_inf = idx_name(df_mut_inf, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:
         idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
     else:
         idx1_name = idx1.name
         idx2_name = idx2.name
@@ -307,7 +298,8 @@ def mutual_information(args):
         file_handle=args.OUTFILE,
         idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
     )
 
 def cosine_similarity(args):
@@ -318,14 +310,14 @@ def cosine_similarity(args):
         sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
-    if idx2 is not None or args.REDUCED_OUTPUT:
-        df_cosine_sim = rm_duplicates(df=df_cosine_sim, idx1=idx1, idx2=idx2)
-        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+    
+    df_cosine_sim = rm_duplicates(df=df_cosine_sim, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_cosine_sim = idx_name(df_cosine_sim, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:
         idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
     else:
         idx1_name = idx1.name
         idx2_name = idx2.name
@@ -334,7 +326,8 @@ def cosine_similarity(args):
         file_handle=args.OUTFILE,
         idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
     )
 
 
@@ -346,14 +339,14 @@ def jaccard_similarity(args):
         sheet2=args.SHEET2,
         filter_cutoff=args.FILTER_CUTOFF,
     )
-    if idx2 is not None or args.REDUCED_OUTPUT:
-        df_jaccard_sim = rm_duplicates(df=df_jaccard_sim, idx1=idx1, idx2=idx2)
-        df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
+    
+    df_jaccard_sim = rm_duplicates(df=df_jaccard_sim, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
     df_jaccard_sim = idx_name(df_jaccard_sim, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:
         idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
     else:
         idx1_name = idx1.name
         idx2_name = idx2.name
@@ -362,6 +355,7 @@ def jaccard_similarity(args):
         file_handle=args.OUTFILE,
         idx=(idx1_name, idx2_name),
         output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
     )
 
