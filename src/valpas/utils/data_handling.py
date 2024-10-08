@@ -388,6 +388,19 @@ def prep_data(
             )
         idx2 = df_2.index
         df = pd.concat([df, df_2], join='inner')
+    
+    # routine that happens only if
+    # - only one infile has been defined
+    # - that file is an excel file (xlsx)
+    # - a second sheet has been defined as import
+    # If those cases are satisfied, the additional sheet is imported and
+    # the concatenated DF is generated
+    elif sheet2 is not None and f_suffix == '.xlsx':
+        df_2 = import_xls(
+            filepath_or_buffer=filepath_or_buffer, sheet=sheet2
+            )
+        idx2 = df_2.index
+        df = pd.concat([df, df_2], join='inner')
 
 
     # removing low confidence items
