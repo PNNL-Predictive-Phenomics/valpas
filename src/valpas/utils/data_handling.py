@@ -50,7 +50,8 @@ def reduce_to_shared_conditions(
 def export_csv(
         filepath_or_buffer: str | PathLike | Path | TextIOBase,
         data: pd.DataFrame,
-        overwrite=False
+        overwrite: bool=False,
+        index : bool=True
         ) -> None:
     """
     Helper function to export computed DataFrame to csv formated plain 
@@ -104,7 +105,7 @@ def export_csv(
         filepath_or_buffer_ = filepath_or_buffer
     # if filepath_or_buffer points to a new file, overwrite==True or the
     # output is written to stdout then write the file
-    data.to_csv(filepath_or_buffer_, encoding='utf-8')
+    data.to_csv(filepath_or_buffer_, encoding='utf-8', index=index)
 
     return None
 
@@ -415,6 +416,9 @@ def prep_data(
         return (df.transpose(), idx1_ret, idx2_ret)
 
 def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
+    """
+    Helper function for binning the values of rows in a DataFrame
+    """
     df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
     return df
 
@@ -539,6 +543,18 @@ def write_outfile(
     data_association = data[0]
     data_counts = data[1]
 
+    # remove idx and cols from data_associations where all values are
+    # NaN / None
+    data_association.dropna(axis="index", how="all", inplace=True)
+    data_association.dropna(axis="columns", how="all", inplace=True)
+    
+    # Do the same for data_counts by checking which cols in 
+    # data_associations have been dropped
+    cols_to_drop = data_counts.columns.difference(data_association.columns)
+    idx_to_drop = data_counts.index.difference(data_association.index)
+    data_counts.drop(labels=cols_to_drop.values, axis="columns", inplace=True)
+    data_counts.drop(labels=idx_to_drop.values, axis="index", inplace=True)
+
     if f_type in ('csv', 'tsv') and output_type == 'sorted_list':
         data_association = beautify_series(df=data_association)
         data_counts = beautify_series(df=data_counts)
@@ -551,7 +567,8 @@ def write_outfile(
             export_csv(
                 filepath_or_buffer=file_handle,
                 data=data_,
-                overwrite=overwrite
+                overwrite=overwrite,
+                index=False
                 )
     elif f_type in ('csv', 'tsv') and output_type == 'correlation_matrix':
         data_ = (

@@ -225,20 +225,29 @@ def mutual_information(
     if(len(xy_defined)/len(x) < min_def):
         mi = None
     else:
-        x_bin_associations = bspline_bin(
-            data=x_defined_vals,
-            bins=bins,
-            order=spline_order
-        )
-        y_bin_associations = bspline_bin(
-            data=y_defined_vals,
-            bins=bins,
-            order=spline_order
-        )
-
+        try:
+            x_bin_associations = bspline_bin(
+                data=x_defined_vals,
+                bins=bins,
+                order=spline_order
+            )
+            y_bin_associations = bspline_bin(
+                data=y_defined_vals,
+                bins=bins,
+                order=spline_order
+            )
+        except ValueError:
+            # If all values in x or y are identical (e.g. x=[1,1,1,1])
+            # the B-Spline binning can not produce a design_matrix. 
+            # This is extremely unlikely to be the case in a real world
+            # scenario. To compensate for that we define MI as not being
+            # able to be calculated (i.e. None)
+            mi = None
+            return mi
         # calculation of probabilities x[i] and y[i] based of the bin(i) 
         # association probabilities as determined by the B-Spline
         # functions
+    
         p_x = np.sum(x_bin_associations, axis=0) / len(x_defined_vals)
         p_y = np.sum(y_bin_associations, axis=0) / len(y_defined_vals)
         p_x_y = (
@@ -246,8 +255,7 @@ def mutual_information(
                 np.transpose(x_bin_associations),
                 y_bin_associations
                 ) / len(x)
-            ).flatten('F')
-        
+            ).flatten('F') 
         # calculation of the Shannon entropy H(A) where A = x & y
         h_x = -np.nansum(p_x * np.log2(p_x))
         h_y = -np.nansum(p_y * np.log2(p_y))
