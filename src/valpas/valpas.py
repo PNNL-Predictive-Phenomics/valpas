@@ -3,14 +3,10 @@ The main script that gets executed.
 """
 
 import argparse
-import os
 import sys
 import textwrap
 
-from .utils.calc_associations import calc_correlation
-from .utils.calc_associations import calc_mut_info
-from .utils.calc_associations import calc_cosine_sim
-from .utils.calc_associations import calc_jaccard_sim
+from .utils.calc_associations import calc_association
 from .utils.checker import check_infile
 from .utils.checker import check_outfile
 from .utils.checker import check_cutoff_range
@@ -77,7 +73,10 @@ def main(args):
             'pearson',
             'mutual_information',
             'cosine_similarity',
+            'cosine_distance',
             'jaccard_similarity',
+            'jaccard_index',
+            'jaccard_distance'
             ),
         default='pearson',
         help="Defines the type of metric used for generating associations. "
@@ -220,21 +219,42 @@ def main(args):
 
 
 def associate(args):
-    if args.ASSOCIATION_TYPE in ('pearson', 'spearman'):
-        correlate(args)
-    elif args.ASSOCIATION_TYPE == 'mutual_information':
-        mutual_information(args)
-    elif args.ASSOCIATION_TYPE == 'cosine_similarity':
-        cosine_similarity(args)
-    elif args.ASSOCIATION_TYPE == 'jaccard_similarity':
-        jaccard_similarity(args)
-    else:
-        print(
-            *("Association type", args.ASSOCIATION_TYPE,
-              "not yet implemented"), 
-            sep=" ",
-            file=sys.stderr
+
+    try:
+        ret_dict = calc_association(
+            filepath_or_buffer=args.INFILE,
+                filepath_or_buffer_2=args.INFILE2,
+                sheet1=args.SHEET,
+                sheet2=args.SHEET2,
+                association=args.ASSOCIATION_TYPE,
+                filter_cutoff=args.FILTER_CUTOFF,  
+        )
+    except ValueError:
+        sys.exit(
+            f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
             )
+    
+    idx1 = ret_dict['idx1']
+    idx2 = ret_dict['idx2']
+
+    df_assoc = rm_duplicates(df=ret_dict['df_assoc'], idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=ret_dict['df_counts'], idx1=idx1, idx2=idx2)
+    df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
+    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
+    write_outfile(
+        data=(df_assoc, df_counts),
+        file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
+        output_type=args.OUTPUT_TYPE,
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
+    )
 
 def visualize(args):
     if args.TYPE == "heatmap":
@@ -242,120 +262,4 @@ def visualize(args):
         fig = create_fig(df=df, fig_out=args.OUTFILE, cbarlabel=args.LABEL)
     else:
         print("Not yet implemented.", file=sys.stderr)
-
-def correlate(args):
-    df_corr, idx1, idx2, df_counts = calc_correlation(
-        filepath_or_buffer=args.INFILE,
-        filepath_or_buffer_2=args.INFILE2,
-        sheet1=args.SHEET,
-        sheet2=args.SHEET2,
-        corr_func=args.ASSOCIATION_TYPE,
-        filter_cutoff=args.FILTER_CUTOFF,
-        )
-
-    df_corr = rm_duplicates(df=df_corr, idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
-    df_corr = idx_name(df_corr, idx1=idx1, idx2=idx2)
-    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    if idx2 is None:
-        idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '2'))
-    else:
-        idx1_name = idx1.name
-        idx2_name = idx2.name
-    write_outfile(
-        data=(df_corr, df_counts),
-        file_handle=args.OUTFILE,
-        idx=(idx1_name, idx2_name),
-        output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT,
-        association_type=args.ASSOCIATION_TYPE
-    )
-
-
-
-def mutual_information(args):
-    df_mut_inf, idx1, idx2, df_counts = calc_mut_info(
-        filepath_or_buffer=args.INFILE,
-        filepath_or_buffer_2=args.INFILE2,
-        sheet1=args.SHEET,
-        sheet2=args.SHEET2,
-        filter_cutoff=args.FILTER_CUTOFF,
-    )
-
-    df_mut_inf = rm_duplicates(df=df_mut_inf, idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
-    df_mut_inf = idx_name(df_mut_inf, idx1=idx1, idx2=idx2)
-    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    if idx2 is None:
-        idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '2'))
-    else:
-        idx1_name = idx1.name
-        idx2_name = idx2.name
-    write_outfile(
-        data=(df_mut_inf, df_counts),
-        file_handle=args.OUTFILE,
-        idx=(idx1_name, idx2_name),
-        output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT,
-        association_type=args.ASSOCIATION_TYPE
-    )
-
-def cosine_similarity(args):
-    df_cosine_sim, idx1, idx2, df_counts = calc_cosine_sim(
-        filepath_or_buffer=args.INFILE,
-        filepath_or_buffer_2=args.INFILE2,
-        sheet1=args.SHEET,
-        sheet2=args.SHEET2,
-        filter_cutoff=args.FILTER_CUTOFF,
-    )
-    
-    df_cosine_sim = rm_duplicates(df=df_cosine_sim, idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
-    df_cosine_sim = idx_name(df_cosine_sim, idx1=idx1, idx2=idx2)
-    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    if idx2 is None:
-        idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '2'))
-    else:
-        idx1_name = idx1.name
-        idx2_name = idx2.name
-    write_outfile(
-        data=(df_cosine_sim, df_counts),
-        file_handle=args.OUTFILE,
-        idx=(idx1_name, idx2_name),
-        output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT,
-        association_type=args.ASSOCIATION_TYPE
-    )
-
-
-def jaccard_similarity(args):
-    df_jaccard_sim, idx1, idx2, df_counts = calc_jaccard_sim(
-        filepath_or_buffer=args.INFILE,
-        filepath_or_buffer_2=args.INFILE2,
-        sheet1=args.SHEET,
-        sheet2=args.SHEET2,
-        filter_cutoff=args.FILTER_CUTOFF,
-    )
-    
-    df_jaccard_sim = rm_duplicates(df=df_jaccard_sim, idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=df_counts, idx1=idx1, idx2=idx2)
-    df_jaccard_sim = idx_name(df_jaccard_sim, idx1=idx1, idx2=idx2)
-    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    if idx2 is None:
-        idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '2'))
-    else:
-        idx1_name = idx1.name
-        idx2_name = idx2.name
-    write_outfile(
-        data=(df_jaccard_sim, df_counts),
-        file_handle=args.OUTFILE,
-        idx=(idx1_name, idx2_name),
-        output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT,
-        association_type=args.ASSOCIATION_TYPE
-    )
 
