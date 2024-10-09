@@ -208,7 +208,7 @@ def main(args):
     # behaviour in argparse for what ever reason...) 
     if len(sys.argv) == 1:
         argp.print_help(sys.stderr)
-        sys.exit(1)
+        sys.exit(0)
     try:
         args = argp.parse_args(args)
     except FileNotFoundError as e:
