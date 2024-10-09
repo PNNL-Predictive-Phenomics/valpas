@@ -634,4 +634,5 @@ def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
         index_col=0,
         header=0,
         )
+    df = df.map(lambda x: float(x.split(':')[0]))
     return df
