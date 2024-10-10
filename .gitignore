@@ -14,3 +14,7 @@ __pycache__/
 # Jupyter Notebook
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+
+# Docs
+docs/build/*
+docs/source/_autosummary/
