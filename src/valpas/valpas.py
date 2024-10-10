@@ -264,7 +264,7 @@ def visualize(args):
         print("Not yet implemented.", file=sys.stderr)
 
 
-def df_to_pyvis(file_path, index_name, net, threshold):
+def df_to_graph(file_path, index_name, net, threshold):
     #read in data
     df = pd.read_csv(file_path)
     #set row names

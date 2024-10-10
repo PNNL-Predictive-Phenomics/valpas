@@ -46,7 +46,7 @@ def df_to_cyto(file_path, index_name, threshold):
     nodes = nodes + edges
     return nodes
 
-def df_to_pyvis(file_path, index_name, net, threshold):
+def df_to_graph(file_path, index_name, net, threshold):
     #read in data
     df = pd.read_csv(file_path)
     #set row names
