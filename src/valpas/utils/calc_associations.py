@@ -22,7 +22,7 @@ from valpas.utils.data_handling import prep_data
 from valpas.utils.b_spline import mutual_information
 
 
-def calc_association(
+def calc_association(    
         filepath_or_buffer: str | PathLike | Path,
         filepath_or_buffer_2: (str | PathLike | Path)=None,
         sheet1: str=None,
@@ -36,6 +36,68 @@ def calc_association(
         filter_cutoff: float=0.9,
         threshold: float=None,
     ) -> dict:
+    """
+    Universal wrapper function that can be called to calculate any of
+    the suppored associations between data types. Calls individual 
+    private functions internally.
+
+    Parameters
+    ----------
+    filepath_or_buffer : str | PathLike | Path
+        Defines the path to the main file to be imported and used as a 
+        basis to calculate associations from. Can be CSV or Excel file.
+        If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
+        be defined.
+    filepath_or_buffer_2 : str | PathLike | Path, default = None
+        Optinonal path definition to a second input file. If 
+        ``filepath_or_buffer_2`` is defined, then associations between
+        datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
+        are calculated. Note, if an Excel file is defined as input 
+        ``sheet2`` needs to be defined.
+    sheet1 : str, default = None
+        Used to define the name of the Excel sheet that should be 
+        imported. Only used when ``filepath_or_buffer`` points to an 
+        Excel file.
+    sheet2 : str, default = None
+        See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
+        Excel file) the defined sheet will be imported from there. 
+        Otherwise the sheet will be imported from ``filepath_or_buffer``. 
+    association : {'pearson', 'spearman', 'jaccard_similarity', \
+        'jaccard_distance', 'jaccard_index', 'mutual_information', \
+        'cosine_similarity', 'cosine_distance'}, default = 'pearson'
+        Defines the type of association measure that should be 
+        calculated.
+    filter_cutoff : float, default = 0.9
+        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
+        fraction of ``filter_cutoff`` values that are not `0.0` or 
+        `NaN`. Any rows that have less defined values will excluded from
+        the calculation of the association value.
+    threshold : float, default = None
+        Optional argument that defines the threshold values that is used
+        for thresholding values if `cosine_similarity`,
+        `cosine_distance`, `jaccard_similiary`, `jaccard_index` or 
+        `jaccard_distance` is chosen as the ``association`` metric.
+
+    Returns
+    -------
+    dict
+        Return dictionary contains 4 key/value pairs:
+            - `df_assoc`: ``pandas.DataFrame`` containing the 
+              association values
+            - `df_counts`: ``pandas.DataFrame`` containing metadata 
+              / counts 
+            - `idx1`: ``pandas.Index`` containing the data items of 
+              ``x``
+            - `idx2`: ``pandas.Index`` containing the data items of 
+              ``y``
+
+    Raises
+    ------
+    ValueError
+        ValueError that is passed along from 
+        ``valpas.utils.data_handling.prep_data()``
+    """
+
 
     if association in ['pearson', 'spearman']:
         try:
