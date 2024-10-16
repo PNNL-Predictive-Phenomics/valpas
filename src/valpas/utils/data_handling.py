@@ -25,12 +25,15 @@ from .post_processing import sort_associations
 def reduce_to_shared_conditions(
         df_1: pd.DataFrame, df_2: pd.DataFrame
         ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    (!DEPRECATED!)
-        
+    """ 
     This function operates on already inmported and transposed 
     pd.DataFrame objects. This means that the individual conditions in 
     the raw data (columns) are represented as rows (index).  
+
+    .. deprecated:: 0
+        ``reduce_to_shared_conditions`` no longer needed as separate
+        function. ``prep_data`` performs merge / join on two imported 
+        DataFrames which already contains this functionality.
     """
     intersect = df_1.columns.intersection(df_2.columns)
     df_1_ret = df_1.filter(items=intersect, axis="columns")
@@ -60,15 +63,18 @@ def export_csv(
     Parameters
     ----------
     filepath_or_buffer : str | PathLike | Path | TextIOBase
-        Path to the *.csv that should be used for the export of data. 
+        Path to the \\*.csv that should be used for the export of data. 
         Can also be of type TextIOBase e.g. if the passed argument 
         is a stream to sys.stdout
     data : pandas.DataFrame
         Single pandas.DataFrame that contains the data to be stored.
     overwrite : bool, default=False
         If passed to the function as 'True', then the csv-file that is 
-        pointed to by **filepath** will be overwritten if it already 
-        exists.
+        pointed to by ``filepath_or_buffer`` will be overwritten if it 
+        already exists.
+    index: bool, default=True
+        Passed to ``pd.DataFrame.to_csv``. Determines if the index (
+        row names) should be written to the output.
     
     Returns
     -------
@@ -77,10 +83,11 @@ def export_csv(
     Raises
     ------
     FileExistsError
-        If file pointed to by **filepath** already exists and 
-        **overwrite**==False
+        If file pointed to by ``filepath_or_buffer`` already exists and 
+        `overwrite==False`
     TypeError
-        If **filepath** passed to function is not of a 'legal' type. 
+        If ``filepath_or_buffer`` passed to function is not of a 'legal'
+        type. 
     """
 
     # check if filepath is of 'legal' type
@@ -122,19 +129,19 @@ def export_xlsx(
     Parameters
     ----------
     filepath : str | PathLike | Path
-        Path to *.xlsx file that should be used for the export of data
+        Path to \\*.xlsx file that should be used for the export of data
     dfs : pandas.DataFrame | list[pandas.DataFrame]
         Either a single pandas.DataFrame object or a list of objects. 
         If a list is passed to the function, **sheets** must also be a 
         list and the number of elements in both must be identical.
     sheets : str | list[str]
         Either a single String or a list of Strings containing the names
-        that the sheets should be stored as in the *.xlsx file. If a 
+        that the sheets should be stored as in the \\*.xlsx file. If a 
         list is passed to the function, **dfs** also needs to be a list
         and both need to contain the same number of elements.
     overwrite : bool, default=False
         Indicates if sheets should be overwritten if they already exist
-        in the *.xlsx file that is passed to the function.
+        in the \\*.xlsx file that is passed to the function.
 
     Returns
     -------
@@ -241,15 +248,59 @@ def export_xlsx(
     
     return None
 
+
+def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
+    """
+    Imports a saved correlation / association matrix saved by 
+    ``valpas.utils.write_outfile`` into a ``pandas.DataFrame`` object
+    and returns it.
+
+    Parameters
+    ----------
+    file_handle : str
+        The path to the file that should be imported
+
+    Returns
+    -------
+    pandas.DataFrame
+        A pandas DataFrame that contains the association values in the 
+        raw data file that was imported.
+
+    Notes
+    -----
+    Can for example be used to read in data necessary to plot a heatmap 
+    via the `valpas.visualize.heatmap` module. 
+    """
+    df = pd.read_csv(
+        filepath_or_buffer=file_handle,
+        index_col=0,
+        header=0,
+        )
+    df = df.map(lambda x: float(x.split(':')[0]))
+    return df
+
+
 def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     """
     Imports a csv file. Returns a pandas DataFrame object containing 
     the data.
 
-    Input can be either:
-      - a string that is the path to the infile 
-      - a path like object (e.g. generated via `os.path`) to the infile
-      - a file handle (e.g. opened via `argparse.FileType`)
+    Parameters
+    ----------
+    filepath_or_buffer: str | PathLike | TextIO
+        Path to CSV file that should be imported
+    
+    Returns
+    -------
+    pd.DataFrame
+        The contents of the imported CSV as a ``pandas.DataFrame``
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``filepath_or_buffer`` points to file that does not exist.
+    TypeError
+        If ``filepath_or_buffer`` is not an instance of a 'legal' type.
     """
     filepath_or_buffer_ = filepath_or_buffer
     if isinstance(filepath_or_buffer_, (str, PathLike, TextIOBase)):
@@ -277,22 +328,24 @@ def import_xls(
     """
     Imports a sheet within a xlsx file into a pandas DataFrame.
 
-    Input for filepath_or_buffer can be either:
-      - a string that is the path to the infile 
-      - a path like object (e.g. generated via `os.path`) to the infile
-      - a file handle (e.g. opened via `argparse.FileType`)
+    Parameters
+    ----------
+    filepath_or_buffer: str | PathLike | BinaryIO
+        Path (or Buffer) to the Excel file that should be imported
+    sheet: str 
+        The name of the sheet to be imported.
     
-    Requires the name of the sheet to be imported (`sheet`).
-      
-    Raises:
-        - FileNotFoundError: If supplied path to file does not resolve
-        to a file
-        - TypeError: If the supplied filepath_or_buffer is not an
-        instance of `str`, `PathLike` or `BinaryIO`
-
-    Returns:
-        - `pandas.DataFrame` containing the contents of the defined
-        sheet
+    Returns
+    -------
+    pandas.DataFrame
+        containing the contents of the defined sheet
+        
+    Raises
+    ------
+    FileNotFoundError
+        If ``filepath_or_buffer`` points to file that does not exist
+    TypeError
+        If ``filepath_or_buffer`` is not an instance of 'legal' type.
     """
     filepath_or_buffer_ = filepath_or_buffer
     if isinstance(filepath_or_buffer_, (str, PathLike, BinaryIO)):
@@ -320,29 +373,72 @@ def prep_data(
         sheet1: str=None,
         sheet2: str=None,
         filter_cutoff: float=0.9,
-        cut: bool=False, threshold: float=None
+        cut: bool=False,
+        threshold: float=None,
         ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
     """
-    Imports data file(s) from file_path_or_buffer into pandas DataFrame
-    object(s). If two data files are provided, the two imported 
-    DataFrames are concatenated over their shared columns (conditions). 
-    Finally, (depending on the arguments passed to the function call) 
-    the resulting DataFrame is:
+    Imports data file(s) into pandas DataFrame. Can handle import from 
+    one or two data files. If provided data files are Excel files, the 
+    sheets from which to import also have to be defined.
+
+    Parameters
+    ----------
+    filepath_or_buffer : str | PathLike | Path
+        Defines the path to the main file to be imported and used as a 
+        basis to calculate associations from. Can be CSV or Excel file.
+        If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
+        be defined.
+    filepath_or_buffer_2 : str | PathLike | Path, default = None
+        Optinonal path definition to a second input file. If 
+        ``filepath_or_buffer_2`` is defined, then associations between
+        datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
+        are calculated. Note, if an Excel file is defined as input 
+        ``sheet2`` needs to be defined.
+    sheet1 : str, default = None
+        Used to define the name of the Excel sheet that should be 
+        imported. Only used when ``filepath_or_buffer`` points to an 
+        Excel file.
+    sheet2 : str, default = None
+        See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
+        Excel file) the defined sheet will be imported from there. 
+        Otherwise the sheet will be imported from ``filepath_or_buffer``.
+    filter_cutoff : float, default = 0.9
+        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
+        fraction of ``filter_cutoff`` values that are not `0.0` or 
+        `NaN`. Any rows that have less defined values will excluded from
+        the calculation of the association value.
+    cut : bool, default = False
+        Determines if the values in the DataFrame should be binned for 
+        further association calculations
+    threshold : float, default = None
+        Optional argument that defines the threshold values that is used
+        for thresholding values.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.Index, pd.Index]
+        Return tuple contains three objects:
+            1. a pandas DataFrame object containing transposed data
+            2. a pandas Index object containing the index of the 
+               DataFrame resulting from importing ``filepath_or_buffer``
+            3. a pandas Index object containing the index of the 
+               DataFrame resulting from importing 
+               ``filepath_or_buffer_2`` or if ``filepath_or_buffer_2``
+               was not passed to the function (i.e. `None`) then `None` 
+               is returned as the 3rd position of the tuple
+
+    Notes
+    -----
+    Imports data file(s) into pandas DataFrame object(s). If two data 
+    files are provided, the two imported DataFrames are concatenated 
+    over their shared columns (conditions). Finally, (depending on the 
+    arguments passed to the function call) the resulting DataFrame is:
 
     - cleaned of low confidence items (rows) that contain to many 0 
       values.
     - binned (necessary for mutual information)
     - thresholded (necessary for Jaccard Index/Similarity)
 
-    Returns a tuple containing:
-    
-    1. a pandas DataFrame object containing transposed data
-    2. a pandas Index object containing the index of the DataFrame
-    resulting from importing `filepath_or_buffer`
-    3. a pandas Index object containing the index of the DataFrame
-    resulting from importing `filepath_or_buffer_2` or if 
-    `filepath_or_buffer_2` was not passed to the function (i.e. `None`) 
-    then `None` is returned as the 3rd position of the tuple
     """
 
     if not isinstance(filepath_or_buffer, Path):
@@ -429,23 +525,66 @@ def prep_data(
     else:
         return (df.transpose(), idx1_ret, idx2_ret)
 
+
 def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     """
     Helper function for binning the values of rows in a DataFrame
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame with values to be binned
+    num_bins: int, default = 2
+        Defines the number of bins.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Return DataFrame with binned rows.
     """
-    df = df.apply(lambda x: pd.cut(x, bins=num_bins, labels=range(0,num_bins)), axis=0)
+    df = df.apply(
+        lambda x: pd.cut(
+            x, bins=num_bins,
+            labels=range(0,num_bins)
+            ),
+        axis=0
+        )
     return df
 
 
 def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     """
-    function to threshold a pd.DataFrame containing aboslute or relative 
+    Thresholds rows in a pd.DataFrame containing aboslute or relative 
     abunances for items (rows, e.g. metabolites) across different 
     conditions (columns).
 
-    Returns a truth table encoded with 0s and 1s denoting if the value 
-    falls above the determined threshold. Note that NA values in the DF 
-    passed to the function will automatically be cast to 'False' / 0
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame that contains values that should be thresholded
+    threshold_rel : float, default=0.5
+        Relative threshold, that is to be used for the internal
+        thresholding function. 
+
+    Returns
+    -------
+    pandas.DataFrame
+        A truth table encoded with 0s and 1s denoting if the value 
+        falls above the determined threshold.
+
+    Notes
+    -----
+    NA values in the DataFrame passed to the function will automatically
+    be cast to 'False' / 0.
+    
+    Thresholding is done relative to the values recorded in the rows,
+    i.e.
+
+    .. math::
+
+        t = min(v_{ij}) + (max(v_{ij}) - min(v_{ij})) * threshold\_rel
+    
+    for :math:`v_{ij}` is any value :math:`v_i` in :math:`Row` :math:`j`
     """
 
     # it is assumed that the DF that is passed to the function will not
@@ -480,13 +619,36 @@ def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
 def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
         drop_na_cols: bool=True) -> tuple[pd.DataFrame, pd.Index]:
     """
-    Takes a pd.DataFrame and removes low confidence (to many NAs) 
+    Removes low confidence (to many NAs) 
     items (rows) from the DataFrame. The `cutoff` argument passed to 
     the function determines how complete (i.e. the fraction of non-NA 
     values) an item (row) needs to be to retained in the DataFrame.
     Additionally, the function can be told to keep any columns that 
     are completely populated with NAs/0s as a result of removing items 
     from the DataFrame. By default those columns are dropped.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame that should be filtered to remove low confidence
+        items.
+    cutoff : float, default=0.9
+        The cutoff that determines if an item is considered a low 
+        confidence item, i.e. if less than a fraction ``cutoff`` of 
+        data points for an item are not NaN the item is considered low 
+        confidence.
+    drop_na_cols : bool, default=True
+        If the removal of low confidence items generates new columns in 
+        the DataFrame that are entirely made up of NaN values those 
+        columns will be dropped if ``drop_na_cols`` is set to `True`.
+
+    Returns
+    -------
+    tuple[pandas.DataFrame, pandas.Index]
+        The return tuple contains two objects:
+            1. The "clean" DataFrame
+            2. An index of all dropped items
+
     """
     
     # treating '0' as NaNs for easier counting of missing values
@@ -529,8 +691,37 @@ def write_outfile(
         association_type: str='correlation',
         ) -> None:
     """
-    Takes a `pd.DataFrame` object and writes it to a file handle. This 
-    can be either a file or sys.stdout.
+    Takes a ``pandas.DataFrame`` object and writes it to a file handle.
+    This can be either a file or ``sys.stdout``.
+
+    Parameters
+    ----------
+    data : tuple[pandas.DataFrame, pandas.DataFrame]
+        Touple of two ``pandas.DataFrame``, one containing calculated
+        association values the other counts for how many values were 
+        used for the association value calculation between two omics 
+        data points.
+    file_handle : str | PathLike | Path | TextIOBase
+        Path to the outfile that should be written.
+    idx : tuple[str, str]
+        Touple of two ``pandas.Index`` objects containing the index for 
+        the two omics types which were used to calculate association 
+        values.
+    output_type : {'sorted_list', 'correlation_matrix'},\
+                  default='sorted_list'
+        The type of output file that should be written.
+    overwrite : bool, default=False
+        Defines if the output file / sheet should be overwritten if it 
+        already exists.
+    association_type : str, default='correlation'
+        Optional argument that is used to describe the association type
+        in the output.
+
+    Raises
+    ------
+    ValueError
+        If the supplied ``file_handle`` is not an instance of a 'legal'
+        type.
     """
 
     if isinstance(file_handle, (str, PathLike, Path)):
@@ -619,20 +810,3 @@ def write_outfile(
             f"Reached point that shouldn't be reachable. file_handle is of "
             f"type '{type(file_handle)}', which is not supported.")
 
-
-def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
-    """
-    Imports a saved correlation / association matrix saved by 
-    `valpas.utils.write_outfile()` into a `pd.DataFrame` object and 
-    returns it.
-
-    Can for example be used to read in data necessary to plot a heatmap 
-    via the `valpas.visualize.heatmap` module. 
-    """
-    df = pd.read_csv(
-        filepath_or_buffer=file_handle,
-        index_col=0,
-        header=0,
-        )
-    df = df.map(lambda x: float(x.split(':')[0]))
-    return df
