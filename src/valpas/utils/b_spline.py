@@ -2,18 +2,19 @@
 Utility to bin continous variables and estimate mutual information based
 on B-Spline binning.
 
-This is an adaption of Carsten Daub's R implementation [1] of the algorithm
-described in Daub et.al 2004 [2].
+This is an adaption of Carsten Daub's R implementation [1]_ of the algorithm
+described in Daub et.al 2004 [2]_.
 
-References & Footnotes
-======================
+References
+==========
 
 .. [1] https://gitlab.com/daub-lab/mutual_information
 .. [2] Daub CO, Steuer R, Selbig J, Kloska S. Estimating mutual 
-       information using B-spline functions--an improved similarity 
-       measure for analysing gene expression data. BMC Bioinformatics. 
-       2004 Aug 31;5:118. doi: 10.1186/1471-2105-5-118. PMID: 15339346; 
-       PMCID: PMC516800.
+    information using B-spline functions--an improved similarity 
+    measure for analysing gene expression data. BMC Bioinformatics. 
+    2004 Aug 31;5:118. doi: `10.1186/1471-2105-5-118 
+    <https://doi.org/10.1186/1471-2105-5-118>`_. PMID: 15339346; 
+    PMCID: PMC516800.
 """
 
 import numpy as np
@@ -29,7 +30,7 @@ def bspline_bin(
     This function enables adaptive binning of continous variables into
     a user defined number of bins with associated weights. The 
     underlying methodology relies on an extension of indicator functions
-    of B-Splines described in [1].
+    of B-Splines described in [1]_.
 
     Parameters
     ----------
@@ -64,6 +65,15 @@ def bspline_bin(
            [0. , 1. , 0. ],
            [0. , 0.5, 0.5],
            [0. , 0. , 1. ]])
+
+    References
+    ----------
+    .. [1] Daub CO, Steuer R, Selbig J, Kloska S. Estimating mutual 
+        information using B-spline functions--an improved similarity 
+        measure for analysing gene expression data. BMC Bioinformatics. 
+        2004 Aug 31;5:118. doi: `10.1186/1471-2105-5-118 
+        <https://doi.org/10.1186/1471-2105-5-118>`_. PMID: 15339346; 
+        PMCID: PMC516800.
 
     """
     try:
@@ -146,7 +156,7 @@ def mutual_information(
     ) -> float | None:
     """
     Estimates Mutual Information between two arrays containing continous
-    variables. Uses Daub et.al's approach [1] to estimate Mutual 
+    variables. Uses Daub et.al's approach [1]_ to estimate Mutual 
     Information using B-Spline functions.
 
     Parameters
@@ -198,10 +208,11 @@ def mutual_information(
     References
     ----------
     .. [1] Daub CO, Steuer R, Selbig J, Kloska S. Estimating mutual 
-       information using B-spline functions--an improved similarity 
-       measure for analysing gene expression data. BMC Bioinformatics. 
-       2004 Aug 31;5:118. doi: 10.1186/1471-2105-5-118. PMID: 15339346; 
-       PMCID: PMC516800.
+        information using B-spline functions--an improved similarity 
+        measure for analysing gene expression data. BMC Bioinformatics. 
+        2004 Aug 31;5:118. doi: `10.1186/1471-2105-5-118 
+        <https://doi.org/10.1186/1471-2105-5-118>`_. PMID: 15339346; 
+        PMCID: PMC516800.
     """
 
     try:

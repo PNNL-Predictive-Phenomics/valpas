@@ -22,7 +22,7 @@ from valpas.utils.data_handling import prep_data
 from valpas.utils.b_spline import mutual_information
 
 
-def calc_association(
+def calc_association(    
         filepath_or_buffer: str | PathLike | Path,
         filepath_or_buffer_2: (str | PathLike | Path)=None,
         sheet1: str=None,
@@ -36,6 +36,67 @@ def calc_association(
         filter_cutoff: float=0.9,
         threshold: float=None,
     ) -> dict:
+    """
+    Universal wrapper function that can be called to calculate any of
+    the suppored associations between data types. Calls individual 
+    private functions internally.
+
+    Parameters
+    ----------
+    filepath_or_buffer : str | PathLike | Path
+        Defines the path to the main file to be imported and used as a 
+        basis to calculate associations from. Can be CSV or Excel file.
+        If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
+        be defined.
+    filepath_or_buffer_2 : str | PathLike | Path, default = None
+        Optinonal path definition to a second input file. If 
+        ``filepath_or_buffer_2`` is defined, then associations between
+        datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
+        are calculated. Note, if an Excel file is defined as input 
+        ``sheet2`` needs to be defined.
+    sheet1 : str, default = None
+        Used to define the name of the Excel sheet that should be 
+        imported. Only used when ``filepath_or_buffer`` points to an 
+        Excel file.
+    sheet2 : str, default = None
+        See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
+        Excel file) the defined sheet will be imported from there. 
+        Otherwise the sheet will be imported from ``filepath_or_buffer``. 
+    association : {'pearson', 'spearman', 'jaccard_similarity', \
+        'jaccard_distance', 'jaccard_index', 'mutual_information', \
+        'cosine_similarity', 'cosine_distance'}, default = 'pearson'
+        Defines the type of association measure that should be 
+        calculated.
+    filter_cutoff : float, default = 0.9
+        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
+        fraction of ``filter_cutoff`` values that are not `0.0` or 
+        `NaN`. Any rows that have less defined values will excluded from
+        the calculation of the association value.
+    threshold : float, default = None
+        Optional argument that defines the threshold values that is used
+        for thresholding values if `cosine_similarity`,
+        `cosine_distance`, `jaccard_similiary`, `jaccard_index` or 
+        `jaccard_distance` is chosen as the ``association`` metric.
+
+    Returns
+    -------
+    dict
+        Return dictionary contains 4 key/value pairs:
+            - `df_assoc`: ``pandas.DataFrame`` containing the 
+              association values
+            - `df_counts`: ``pandas.DataFrame`` containing metadata 
+              / counts 
+            - `idx1`: ``pandas.Index`` containing the data items of 
+              ``x``
+            - `idx2`: ``pandas.Index`` containing the data items of 
+              ``y``
+
+    Raises
+    ------
+    ValueError
+        ValueError that is passed along from 
+        ``valpas.utils.data_handling.prep_data()``
+    """
 
     if association in ['pearson', 'spearman']:
         try:
@@ -113,8 +174,57 @@ def _calc_correlation(
         sheet2: str=None,
         corr_func: Literal['pearson', 'kendall', 'spearman']='pearson',
         filter_cutoff: float=0.9,
-    ) -> pd.DataFrame:
-    
+    ) -> tuple:
+    """
+    Helper function to calculate correlation between two omics data
+    types. Omics data types are either extraced from two Excel file
+    sheets (from either the same or two different Excel files) or two 
+    CSV files.  
+
+    Parameters
+    ----------
+    filepath_or_buffer : str | PathLike | Path
+        Defines the path to the main file to be imported and used as a 
+        basis to calculate associations from. Can be CSV or Excel file.
+        If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
+        be defined.
+    filepath_or_buffer_2 : str | PathLike | Path, default = None
+        Optinonal path definition to a second input file. If 
+        ``filepath_or_buffer_2`` is defined, then associations between
+        datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
+        are calculated. Note, if an Excel file is defined as input 
+        ``sheet2`` needs to be defined.
+    sheet1 : str, default = None
+        Used to define the name of the Excel sheet that should be 
+        imported. Only used when ``filepath_or_buffer`` points to an 
+        Excel file.
+    sheet2 : str, default = None
+        See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
+        Excel file) the defined sheet will be imported from there. 
+        Otherwise the sheet will be imported from ``filepath_or_buffer``.
+    corr_func : {'pearson', 'kendall', 'spearman'}, default='pearson'
+        Definets the correlation function that is to be used.
+    filter_cutoff : float, default = 0.9
+        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
+        fraction of ``filter_cutoff`` values that are not `0.0` or 
+        `NaN`. Any rows that have less defined values will excluded from
+        the calculation of the association value.
+
+    Returns
+    -------
+    tuple(pd.DataFrame, pd.DataFrame, pd.Axis, pd.Axis)
+        Returns a tuple containing four elements, two pd.DataFrames 
+        containing the correlation values as well as the counts of data
+        values that contributed to the association, as well as two
+        pd.Axis objects containing the row and column identifier for 
+        the pd.DataFrame that contains the association values
+
+    Raises
+    ------
+    ValueError
+        Passes along ValueError that might be raised by prep_data().
+    """
+
     try:
         df, idx1, idx2 = prep_data(
             filepath_or_buffer=filepath_or_buffer,
@@ -138,6 +248,57 @@ def _calc_cosine_dist(
         filter_cutoff: float=0.9,
         threshold: float=None
         ) -> pd.DataFrame:
+    """
+    Helper function to calculate Cosine Distance between two omics data
+    types. Omics data types are either extraced from two Excel file
+    sheets (from either the same or two different Excel files) or two 
+    CSV files.  
+
+    Parameters
+    ----------
+    filepath_or_buffer : str | PathLike | Path
+        Defines the path to the main file to be imported and used as a 
+        basis to calculate associations from. Can be CSV or Excel file.
+        If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
+        be defined.
+    filepath_or_buffer_2 : str | PathLike | Path, default = None
+        Optinonal path definition to a second input file. If 
+        ``filepath_or_buffer_2`` is defined, then associations between
+        datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
+        are calculated. Note, if an Excel file is defined as input 
+        ``sheet2`` needs to be defined.
+    sheet1 : str, default = None
+        Used to define the name of the Excel sheet that should be 
+        imported. Only used when ``filepath_or_buffer`` points to an 
+        Excel file.
+    sheet2 : str, default = None
+        See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
+        Excel file) the defined sheet will be imported from there. 
+        Otherwise the sheet will be imported from ``filepath_or_buffer``.
+    filter_cutoff : float, default = 0.9
+        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
+        fraction of ``filter_cutoff`` values that are not `0.0` or 
+        `NaN`. Any rows that have less defined values will excluded from
+        the calculation of the association value.
+    threshold : float, default = 0.5
+        Optional argument that defines the threshold values that is used
+        for thresholding values.
+
+    Returns
+    -------
+    tuple(pd.DataFrame, pd.DataFrame, pd.Axis, pd.Axis)
+        Returns a tuple containing four elements, two pd.DataFrames 
+        containing the association values as well as the counts of data
+        values that contributed to the calculation, as well as two
+        pd.Axis objects containing the row and column identifier for 
+        the pd.DataFrame that contains the association values
+
+    Raises
+    ------
+    ValueError
+        Passes along ValueError that might be raised by prep_data().
+    """
+
     try:
         df, idx1, idx2 = prep_data(
             filepath_or_buffer=filepath_or_buffer,
@@ -166,7 +327,57 @@ def _calc_jaccard_sim(
         filter_cutoff: float=0.9,
         threshold: float=0.5
         ) -> pd.DataFrame:
-    
+    """
+    Helper function to calculate Jaccard Index between two omics data
+    types. Omics data types are either extraced from two Excel file
+    sheets (from either the same or two different Excel files) or two 
+    CSV files.  
+
+    Parameters
+    ----------
+    filepath_or_buffer : str | PathLike | Path
+        Defines the path to the main file to be imported and used as a 
+        basis to calculate associations from. Can be CSV or Excel file.
+        If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
+        be defined.
+    filepath_or_buffer_2 : str | PathLike | Path, default = None
+        Optinonal path definition to a second input file. If 
+        ``filepath_or_buffer_2`` is defined, then associations between
+        datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
+        are calculated. Note, if an Excel file is defined as input 
+        ``sheet2`` needs to be defined.
+    sheet1 : str, default = None
+        Used to define the name of the Excel sheet that should be 
+        imported. Only used when ``filepath_or_buffer`` points to an 
+        Excel file.
+    sheet2 : str, default = None
+        See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
+        Excel file) the defined sheet will be imported from there. 
+        Otherwise the sheet will be imported from ``filepath_or_buffer``.
+    filter_cutoff : float, default = 0.9
+        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
+        fraction of ``filter_cutoff`` values that are not `0.0` or 
+        `NaN`. Any rows that have less defined values will excluded from
+        the calculation of the association value.
+    threshold : float, default = 0.5
+        Optional argument that defines the threshold values that is used
+        for thresholding values.
+
+    Returns
+    -------
+    tuple(pd.DataFrame, pd.DataFrame, pd.Axis, pd.Axis)
+        Returns a tuple containing four elements, two pd.DataFrames 
+        containing the association values as well as the counts of data
+        values that contributed to the calculation, as well as two
+        pd.Axis objects containing the row and column identifier for 
+        the pd.DataFrame that contains the association values
+
+    Raises
+    ------
+    ValueError
+        Passes along ValueError that might be raised by prep_data().
+    """
+
     try:
         df, idx1, idx2 = prep_data(
             filepath_or_buffer=filepath_or_buffer,
@@ -191,7 +402,53 @@ def _calc_mut_info(
         sheet2: str=None,
         filter_cutoff: float=0.9,
         ) -> pd.DataFrame:
-    
+    """
+    Helper function to calculate Mutual Information between two omics 
+    data types. Omics data types are either extraced from two Excel file
+    sheets (from either the same or two different Excel files) or two 
+    CSV files.  
+
+    Parameters
+    ----------
+    filepath_or_buffer : str | PathLike | Path
+        Defines the path to the main file to be imported and used as a 
+        basis to calculate associations from. Can be CSV or Excel file.
+        If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
+        be defined.
+    filepath_or_buffer_2 : str | PathLike | Path, default = None
+        Optinonal path definition to a second input file. If 
+        ``filepath_or_buffer_2`` is defined, then associations between
+        datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
+        are calculated. Note, if an Excel file is defined as input 
+        ``sheet2`` needs to be defined.
+    sheet1 : str, default = None
+        Used to define the name of the Excel sheet that should be 
+        imported. Only used when ``filepath_or_buffer`` points to an 
+        Excel file.
+    sheet2 : str, default = None
+        See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
+        Excel file) the defined sheet will be imported from there. 
+        Otherwise the sheet will be imported from ``filepath_or_buffer``.
+    filter_cutoff : float, default = 0.9
+        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
+        fraction of ``filter_cutoff`` values that are not `0.0` or 
+        `NaN`. Any rows that have less defined values will excluded from
+        the calculation of the association value.
+
+    Returns
+    -------
+    tuple(pd.DataFrame, pd.DataFrame, pd.Axis, pd.Axis)
+        Returns a tuple containing four elements, two pd.DataFrames 
+        containing the association values as well as the counts of data
+        values that contributed to the calculation, as well as two
+        pd.Axis objects containing the row and column identifier for 
+        the pd.DataFrame that contains the association values
+
+    Raises
+    ------
+    ValueError
+        Passes along ValueError that might be raised by prep_data().
+    """
     try:
         df, idx1, idx2 = prep_data(
             filepath_or_buffer=filepath_or_buffer,
@@ -208,6 +465,27 @@ def _calc_mut_info(
 
 
 def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:
+    """
+    Helper function that counts the number of values that are utilized 
+    in the calculation of an association score between two arrays of 
+    data points.
+
+    Parameters
+    ----------
+    a : ArrayLike
+        One of the two arrays in the pair of arrays for which an
+        association value should be calculated. 
+    b : ArrayLike
+        The second of the two arrays in the pair of arrays for which an
+        association value should be calculated. 
+
+    Returns
+    -------
+    int
+        The count of values in both arrays that are used to calculate 
+        the association value.
+    """
+
     # find positions i in a and b where no NaNs are present
     a_logical = np.logical_not( # inverts T/F values from below
         np.logical_or( # compares the two arrays from below
@@ -220,6 +498,30 @@ def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:
 
 def count_vals_in_thresholded_association(
         a: ArrayLike, b: ArrayLike) -> int:
+    """
+    Helper function that counts the number of values that are utilized 
+    in the calculation of an association score between two thresholdeded
+    arrays of data points. Note this function performs a slightly 
+    different set of instructions in comparison to 
+    ``count_vals_in_association`` to account for the thresholding of 
+    values that has been done prior.
+
+    Parameters
+    ----------
+    a : ArrayLike
+        One of the two arrays in the pair of arrays for which an
+        association value should be calculated. 
+    b : ArrayLike
+        The second of the two arrays in the pair of arrays for which an
+        association value should be calculated. 
+
+    Returns
+    -------
+    int
+        The count of values in both arrays that are used to calculate 
+        the association value.
+    """
+
     # find positions i in a and b where no NaNs are present
     a_logical = np.logical_not( # inverts T/F values from below
         np.logical_or( # compares the two arrays from below
