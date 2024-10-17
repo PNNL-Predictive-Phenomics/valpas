@@ -4,7 +4,10 @@ The main script that gets executed.
 
 import argparse
 import sys
+
 import textwrap
+import pandas as pd
+import networkx as nx
 
 from .utils.calc_associations import calc_association
 from .utils.checker import check_infile
@@ -278,5 +281,12 @@ def df_to_graph(file_path, index_name, net, threshold):
             value = df.loc[row, column]
             if abs(value) > threshold:
                 net.add_edge(column, row, weight = value)
+    return net
+
+def assign_clusters(net):
+    clusters = nx.community.louvain_communities(net, seed=123)
+    for i in range(len(clusters)):
+        for node in clusters[i]:
+            net.nodes[node]['group'] = i
     return net
 
