@@ -2,14 +2,37 @@
 collection of type checker / validater functions
 """
 
-
 import argparse
 from os import PathLike
 from pathlib import Path
-import sys
 
 def check_infile(path: str | PathLike | Path) -> str:
-    
+    """
+    Checks whether a give infile exsits. Returns the absolute path to 
+    the file if the file exsits. Can be used in conjuction with the 
+    ``type`` paramater in ``argparse.ArgumentParser.add_argument``.
+
+    Parameters
+    ----------
+    path : str | PathLike | Path
+        A path like object that contains the file path that should be 
+        checked for existence.
+
+    Returns
+    -------
+    str
+        Returns the absolute Path to the file if the file exists.
+
+    Raises
+    ------
+    TypeError
+        If the passed ``path`` argument is not in a path like format
+    FileNotFoundError
+        If the file is not found / does not exist
+    ValueError
+        If the supplied file is not a defined type (in this case .csv
+        or .xlsx).
+    """
 
     if not isinstance(path, (str, PathLike, Path)):
         error = (
@@ -38,7 +61,31 @@ def check_infile(path: str | PathLike | Path) -> str:
                 )
 
 def check_outfile(path: str | PathLike | Path) -> str:
-    
+    """
+    Checks whether the outfile passed to the function satisfies certain
+    criteria. Returns the absolute path to the file. Can be used in
+    conjuction with the ``type`` paramater in 
+    ``argparse.ArgumentParser.add_argument``.
+
+    Parameters
+    ----------
+    path : str | PathLike | Path
+        A path like object that contains the file path that should be 
+        checked for compliance.
+
+    Returns
+    -------
+    str
+        Returns the absolute Path to the file if the file is compliant.
+
+    Raises
+    ------
+    TypeError
+        If the passed ``path`` argument is not in a path like format
+    ValueError
+        If the supplied file is not a defined type (in this case .csv
+        or .xlsx).
+    """
 
     if not isinstance(path, (str, PathLike, Path)):
         error = (
@@ -62,7 +109,27 @@ def check_outfile(path: str | PathLike | Path) -> str:
             )
 
 
-def check_cutoff_range(x):
+def check_cutoff_range(x: any) -> float:
+    """
+    Checks if the supplied value is in a certain float range.
+
+    Parameters
+    ----------
+    x : Any
+        The supplied value that should be checked whether it falls in 
+        a predefined float range.
+
+    Returns
+    -------
+    float
+        Returns the value cast to float.
+
+    Raises
+    ------
+    argparse.ArgumentTypeError
+        If ``x`` can not be cast to float or is not with in the defined
+        float range.
+    """
     try:
         x = float(x)
     except ValueError:

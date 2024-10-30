@@ -1,5 +1,6 @@
 Metabolite,RTO4_ID,Correlation
 2-hydroxycinnamic acid,8372,0.9699253622487319
+protocatechuic acid,8372,0.9699253622487317
 "1,3-dihydroxyacetone",8372,0.9412845271534722
 2-furoic acid,8371,0.6349497017980438
 2-hydroxyglutaric acid,8372,0.4269063008376499
@@ -8,14 +9,18 @@ Metabolite,RTO4_ID,Correlation
 2-hydroxyglutaric acid,8371,-0.07800337559127922
 2-hydroxyglutaric acid,8370,-0.1825216681363652
 2-hydroxyglutaric acid,8369,-0.1825216681363652
-2-hydroxycinnamic acid,8370,-0.25
+protocatechuic acid,8369,-0.24999999999999997
+protocatechuic acid,8370,-0.24999999999999997
 2-hydroxycinnamic acid,8369,-0.25
-"1,3-dihydroxyacetone",8370,-0.2947104457969623
+2-hydroxycinnamic acid,8370,-0.25
 "1,3-dihydroxyacetone",8369,-0.2947104457969623
+"1,3-dihydroxyacetone",8370,-0.2947104457969623
 2-furoic acid,8370,-0.3882813757487573
 2-furoic acid,8369,-0.3882813757487573
 2-furoic acid,8372,-0.4220117490783037
 "1,3-dihydroxyacetone",8371,-0.568843451712199
 2-hydroxycinnamic acid,8371,-0.6123724356957946
+protocatechuic acid,8371,-0.6123724356957946
+protocatechuic acid,8373,-0.9625975066098726
 2-hydroxycinnamic acid,8373,-0.9625975066098726
 "1,3-dihydroxyacetone",8373,-0.9726964014163942

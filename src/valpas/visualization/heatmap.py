@@ -12,9 +12,41 @@ from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 
 
-def heatmap(data: np.ndarray, col_labels: list, row_labels: list,
-            ax: Axes=None, cbar_kw: dict=None,
-            cbarlabel: str='', **kwargs):
+def heatmap(
+        data: np.ndarray,
+        col_labels: list,
+        row_labels: list,
+        ax: Axes=None,
+        cbar_kw: dict=None,
+        cbarlabel: str='',
+        **kwargs):
+    """
+    _summary_
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Matrix with association values.
+    col_labels : list
+        List of column labels for the plot.
+    row_labels : list
+        List of row labels for the plot.
+    ax : Axes, default=None
+        matplotlib Axes element that should be modified. If omitted the 
+        function attempts to extract the Axes element from the most
+        recent plot.
+    cbar_kw : dict, default=None
+        keyword arguments that are passed along to the color bar.
+    cbarlabel : str, default=''
+        Name for the colorbar.
+    kwargs : Any
+        Additional keyword arguments that will be passed to matplotlib
+
+    Returns
+    -------
+    tuple
+        Returns an image, and colorbar object.
+    """
     
     if ax is None:
         ax = plt.gca()
@@ -102,7 +134,19 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
 
 
 def create_fig(df: pd.DataFrame, fig_out: str=None, cbarlabel: str=None):
+    """
+    Helper function to generate figure.
 
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame that contains association values to be plotted.
+    fig_out : str, default=None
+        Path to where the figure should be saved. If fig_out is omitted,
+        the Figure is not saved.
+    cbarlabel : str, default=None
+        Name for the colorbar.
+    """
     df_np = df.to_numpy()
     col_labels = df.columns.values.tolist()
     row_labels = df.index.values.tolist()
