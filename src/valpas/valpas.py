@@ -4,7 +4,10 @@ The main script that gets executed.
 
 import argparse
 import sys
+
 import textwrap
+import pandas as pd
+import networkx as nx
 
 from .utils.calc_associations import calc_association
 from .utils.checker import check_infile
@@ -262,4 +265,28 @@ def visualize(args):
         fig = create_fig(df=df, fig_out=args.OUTFILE, cbarlabel=args.LABEL)
     else:
         print("Not yet implemented.", file=sys.stderr)
+
+
+def df_to_graph(file_path, index_name, net, threshold):
+    #read in data
+    df = pd.read_csv(file_path)
+    #set row names
+    df = df.set_index(index_name)
+    df.index.names = [None]
+    #collect data for nodes, only grab edges over a given threshold
+    for column in df:
+        net.add_node(column, label=column)
+        for row in df.index:
+            net.add_node(row, label=row)
+            value = df.loc[row, column]
+            if abs(value) > threshold:
+                net.add_edge(column, row, weight = value)
+    return net
+
+def assign_clusters(net):
+    clusters = nx.community.louvain_communities(net, seed=123)
+    for i in range(len(clusters)):
+        for node in clusters[i]:
+            net.nodes[node]['group'] = i
+    return net
 
