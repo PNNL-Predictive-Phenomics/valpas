@@ -12,6 +12,7 @@ from typing import TextIO
 from typing import BinaryIO
 from os import PathLike
 from io import TextIOBase
+from warnings import warn
 
 import pandas as pd
 import numpy as np
@@ -249,7 +250,10 @@ def export_xlsx(
     return None
 
 
-def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
+def import_asssociation_matrix(
+        filepath: str | PathLike | Path,
+        sheet: str | float=0,
+        ) -> pd.DataFrame:
     """
     Imports a saved correlation / association matrix saved by 
     ``valpas.utils.write_outfile`` into a ``pandas.DataFrame`` object
@@ -257,8 +261,11 @@ def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
 
     Parameters
     ----------
-    file_handle : str
+    filepath : {str, PathLike, Path}
         The path to the file that should be imported
+    sheet : str, default=None
+        The sheet name to import the association matrix from if filepath
+        points to an Excel file
 
     Returns
     -------
@@ -271,12 +278,43 @@ def import_asssociation_matrix(file_handle: str) -> pd.DataFrame:
     Can for example be used to read in data necessary to plot a heatmap 
     via the `valpas.visualize.heatmap` module. 
     """
-    df = pd.read_csv(
-        filepath_or_buffer=file_handle,
-        index_col=0,
-        header=0,
+    if not isinstance(filepath, Path):
+        filepath = Path(filepath).absolute()
+
+    f_suffix = filepath.suffix
+    if f_suffix == ".xlsx":
+        if sheet == 0:
+            warn(
+                f"No excel sheet indicated for import. Defaulting to import "
+                f"the first sheet in the excel file '{filepath}'."
+            )
+        try:
+            df = pd.read_excel(
+                io=filepath,
+                sheet_name=sheet,
+                index_col=0,
+            )
+        except ValueError as err:
+            raise err
+        except FileNotFoundError as err:
+            raise err
+    elif f_suffix == ".csv":
+        try:
+            df = pd.read_csv(
+                filepath_or_buffer=filepath,
+                index_col=0,
+                header=0,
+            )
+            df = df.map(lambda x: float(x.split(':')[0]))
+        except FileNotFoundError as err:
+            raise err
+    else:
+        raise ValueError(
+            f"Supplied file is of type '{f_suffix}'. "
+            "Expected '.csv' or '.xlsx'."
         )
-    df = df.map(lambda x: float(x.split(':')[0]))
+    
+
     return df
 
 
