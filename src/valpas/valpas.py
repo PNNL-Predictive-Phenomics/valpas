@@ -9,6 +9,8 @@ import textwrap
 import pandas as pd
 import networkx as nx
 
+from pathlib import Path
+
 from .utils.calc_associations import calc_association
 from .utils.checker import check_infile
 from .utils.checker import check_outfile
@@ -176,9 +178,17 @@ def main(args):
         "-i", "--infile",
         dest="INFILE",
         required=True,
-        type=argparse.FileType('r'),
+        type=Path,
         help="Path to a input datafile containing the association matix of "
              "datapoints."
+    )
+    p_visualize.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
     )
     p_visualize.add_argument(
         "-t", "--visualization_type",
@@ -261,7 +271,16 @@ def associate(args):
 
 def visualize(args):
     if args.TYPE == "heatmap":
-        df = import_asssociation_matrix(file_handle=args.INFILE)
+        if args.SHEET is None:
+            sheet = 0
+        else:
+            sheet = args.SHEET
+        try:
+            df = import_asssociation_matrix(filepath=args.INFILE, sheet=sheet)
+        except ValueError:
+            sys.exit(f"sheet '{sheet}' not found in file '{args.INFILE}'")
+        except FileNotFoundError:
+            sys.exit(f"file '{args.INFILE}' not found.")
         fig = create_fig(df=df, fig_out=args.OUTFILE, cbarlabel=args.LABEL)
     else:
         print("Not yet implemented.", file=sys.stderr)
