@@ -30,8 +30,8 @@ def main(args):
     # Defining the argument parser. There are sereval (currently two)
     # subroutines (commands) that can be executed. For each of those a
     # seperate subparser is instanciated.
-    argp = argparse.ArgumentParser(
-        add_help=False,
+    main_parser = argparse.ArgumentParser(
+        add_help=True,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent(
             '''
@@ -43,7 +43,7 @@ def main(args):
                 - visualize    (helps to visualize generated associations)
             ''')
     )
-    parsers = argp.add_subparsers(
+    command_parsers = main_parser.add_subparsers(
         dest="command",
         title="commands",
         required=True,
@@ -54,7 +54,7 @@ def main(args):
     # metabolites, etc.). This can be either associations between items
     # of one omics datatype (e.g. protein-protein) or across two
     # different omics datatypes (e.g. protein-metabolite)
-    p_associate = parsers.add_parser(
+    p_associate = command_parsers.add_parser(
         "associate",
         description=
             '''
@@ -64,13 +64,20 @@ def main(args):
             metabolomics. Typically each data type contains multiple values 
             (conditions) per data point (e.g. a metabolite). Multiple types of 
             association metrics are available to choose from (see below).
-            '''
+            ''',
+        add_help=True
     )
     # by default the function "associate" is executed with the arguments
     # that are passed to the tool on the command line (see also 
     # args.func(args) further down)
     p_associate.set_defaults(func=associate)
-    p_associate.add_argument(
+    
+    # The associate command contains additional subroutines (defined
+    # further down) that share certain command line arguments. To cover
+    # these a new ArgumentParser is defined that will serve as parent
+    # to the subparsers of 'associate'
+    p_associate_shared_args = argparse.ArgumentParser(add_help=False)
+    p_associate_shared_args.add_argument(
         "-a", "--association_type",
         dest="ASSOCIATION_TYPE",
         choices=(
@@ -87,41 +94,7 @@ def main(args):
         help="Defines the type of metric used for generating associations. "
              "Defaults to 'pearson' if omitted."
     )
-    p_associate.add_argument(
-        "-i", "--infile",
-        dest="INFILE",
-        required=True,
-        type=check_infile,
-        help="Path to input file containing data points for which "
-             "associations are to be generated. If used on it's own (without "
-             "'-I') associations between data instances of only this input "
-             "file will be generated."
-    )
-    p_associate.add_argument(
-        "-I", "--infile2",
-        dest="INFILE2",
-        type=check_infile,
-        help="Path to an optional second input file. If passed to command "
-             "associations between data instances of INFILE1 and INFILE2 will "
-             "be generated."
-        )
-    p_associate.add_argument(
-        "-s", "--excel_sheet_name",
-        dest="SHEET",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE "
-             "if INFILE is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
-    )
-    p_associate.add_argument(
-        "-S", "--excel_sheet_name_2",
-        dest="SHEET2",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE2 "
-             "if INFILE2 is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
-    )
-    p_associate.add_argument(
+    p_associate_shared_args.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
         type=check_outfile,
@@ -129,13 +102,13 @@ def main(args):
         help="Path to an optional output file. If omitted, any output "
              "generated will be piped to stdout."
     )
-    p_associate.add_argument(
+    p_associate_shared_args.add_argument(
         '-O', '--overwrite_output',
         dest='OVERWRITE_OUTPUT',
         action='store_true',
         help=''
     )
-    p_associate.add_argument(
+    p_associate_shared_args.add_argument(
         "-ot", "--output_type",
         dest="OUTPUT_TYPE",
         choices=(
@@ -149,7 +122,7 @@ def main(args):
              "descending order starting with the highest association. (2) A "
              "correlation matrix (comma separated)."
     )
-    p_associate.add_argument(
+    p_associate_shared_args.add_argument(
         "-f", "--filter_missing_values",
         dest="FILTER_CUTOFF",
         type=check_cutoff_range,
@@ -159,9 +132,74 @@ def main(args):
              "recorded larger than 0) in at least x of a fraction of the "
              "investigated conditions."
         )
+    
+ 
+    p_from_file = argparse.ArgumentParser(add_help=False)
+    p_from_file.add_argument(
+        "-i", "--infile",
+        dest="INFILE",
+        required=True,
+        type=check_infile,
+        help="Path to input file containing data points for which "
+             "associations are to be generated. If used on it's own (without "
+             "'-I') associations between data instances of only this input "
+             "file will be generated."
+    )
+    p_from_file.add_argument(
+        "-I", "--infile2",
+        dest="INFILE2",
+        type=check_infile,
+        help="Path to an optional second input file. If passed to command "
+             "associations between data instances of INFILE1 and INFILE2 will "
+             "be generated."
+        )
+    p_from_file.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+    p_from_file.add_argument(
+        "-S", "--excel_sheet_name_2",
+        dest="SHEET2",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE2 "
+             "if INFILE2 is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+
+    p_from_folder = argparse.ArgumentParser(add_help=False)
+    p_from_folder.add_argument(
+        "-i", "--infolder",
+        dest="INFOLDER",
+        required=True
+    )
+    g_file_type = p_from_folder.add_mutually_exclusive_group()
+    g_file_type.add_argument('--csv', action='store_true')
+    g_file_type.add_argument('--xlsx', action='store_true')
+
+
+    # Instatiting the subparsers of 'associate'. They are used to define
+    # the source of the data files. Either from up to two directly 
+    # defined files, or 
+    p_source = p_associate.add_subparsers(
+        dest="SOURCE",
+        title="source",
+        required=True
+    )
+    p_source_from_file = p_source.add_parser(
+        "from_file",
+        parents=[p_associate_shared_args, p_from_file],
+    )
+    p_source_from_folder = p_source.add_parser(
+        "from_folder",
+        parents=[p_associate_shared_args, p_from_folder],
+    )
 
     # the subparser definition for the visulatization component
-    p_visualize = parsers.add_parser(
+    p_visualize = command_parsers.add_parser(
         "visualize",
         description=
             """
@@ -220,10 +258,10 @@ def main(args):
     # if not then the help will be printed (this is not standard
     # behaviour in argparse for what ever reason...) 
     if len(sys.argv) == 1:
-        argp.print_help(sys.stderr)
+        main_parser.print_help(sys.stderr)
         sys.exit(0)
     try:
-        args = argp.parse_args(args)
+        args = main_parser.parse_args(args)
     except FileNotFoundError as e:
         sys.exit(e)
     except ValueError as e:
@@ -233,6 +271,10 @@ def main(args):
 
 def associate(args):
 
+    if args.SOURCE == 'from_folder':
+        raise NotImplementedError(
+            "importing files from folders is not imported yet"
+        )
     try:
         ret_dict = calc_association(
             filepath_or_buffer=args.INFILE,
