@@ -17,6 +17,8 @@ from .utils.checker import check_outfile
 from .utils.checker import check_cutoff_range
 from .utils.data_handling import write_outfile
 from .utils.data_handling import import_asssociation_matrix
+from .utils.data_handling import import_from_folder
+from .utils.data_handling import import_from_files
 from .utils.post_processing import rm_duplicates
 from .utils.post_processing import idx_name
 
@@ -197,6 +199,28 @@ def main(args):
         "from_folder",
         parents=[p_associate_shared_args, p_from_folder],
     )
+    p_source_from_folder.add_argument(
+        '-t',
+        '--two_omics_types',
+        dest="TWO_OMICS_TYPES",
+        action='store_true',
+        )
+    p_source_from_folder.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+    p_source_from_folder.add_argument(
+        "-S", "--excel_sheet_name_2",
+        dest="SHEET2",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE2 "
+             "if INFILE2 is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
 
     # the subparser definition for the visulatization component
     p_visualize = command_parsers.add_parser(
@@ -272,44 +296,79 @@ def main(args):
 def associate(args):
 
     if args.SOURCE == 'from_folder':
-        raise NotImplementedError(
-            "importing files from folders is not imported yet"
-        )
-    try:
-        ret_dict = calc_association(
-            filepath_or_buffer=args.INFILE,
-                filepath_or_buffer_2=args.INFILE2,
-                sheet1=args.SHEET,
-                sheet2=args.SHEET2,
-                association=args.ASSOCIATION_TYPE,
-                filter_cutoff=args.FILTER_CUTOFF,  
-        )
-    except ValueError:
-        sys.exit(
-            f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+        if args.csv:
+            file_type = 'csv'
+        elif args.xlsx:
+            file_type = 'xlsx'
+        inpath = Path(args.INFOLDER).absolute()
+        files = []
+        for child in inpath.glob(f'*.{file_type}'):
+            files.append(child)
+        if args.csv and len(files) > 2:
+            raise ValueError(
+                "Import of more than two CSV files currently not supported."
             )
-    
-    idx1 = ret_dict['idx1']
-    idx2 = ret_dict['idx2']
-
-    df_assoc = rm_duplicates(df=ret_dict['df_assoc'], idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=ret_dict['df_counts'], idx1=idx1, idx2=idx2)
-    df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
-    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    if idx2 is None:
-        idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '2'))
+        if args.xlsx and len(files) != 1:
+            raise ValueError(
+                "Import of more than one XLSX file currently not supported."
+            )
+        sheet_names = None
+        if args.SHEET is not None:
+            sheet_names = [args.SHEET]
+        if args.SHEET2 is not None:
+            if sheet_names is not None:
+                sheet_names.append(args.SHEET2)
+            else:
+                sheet_names = [args.SHEET2]
+        dfs = import_from_folder(
+            path=inpath,
+            file_type=file_type,
+            sheet_names=sheet_names
+            )
+        print(dfs)
     else:
-        idx1_name = idx1.name
-        idx2_name = idx2.name
-    write_outfile(
-        data=(df_assoc, df_counts),
-        file_handle=args.OUTFILE,
-        idx=(idx1_name, idx2_name),
-        output_type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT,
-        association_type=args.ASSOCIATION_TYPE
-    )
+        dfs = import_from_files(
+            filepath_or_buffer=args.INFILE,
+            filepath_or_buffer_2=args.INFILE2,
+            sheet1=args.SHEET,
+            sheet2=args.SHEET2,
+        )
+        print(dfs)
+        # try:
+        #     ret_dict = calc_association(
+        #         filepath_or_buffer=args.INFILE,
+        #             filepath_or_buffer_2=args.INFILE2,
+        #             sheet1=args.SHEET,
+        #             sheet2=args.SHEET2,
+        #             association=args.ASSOCIATION_TYPE,
+        #             filter_cutoff=args.FILTER_CUTOFF,  
+        #     )
+        # except ValueError:
+        #     sys.exit(
+        #         f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+        #         )
+        
+        # idx1 = ret_dict['idx1']
+        # idx2 = ret_dict['idx2']
+
+        # df_assoc = rm_duplicates(df=ret_dict['df_assoc'], idx1=idx1, idx2=idx2)
+        # df_counts = rm_duplicates(df=ret_dict['df_counts'], idx1=idx1, idx2=idx2)
+        # df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
+        # df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
+        # if idx2 is None:
+        #     idx1_name = '_'.join((idx1.name, '1'))
+        #     idx2_name = '_'.join((idx1.name, '2'))
+        # else:
+        #     idx1_name = idx1.name
+        #     idx2_name = idx2.name
+        # write_outfile(
+        #     data=(df_assoc, df_counts),
+        #     file_handle=args.OUTFILE,
+        #     idx=(idx1_name, idx2_name),
+        #     output_type=args.OUTPUT_TYPE,
+        #     overwrite=args.OVERWRITE_OUTPUT,
+        #     association_type=args.ASSOCIATION_TYPE
+        # )
 
 def visualize(args):
     if args.TYPE == "heatmap":

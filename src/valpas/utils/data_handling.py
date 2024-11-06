@@ -318,6 +318,97 @@ def import_asssociation_matrix(
     return df
 
 
+def import_from_folder(
+        path: str | PathLike | Path, 
+        file_type: Literal['csv', 'xlsx'],
+        sheet_names: list=None,
+        ) -> dict[str, pd.DataFrame]:
+    print(sheet_names)
+    ret_dict = {}
+    for child in path.glob(f'*.{file_type}'):
+        print(child)
+        if file_type == 'csv':
+            print("i am here")
+            df = import_csv(child.absolute())
+            ret_dict[child.stem] = df
+        elif file_type == 'xlsx':
+            if sheet_names is None:
+                raise ValueError(
+                    f"'sheet_names' must not be 'None' if file_type 'xlsx' is"
+                    f"chosen. Contents of 'sheet_names': {sheet_names}"
+                )
+            i = 0
+            for sheet_name in sheet_names:
+                df = import_xls(child, sheet=sheet_name)
+                if sheet_name is not None:
+                    ret_dict['_'.join([child.stem, sheet_name])] = df
+                else:
+                    ret_dict['_'.join([child.stem, str(i)])] = df
+                    i = i+1
+    
+    return ret_dict
+
+def import_from_files(
+        filepath_or_buffer: str | PathLike | Path,
+        filepath_or_buffer_2: (str | PathLike | Path )=None,
+        sheet1: str=None,
+        sheet2: str=None,
+        ) -> dict[str, pd.DataFrame]:
+    
+    ret_dict = {}
+
+    if not isinstance(filepath_or_buffer, Path):
+        filepath_or_buffer = Path(filepath_or_buffer).absolute()
+
+    f_suffix = filepath_or_buffer.suffix
+    if f_suffix == '.xlsx':
+        if sheet1 is None:
+            raise ValueError(
+                f"No Sheet name provided for file {filepath_or_buffer}"
+            )
+        df = import_xls(filepath_or_buffer=filepath_or_buffer, sheet=sheet1)
+        ret_dict['_'.join([filepath_or_buffer.stem, sheet1])] = df
+    elif f_suffix == '.csv':
+        df = import_csv(filepath_or_buffer)
+        ret_dict[filepath_or_buffer.stem] = df
+    else: 
+        raise ValueError(
+            f"Supplied file is of type '{f_suffix}'. "
+            "Expected '.csv' or '.xlsx'."
+        )
+    
+    
+    if filepath_or_buffer_2 is not None:
+        if not isinstance(filepath_or_buffer_2, Path):
+            filepath_or_buffer_2 = Path(filepath_or_buffer_2).absolute()
+
+        f_suffix = filepath_or_buffer_2.suffix
+        if f_suffix == '.xlsx':    
+            if sheet2 is None:
+                raise ValueError(
+                    f"No Sheet name provided for file {filepath_or_buffer_2}"
+                )
+            df = import_xls(
+                filepath_or_buffer=filepath_or_buffer_2, sheet=sheet2
+                )
+            ret_dict['_'.join([filepath_or_buffer_2.stem, sheet2])] = df
+        elif f_suffix == '.csv':
+            df = import_csv(filepath_or_buffer_2)
+            ret_dict[filepath_or_buffer_2.stem] = df
+        else:
+            raise ValueError(
+                f"Supplied file is of type '{f_suffix}'. "
+                "Expected '.csv' or '.xlsx'."
+            )
+    elif sheet2 is not None and f_suffix == '.xlsx' and sheet1 != sheet2:
+        df = import_xls(
+            filepath_or_buffer=filepath_or_buffer, sheet=sheet2
+            )
+        ret_dict['_'.join([filepath_or_buffer.stem, sheet2])] = df
+
+    return ret_dict
+     
+
 def import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     """
     Imports a csv file. Returns a pandas DataFrame object containing 
@@ -495,7 +586,7 @@ def prep_data(
         raise ValueError(
             f"Supplied file is of type '{f_suffix}'. "
             "Expected '.csv' or '.xlsx'."
-         )
+        )
     
     idx1 = df.index
     idx2 = None
@@ -620,7 +711,7 @@ def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
 
     .. math::
 
-        t = min(v_{ij}) + (max(v_{ij}) - min(v_{ij})) * threshold\_rel
+        t = min(v_{ij}) + (max(v_{ij}) - min(v_{ij})) * threshold\\_rel
     
     for :math:`v_{ij}` is any value :math:`v_i` in :math:`Row` :math:`j`
     """
