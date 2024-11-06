@@ -325,7 +325,6 @@ def associate(args):
             file_type=file_type,
             sheet_names=sheet_names
             )
-        print(dfs)
     else:
         dfs = import_from_files(
             filepath_or_buffer=args.INFILE,
@@ -333,42 +332,38 @@ def associate(args):
             sheet1=args.SHEET,
             sheet2=args.SHEET2,
         )
-        print(dfs)
-        # try:
-        #     ret_dict = calc_association(
-        #         filepath_or_buffer=args.INFILE,
-        #             filepath_or_buffer_2=args.INFILE2,
-        #             sheet1=args.SHEET,
-        #             sheet2=args.SHEET2,
-        #             association=args.ASSOCIATION_TYPE,
-        #             filter_cutoff=args.FILTER_CUTOFF,  
-        #     )
-        # except ValueError:
-        #     sys.exit(
-        #         f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
-        #         )
-        
-        # idx1 = ret_dict['idx1']
-        # idx2 = ret_dict['idx2']
+    try:
+        ret_dict = calc_association(
+            dfs=dfs,
+            association=args.ASSOCIATION_TYPE,
+            filter_cutoff=args.FILTER_CUTOFF,  
+        )
+    except ValueError:
+        sys.exit(
+            f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+            )
+    
+    idx1 = ret_dict['idx1']
+    idx2 = ret_dict['idx2']
 
-        # df_assoc = rm_duplicates(df=ret_dict['df_assoc'], idx1=idx1, idx2=idx2)
-        # df_counts = rm_duplicates(df=ret_dict['df_counts'], idx1=idx1, idx2=idx2)
-        # df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
-        # df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-        # if idx2 is None:
-        #     idx1_name = '_'.join((idx1.name, '1'))
-        #     idx2_name = '_'.join((idx1.name, '2'))
-        # else:
-        #     idx1_name = idx1.name
-        #     idx2_name = idx2.name
-        # write_outfile(
-        #     data=(df_assoc, df_counts),
-        #     file_handle=args.OUTFILE,
-        #     idx=(idx1_name, idx2_name),
-        #     output_type=args.OUTPUT_TYPE,
-        #     overwrite=args.OVERWRITE_OUTPUT,
-        #     association_type=args.ASSOCIATION_TYPE
-        # )
+    df_assoc = rm_duplicates(df=ret_dict['df_assoc'], idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=ret_dict['df_counts'], idx1=idx1, idx2=idx2)
+    df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
+    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
+    if idx2 is None:
+        idx1_name = '_'.join((idx1.name, '1'))
+        idx2_name = '_'.join((idx1.name, '2'))
+    else:
+        idx1_name = idx1.name
+        idx2_name = idx2.name
+    write_outfile(
+        data=(df_assoc, df_counts),
+        file_handle=args.OUTFILE,
+        idx=(idx1_name, idx2_name),
+        output_type=args.OUTPUT_TYPE,
+        overwrite=args.OVERWRITE_OUTPUT,
+        association_type=args.ASSOCIATION_TYPE
+    )
 
 def visualize(args):
     if args.TYPE == "heatmap":
