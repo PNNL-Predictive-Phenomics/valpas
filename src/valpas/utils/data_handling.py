@@ -323,12 +323,9 @@ def import_from_folder(
         file_type: Literal['csv', 'xlsx'],
         sheet_names: list=None,
         ) -> dict[str, pd.DataFrame]:
-    print(sheet_names)
     ret_dict = {}
     for child in path.glob(f'*.{file_type}'):
-        print(child)
         if file_type == 'csv':
-            print("i am here")
             df = import_csv(child.absolute())
             ret_dict[child.stem] = df
         elif file_type == 'xlsx':
@@ -497,10 +494,7 @@ def import_xls(
 
 
 def prep_data(
-        filepath_or_buffer: str | PathLike | Path,
-        filepath_or_buffer_2: (str | PathLike | Path )=None,
-        sheet1: str=None,
-        sheet2: str=None,
+        dfs: dict,
         filter_cutoff: float=0.9,
         cut: bool=False,
         threshold: float=None,
@@ -570,64 +564,78 @@ def prep_data(
 
     """
 
-    if not isinstance(filepath_or_buffer, Path):
-        filepath_or_buffer = Path(filepath_or_buffer).absolute()
+    # if not isinstance(filepath_or_buffer, Path):
+    #     filepath_or_buffer = Path(filepath_or_buffer).absolute()
 
-    f_suffix = filepath_or_buffer.suffix
-    if f_suffix == '.xlsx':
-        if sheet1 is None:
-            raise ValueError(
-                f"No Sheet name provided for file {filepath_or_buffer}"
-            )
-        df = import_xls(filepath_or_buffer=filepath_or_buffer, sheet=sheet1)
-    elif f_suffix == '.csv':
-        df = import_csv(filepath_or_buffer)
-    else: 
-        raise ValueError(
-            f"Supplied file is of type '{f_suffix}'. "
-            "Expected '.csv' or '.xlsx'."
-        )
+    # f_suffix = filepath_or_buffer.suffix
+    # if f_suffix == '.xlsx':
+    #     if sheet1 is None:
+    #         raise ValueError(
+    #             f"No Sheet name provided for file {filepath_or_buffer}"
+    #         )
+    #     df = import_xls(filepath_or_buffer=filepath_or_buffer, sheet=sheet1)
+    # elif f_suffix == '.csv':
+    #     df = import_csv(filepath_or_buffer)
+    # else: 
+    #     raise ValueError(
+    #         f"Supplied file is of type '{f_suffix}'. "
+    #         "Expected '.csv' or '.xlsx'."
+    #     )
     
-    idx1 = df.index
-    idx2 = None
+    # idx1 = df.index
+    # idx2 = None
 
-    if filepath_or_buffer_2 is not None:
-        if not isinstance(filepath_or_buffer_2, Path):
-            filepath_or_buffer_2 = Path(filepath_or_buffer_2).absolute()
+    # if filepath_or_buffer_2 is not None:
+    #     if not isinstance(filepath_or_buffer_2, Path):
+    #         filepath_or_buffer_2 = Path(filepath_or_buffer_2).absolute()
 
-        f_suffix = filepath_or_buffer_2.suffix
-        if f_suffix == '.xlsx':    
-            if sheet2 is None:
-                raise ValueError(
-                    f"No Sheet name provided for file {filepath_or_buffer_2}"
-                )
-            df_2 = import_xls(
-                filepath_or_buffer=filepath_or_buffer_2, sheet=sheet2
-                )
-        elif f_suffix == '.csv':
-            df_2 = import_csv(filepath_or_buffer_2)
-        else:
-            raise ValueError(
-                f"Supplied file is of type '{f_suffix}'. "
-                "Expected '.csv' or '.xlsx'."
-            )
-        idx2 = df_2.index
-        df = pd.concat([df, df_2], join='inner')
+    #     f_suffix = filepath_or_buffer_2.suffix
+    #     if f_suffix == '.xlsx':    
+    #         if sheet2 is None:
+    #             raise ValueError(
+    #                 f"No Sheet name provided for file {filepath_or_buffer_2}"
+    #             )
+    #         df_2 = import_xls(
+    #             filepath_or_buffer=filepath_or_buffer_2, sheet=sheet2
+    #             )
+    #     elif f_suffix == '.csv':
+    #         df_2 = import_csv(filepath_or_buffer_2)
+    #     else:
+    #         raise ValueError(
+    #             f"Supplied file is of type '{f_suffix}'. "
+    #             "Expected '.csv' or '.xlsx'."
+    #         )
+    #     idx2 = df_2.index
+    #     df = pd.concat([df, df_2], join='inner')
     
-    # routine that happens only if
-    # - only one infile has been defined
-    # - that file is an excel file (xlsx)
-    # - a second sheet has been defined as import
-    # - the second sheet is not the same as the first sheet  
-    # If those cases are satisfied, the additional sheet is imported and
-    # the concatenated DF is generated
-    elif sheet2 is not None and f_suffix == '.xlsx' and sheet1 != sheet2:
-        df_2 = import_xls(
-            filepath_or_buffer=filepath_or_buffer, sheet=sheet2
-            )
-        idx2 = df_2.index
-        df = pd.concat([df, df_2], join='inner')
+    # # routine that happens only if
+    # # - only one infile has been defined
+    # # - that file is an excel file (xlsx)
+    # # - a second sheet has been defined as import
+    # # - the second sheet is not the same as the first sheet  
+    # # If those cases are satisfied, the additional sheet is imported and
+    # # the concatenated DF is generated
+    # elif sheet2 is not None and f_suffix == '.xlsx' and sheet1 != sheet2:
+    #     df_2 = import_xls(
+    #         filepath_or_buffer=filepath_or_buffer, sheet=sheet2
+    #         )
+    #     idx2 = df_2.index
+    #     df = pd.concat([df, df_2], join='inner')
 
+    if len(dfs) == 1:
+        k, df = dfs.popitem()
+        idx1 = df.index
+        idx2 = None
+    elif len(dfs) == 2:
+        k, df1 = dfs.popitem()
+        k, df2 = dfs.popitem()
+        idx1 = df1.index
+        idx2 = df2.index
+        df = pd.concat([df1, df2], join='inner')
+    else:
+        raise NotImplementedError(
+            "Handling more than 2 dfs is currently not implemented"
+            )
 
     # removing low confidence items
     df, index = remove_low_confidence_items(df=df, cutoff=filter_cutoff)
