@@ -23,10 +23,7 @@ from valpas.utils.b_spline import mutual_information
 
 
 def calc_association(    
-        filepath_or_buffer: str | PathLike | Path,
-        filepath_or_buffer_2: (str | PathLike | Path)=None,
-        sheet1: str=None,
-        sheet2: str=None,
+        dfs: dict,
         association: Literal[
             'pearson', 'spearman',
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
@@ -101,10 +98,7 @@ def calc_association(
     if association in ['pearson', 'spearman']:
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_correlation(
-                filepath_or_buffer=filepath_or_buffer,
-                filepath_or_buffer_2=filepath_or_buffer_2,
-                sheet1=sheet1,
-                sheet2=sheet2,
+                dfs=dfs,
                 corr_func=association,
                 filter_cutoff=filter_cutoff,
             )
@@ -113,10 +107,7 @@ def calc_association(
     elif association in ['cosine_similarity', 'cosine_distance']:
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_cosine_dist(
-                filepath_or_buffer=filepath_or_buffer,
-                filepath_or_buffer_2=filepath_or_buffer_2,
-                sheet1=sheet1,
-                sheet2=sheet2,
+                dfs=dfs,
                 filter_cutoff=filter_cutoff,
                 threshold=threshold
             )
@@ -132,10 +123,7 @@ def calc_association(
             threshold = 0.5
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_jaccard_sim(
-                filepath_or_buffer=filepath_or_buffer,
-                filepath_or_buffer_2=filepath_or_buffer_2,
-                sheet1=sheet1,
-                sheet2=sheet2,
+                dfs=dfs,
                 filter_cutoff=filter_cutoff,
                 threshold=threshold
             )
@@ -148,10 +136,7 @@ def calc_association(
     elif association == 'mutual_information':
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_mut_info(
-                filepath_or_buffer=filepath_or_buffer,
-                filepath_or_buffer_2=filepath_or_buffer_2,
-                sheet1=sheet1,
-                sheet2=sheet2,
+                dfs=dfs,
                 filter_cutoff=filter_cutoff
             )
         except ValueError as e:
@@ -168,10 +153,7 @@ def calc_association(
 
 
 def _calc_correlation(
-        filepath_or_buffer: str | PathLike | Path,
-        filepath_or_buffer_2: (str | PathLike | Path)=None,
-        sheet1: str=None,
-        sheet2: str=None,
+        dfs: dict,
         corr_func: Literal['pearson', 'kendall', 'spearman']='pearson',
         filter_cutoff: float=0.9,
     ) -> tuple:
@@ -227,10 +209,7 @@ def _calc_correlation(
 
     try:
         df, idx1, idx2 = prep_data(
-            filepath_or_buffer=filepath_or_buffer,
-            filepath_or_buffer_2=filepath_or_buffer_2,
-            sheet1=sheet1,
-            sheet2=sheet2,
+            dfs=dfs,
             filter_cutoff=filter_cutoff)
     except ValueError as e:
         raise e
@@ -241,10 +220,7 @@ def _calc_correlation(
 
 
 def _calc_cosine_dist(
-        filepath_or_buffer: str | PathLike | Path,
-        filepath_or_buffer_2: (str | PathLike | Path)=None,
-        sheet1: str=None,
-        sheet2: str=None,
+        dfs: dict,
         filter_cutoff: float=0.9,
         threshold: float=None
         ) -> pd.DataFrame:
@@ -301,10 +277,7 @@ def _calc_cosine_dist(
 
     try:
         df, idx1, idx2 = prep_data(
-            filepath_or_buffer=filepath_or_buffer,
-            filepath_or_buffer_2=filepath_or_buffer_2,
-            sheet1=sheet1,
-            sheet2=sheet2,
+            dfs=dfs,
             filter_cutoff=filter_cutoff,
             threshold=threshold
         )
@@ -320,10 +293,7 @@ def _calc_cosine_dist(
 
 
 def _calc_jaccard_sim(
-        filepath_or_buffer: str | PathLike | Path,
-        filepath_or_buffer_2: (str | PathLike | Path)=None,
-        sheet1: str=None,
-        sheet2: str=None,
+        dfs: dict,
         filter_cutoff: float=0.9,
         threshold: float=0.5
         ) -> pd.DataFrame:
@@ -380,10 +350,7 @@ def _calc_jaccard_sim(
 
     try:
         df, idx1, idx2 = prep_data(
-            filepath_or_buffer=filepath_or_buffer,
-            filepath_or_buffer_2=filepath_or_buffer_2,
-            sheet1=sheet1,
-            sheet2=sheet2,
+            dfs=dfs,
             filter_cutoff=filter_cutoff,
             threshold=threshold
         )
@@ -396,10 +363,7 @@ def _calc_jaccard_sim(
 
 
 def _calc_mut_info(
-        filepath_or_buffer: str | PathLike | Path,
-        filepath_or_buffer_2: (str | PathLike | Path)=None,
-        sheet1: str=None,
-        sheet2: str=None,
+        dfs: dict,
         filter_cutoff: float=0.9,
         ) -> pd.DataFrame:
     """
@@ -451,10 +415,7 @@ def _calc_mut_info(
     """
     try:
         df, idx1, idx2 = prep_data(
-            filepath_or_buffer=filepath_or_buffer,
-            filepath_or_buffer_2=filepath_or_buffer_2,
-            sheet1=sheet1,
-            sheet2=sheet2,
+            dfs=dfs,
             filter_cutoff=filter_cutoff)
     except ValueError as e:
         raise e
