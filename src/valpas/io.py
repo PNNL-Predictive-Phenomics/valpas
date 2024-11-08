@@ -2,18 +2,18 @@
 _summary_
 """
 
+from io import TextIOBase
+from os import PathLike
 from pathlib import Path
+import sys
 from typing import Literal
 from typing import TextIO
 from typing import BinaryIO
-from os import PathLike
-from io import TextIOBase
 from warnings import warn
 
 import pandas as pd
-import numpy as np
-
 from pandas import ExcelWriter
+import numpy as np
 
 from .utils.post_processing import beautify_series
 
