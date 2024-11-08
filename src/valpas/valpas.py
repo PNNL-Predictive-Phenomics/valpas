@@ -15,10 +15,10 @@ from .utils.calc_associations import calc_association
 from .utils.checker import check_infile
 from .utils.checker import check_outfile
 from .utils.checker import check_cutoff_range
-from .utils.data_handling import write_outfile
-from .utils.data_handling import import_asssociation_matrix
-from .utils.data_handling import import_from_folder
-from .utils.data_handling import import_from_files
+from .io import write_outfile
+from .io import import_asssociation_matrix
+from .io import import_from_folder
+from .io import import_from_files
 from .utils.post_processing import rm_duplicates
 from .utils.post_processing import idx_name
 
