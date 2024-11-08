@@ -10,7 +10,10 @@ datatypes that then can be leveraged to postulate hypothesis of protein
 functionality for proteins of previously unknown function.
 """
 
+from ._core.experiment import Experiment
+
 __all__ = [
     'utils',
     'visualization',
+    'Experiment',
     ]
