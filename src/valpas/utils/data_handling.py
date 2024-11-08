@@ -23,6 +23,65 @@ from .post_processing import beautify_series
 from .post_processing import sort_associations
 
 
+class Experiment:
+    """
+    Custom Class that stores experiment data.
+
+    Attributes
+    ----------
+    values: pandas.DataFrame
+        DataFrame containing the raw values extracted from an
+        experimental setup
+    omic_x_type: str
+        Name of the omics type that has been evaluated in the experiment
+    omic_x_features: pandas.Index
+        Contains all features / items of the omics type x that were 
+        extracted
+    omic_y_type: str, default = None
+        Optional name of a second omics type that has been evaluated in
+        the experiment. If not defined (i.e. _None_) the assumption is
+        that associations among only one omics type (`omic_y_type`)
+        are going to be conducted.
+    omic_y_features: pandas.Index, default = None
+        Optional pandas Index object that contains features of omics 
+        type y that have been extracted. If not defined (i.e. _None_)
+        the assumption is that associations among only one omics type 
+        (`omic_x_type`) are going to be conducted. See also 
+        `omic_y_type`.
+
+    Methods
+    -------
+    has_two_omics(self)
+        Checks if two omics are present, i.e. if `omic_y_type` is 
+        defined.
+    """
+    def __init__(
+            self,
+            values: pd.DataFrame,
+            omic_x_type: str,
+            omic_x_features: pd.Index,
+            omic_y_type: str=None,
+            omic_y_features: pd.Index=None,
+            ):
+        self.values = values
+        self.omic_x_type = omic_x_type
+        self.omic_x_features = omic_x_features
+        self.omic_y_type = omic_y_type
+        self.omic_y_features = omic_y_features
+
+    def has_two_omics(self) -> bool: 
+        """
+        _summary_
+
+        Returns
+        -------
+        bool
+            _description_
+        """
+        if self.omic_y_type is not None:
+            return True
+
+
 def reduce_to_shared_conditions(
         df_1: pd.DataFrame, df_2: pd.DataFrame
         ) -> tuple[pd.DataFrame, pd.DataFrame]:
