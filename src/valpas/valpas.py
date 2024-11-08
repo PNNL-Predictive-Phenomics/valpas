@@ -320,7 +320,7 @@ def associate(args):
                 sheet_names.append(args.SHEET2)
             else:
                 sheet_names = [args.SHEET2]
-        dfs = import_from_folder(
+        experiments = import_from_folder(
             path=inpath,
             file_type=file_type,
             sheet_names=sheet_names
@@ -334,7 +334,7 @@ def associate(args):
         )
     try:
         ret_dict = calc_association(
-            dfs=dfs,
+            experiments=experiments,
             association=args.ASSOCIATION_TYPE,
             filter_cutoff=args.FILTER_CUTOFF,  
         )

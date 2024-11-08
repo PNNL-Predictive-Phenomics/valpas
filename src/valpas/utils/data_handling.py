@@ -9,6 +9,7 @@ import sys
 import pandas as pd
 import numpy as np
 
+from .. import Experiment
 
 def reduce_to_shared_conditions(
         df_1: pd.DataFrame, df_2: pd.DataFrame
@@ -39,7 +40,7 @@ def reduce_to_shared_conditions(
 
 
 def prep_data(
-        dfs: dict,
+        experiments: list[Experiment],
         filter_cutoff: float=0.9,
         cut: bool=False,
         threshold: float=None,
@@ -109,21 +110,25 @@ def prep_data(
 
     """
 
-    if len(dfs) == 1:
-        k, df = dfs.popitem()
-        idx1 = df.index
-        idx2 = None
-    elif len(dfs) == 2:
-        k, df1 = dfs.popitem()
-        k, df2 = dfs.popitem()
-        idx1 = df1.index
-        idx2 = df2.index
-        df = pd.concat([df1, df2], join='inner')
+    if len(experiments) == 1:
+        experiment = experiments.pop()
     else:
         raise NotImplementedError(
-            "Handling more than 2 dfs is currently not implemented"
+            "Handling more than 1 Experiment is currently not implemented"
             )
 
+    idx1 = experiment.omic_x_features
+    idx2 = experiment.omic_y_features
+    if experiment.has_two_omics():
+        df = pd.concat(
+            [
+                experiment.omic_x_values,
+                experiment.omic_y_values
+            ],
+            join='inner'
+            )
+    else:
+        df = experiment.omic_x_values
     # removing low confidence items
     df, index = remove_low_confidence_items(df=df, cutoff=filter_cutoff)
     if len(index.values) > 0:

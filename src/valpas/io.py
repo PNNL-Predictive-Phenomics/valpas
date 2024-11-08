@@ -289,28 +289,52 @@ def import_from_folder(
         path: str | PathLike | Path, 
         file_type: Literal['csv', 'xlsx'],
         sheet_names: list=None,
-        ) -> dict[str, Experiment]:
+        ) -> list[Experiment]:
     ret_dict = {}
     for child in path.glob(f'*.{file_type}'):
         if file_type == 'csv':
-            df = _import_csv(child.absolute())
-            ret_dict[child.stem] = df
+            experiment_name, omic_type = child.name.rsplit(
+                sep="__", maxsplit=1
+                )
+            values = _import_csv(child.absolute())
+            if experiment_name not in ret_dict:
+                experiment = Experiment(
+                    name=experiment_name,
+                    omic_x_values=values,
+                    omic_x_type=omic_type,
+                    omic_x_features=values.index
+                )
+            else:
+                experiment = ret_dict[experiment_name]
+                experiment.omic_y_values = values
+                experiment.omic_y_type = omic_type
+                experiment.omic_y_features = values.index
+            ret_dict[experiment_name] = experiment
         elif file_type == 'xlsx':
+            experiment_name = child.name
             if sheet_names is None:
                 raise ValueError(
                     f"'sheet_names' must not be 'None' if file_type 'xlsx' is"
                     f"chosen. Contents of 'sheet_names': {sheet_names}"
                 )
-            i = 0
             for sheet_name in sheet_names:
-                df = _import_xls(child, sheet=sheet_name)
-                if sheet_name is not None:
-                    ret_dict['_'.join([child.stem, sheet_name])] = df
+                values = _import_xls(child, sheet=sheet_name)
+                omic_type = sheet_name
+                if experiment_name not in ret_dict:
+                    experiment = Experiment(
+                        name=experiment_name,
+                        omic_x_values=values,
+                        omic_x_type=omic_type,
+                        omic_x_features=values.index
+                    )
                 else:
-                    ret_dict['_'.join([child.stem, str(i)])] = df
-                    i = i+1
-    
-    return ret_dict
+                    experiment = ret_dict[experiment_name]
+                    experiment.omic_y_values = values
+                    experiment.omic_y_type = omic_type
+                    experiment.omic_y_features = values.index
+                ret_dict[experiment_name] = experiment
+
+    return list(ret_dict.values())
 
 def import_from_files(
         filepath_or_buffer: str | PathLike | Path,

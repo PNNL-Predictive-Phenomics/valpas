@@ -20,10 +20,11 @@ from sklearn.metrics import jaccard_score
 
 from valpas.utils.data_handling import prep_data
 from valpas.utils.b_spline import mutual_information
+from .. import Experiment
 
 
 def calc_association(    
-        dfs: dict,
+        experiments: list[Experiment],
         association: Literal[
             'pearson', 'spearman',
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
@@ -98,7 +99,7 @@ def calc_association(
     if association in ['pearson', 'spearman']:
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_correlation(
-                dfs=dfs,
+                experiments=experiments,
                 corr_func=association,
                 filter_cutoff=filter_cutoff,
             )
@@ -107,7 +108,7 @@ def calc_association(
     elif association in ['cosine_similarity', 'cosine_distance']:
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_cosine_dist(
-                dfs=dfs,
+                experiments=experiments,
                 filter_cutoff=filter_cutoff,
                 threshold=threshold
             )
@@ -123,7 +124,7 @@ def calc_association(
             threshold = 0.5
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_jaccard_sim(
-                dfs=dfs,
+                experiments=experiments,
                 filter_cutoff=filter_cutoff,
                 threshold=threshold
             )
@@ -136,7 +137,7 @@ def calc_association(
     elif association == 'mutual_information':
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_mut_info(
-                dfs=dfs,
+                experiments=experiments,
                 filter_cutoff=filter_cutoff
             )
         except ValueError as e:
@@ -153,7 +154,7 @@ def calc_association(
 
 
 def _calc_correlation(
-        dfs: dict,
+        experiments: list[Experiment],
         corr_func: Literal['pearson', 'kendall', 'spearman']='pearson',
         filter_cutoff: float=0.9,
     ) -> tuple:
@@ -209,7 +210,7 @@ def _calc_correlation(
 
     try:
         df, idx1, idx2 = prep_data(
-            dfs=dfs,
+            experiments=experiments,
             filter_cutoff=filter_cutoff)
     except ValueError as e:
         raise e
@@ -220,7 +221,7 @@ def _calc_correlation(
 
 
 def _calc_cosine_dist(
-        dfs: dict,
+        experiments: list[Experiment],
         filter_cutoff: float=0.9,
         threshold: float=None
         ) -> pd.DataFrame:
@@ -277,7 +278,7 @@ def _calc_cosine_dist(
 
     try:
         df, idx1, idx2 = prep_data(
-            dfs=dfs,
+            experiments=experiments,
             filter_cutoff=filter_cutoff,
             threshold=threshold
         )
@@ -293,7 +294,7 @@ def _calc_cosine_dist(
 
 
 def _calc_jaccard_sim(
-        dfs: dict,
+        experiments: list[Experiment],
         filter_cutoff: float=0.9,
         threshold: float=0.5
         ) -> pd.DataFrame:
@@ -350,7 +351,7 @@ def _calc_jaccard_sim(
 
     try:
         df, idx1, idx2 = prep_data(
-            dfs=dfs,
+            experiments=experiments,
             filter_cutoff=filter_cutoff,
             threshold=threshold
         )
@@ -363,7 +364,7 @@ def _calc_jaccard_sim(
 
 
 def _calc_mut_info(
-        dfs: dict,
+        experiments: list[Experiment],
         filter_cutoff: float=0.9,
         ) -> pd.DataFrame:
     """
@@ -415,7 +416,7 @@ def _calc_mut_info(
     """
     try:
         df, idx1, idx2 = prep_data(
-            dfs=dfs,
+            experiments=experiments,
             filter_cutoff=filter_cutoff)
     except ValueError as e:
         raise e
