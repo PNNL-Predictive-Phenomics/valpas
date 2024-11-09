@@ -285,8 +285,19 @@ def import_asssociation_matrix(
     return df
 
 
+def import_experiments(
+        source: Literal['from_files', 'from_folder'],
+        path: str|PathLike|Path,
+        file_type: Literal['csv', 'xlsx'],
+        path2: str|PathLike|Path|None=None,
+        sheet_names: list|None=None,
+        ) -> list[Experiment]:
+    pass
+
+
+
 def import_from_folder(
-        path: str | PathLike | Path, 
+        path: PathLike | Path, 
         file_type: Literal['csv', 'xlsx'],
         sheet_names: list=None,
         ) -> list[Experiment]:
@@ -337,64 +348,81 @@ def import_from_folder(
     return list(ret_dict.values())
 
 def import_from_files(
-        filepath_or_buffer: str | PathLike | Path,
-        filepath_or_buffer_2: (str | PathLike | Path )=None,
-        sheet1: str=None,
-        sheet2: str=None,
+        filepath: PathLike | Path,
+        file_type: Literal['csv', 'xlsx'],
+        filepath_2: (str | PathLike | Path )=None,
+        sheet_names: str=None,
         ) -> dict[str, pd.DataFrame]:
     
-    ret_dict = {}
 
-    if not isinstance(filepath_or_buffer, Path):
-        filepath_or_buffer = Path(filepath_or_buffer).absolute()
-
-    f_suffix = filepath_or_buffer.suffix
-    if f_suffix == '.xlsx':
-        if sheet1 is None:
-            raise ValueError(
-                f"No Sheet name provided for file {filepath_or_buffer}"
-            )
-        df = _import_xls(filepath_or_buffer=filepath_or_buffer, sheet=sheet1)
-        ret_dict['_'.join([filepath_or_buffer.stem, sheet1])] = df
-    elif f_suffix == '.csv':
-        df = _import_csv(filepath_or_buffer)
-        ret_dict[filepath_or_buffer.stem] = df
-    else: 
-        raise ValueError(
-            f"Supplied file is of type '{f_suffix}'. "
-            "Expected '.csv' or '.xlsx'."
+    if file_type == 'csv':
+        experiment_name, omic_x_type = filepath.name.rsplit(
+            sep="__", maxsplit=1
         )
-    
-    
-    if filepath_or_buffer_2 is not None:
-        if not isinstance(filepath_or_buffer_2, Path):
-            filepath_or_buffer_2 = Path(filepath_or_buffer_2).absolute()
+        omic_x_values = _import_csv(filepath_or_buffer=filepath)
+        omic_x_features = omic_x_values.index
 
-        f_suffix = filepath_or_buffer_2.suffix
-        if f_suffix == '.xlsx':    
-            if sheet2 is None:
-                raise ValueError(
-                    f"No Sheet name provided for file {filepath_or_buffer_2}"
-                )
-            df = _import_xls(
-                filepath_or_buffer=filepath_or_buffer_2, sheet=sheet2
-                )
-            ret_dict['_'.join([filepath_or_buffer_2.stem, sheet2])] = df
-        elif f_suffix == '.csv':
-            df = _import_csv(filepath_or_buffer_2)
-            ret_dict[filepath_or_buffer_2.stem] = df
+        if filepath_2 is not None:
+            experiment_name, omic_y_type = filepath.name.rsplit(
+                sep="__", maxsplit=1
+            )
+            omic_y_values = _import_csv(filepath_or_buffer=filepath_2)
+            omic_y_features = omic_y_values.index
+            experiment = Experiment(
+                name=experiment_name,
+                omic_x_values=omic_x_values,
+                omic_x_type=omic_x_type,
+                omic_x_features=omic_x_features,
+                omic_y_values=omic_y_values,
+                omic_y_type=omic_y_type,
+                omic_y_features=omic_y_features
+            )
         else:
+            experiment = Experiment(
+                name=experiment_name,
+                omic_x_values=omic_x_values,
+                omic_x_type=omic_x_type,
+                omic_x_features=omic_x_features
+            )
+            
+    elif file_type == 'xlsx':
+        if sheet_names is None:
             raise ValueError(
-                f"Supplied file is of type '{f_suffix}'. "
-                "Expected '.csv' or '.xlsx'."
+                f"'sheet_names' must be defined if file_type=='xlsx'."
+                f"sheet_names: '{sheet_names}'"
+                )
+        experiment_name = filepath.name
+        omic_x_values = _import_xls(
+            filepath_or_buffer=filepath,
+            sheet=sheet_names[0]
             )
-    elif sheet2 is not None and f_suffix == '.xlsx' and sheet1 != sheet2:
-        df = _import_xls(
-            filepath_or_buffer=filepath_or_buffer, sheet=sheet2
+        omic_x_type = sheet_names[0]
+        omic_x_features = omic_x_values.index
+        if len(sheet_names) != 1:
+            omic_y_values = _import_xls(
+                filepath_or_buffer=filepath,
+                sheet=sheet_names[1]
+                )
+            omic_y_type = sheet_names[1]
+            omic_y_features = omic_y_values.index
+            experiment = Experiment(
+                name=experiment_name,
+                omic_x_values=omic_x_values,
+                omic_x_type=omic_x_type,
+                omic_x_features=omic_x_features,
+                omic_y_values=omic_y_values,
+                omic_y_type=omic_y_type,
+                omic_y_features=omic_y_features
             )
-        ret_dict['_'.join([filepath_or_buffer.stem, sheet2])] = df
+        else:
+            experiment = Experiment(
+                name=experiment_name,
+                omic_x_values=omic_x_values,
+                omic_x_type=omic_x_type,
+                omic_x_features=omic_x_features
+            )
 
-    return ret_dict
+    return list([experiment])
 
 
 def write_outfile(
