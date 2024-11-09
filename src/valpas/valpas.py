@@ -134,6 +134,9 @@ def main(args):
              "recorded larger than 0) in at least x of a fraction of the "
              "investigated conditions."
         )
+    g_file_type = p_associate_shared_args.add_mutually_exclusive_group()
+    g_file_type.add_argument('--csv', action='store_true')
+    g_file_type.add_argument('--xlsx', action='store_true')
     
  
     p_from_file = argparse.ArgumentParser(add_help=False)
@@ -178,9 +181,6 @@ def main(args):
         dest="INFOLDER",
         required=True
     )
-    g_file_type = p_from_folder.add_mutually_exclusive_group()
-    g_file_type.add_argument('--csv', action='store_true')
-    g_file_type.add_argument('--xlsx', action='store_true')
 
 
     # Instatiting the subparsers of 'associate'. They are used to define
@@ -295,11 +295,21 @@ def main(args):
 
 def associate(args):
 
+    if args.csv:
+        file_type = 'csv'
+    elif args.xlsx:
+        file_type = 'xlsx'
+
+    sheet_names = None
+    if args.SHEET is not None:
+        sheet_names = [args.SHEET]
+    if args.SHEET2 is not None:
+        if sheet_names is not None:
+            sheet_names.append(args.SHEET2)
+        else:
+            sheet_names = [args.SHEET2]
+
     if args.SOURCE == 'from_folder':
-        if args.csv:
-            file_type = 'csv'
-        elif args.xlsx:
-            file_type = 'xlsx'
         inpath = Path(args.INFOLDER).absolute()
         files = []
         for child in inpath.glob(f'*.{file_type}'):
@@ -312,25 +322,17 @@ def associate(args):
             raise ValueError(
                 "Import of more than one XLSX file currently not supported."
             )
-        sheet_names = None
-        if args.SHEET is not None:
-            sheet_names = [args.SHEET]
-        if args.SHEET2 is not None:
-            if sheet_names is not None:
-                sheet_names.append(args.SHEET2)
-            else:
-                sheet_names = [args.SHEET2]
         experiments = import_from_folder(
             path=inpath,
             file_type=file_type,
             sheet_names=sheet_names
             )
     else:
-        dfs = import_from_files(
-            filepath_or_buffer=args.INFILE,
-            filepath_or_buffer_2=args.INFILE2,
-            sheet1=args.SHEET,
-            sheet2=args.SHEET2,
+        experiments = import_from_files(
+            filepath=args.INFILE,
+            file_type=file_type,
+            filepath_2=args.INFILE2,
+            sheet_names=sheet_names
         )
     try:
         ret_dict = calc_association(
