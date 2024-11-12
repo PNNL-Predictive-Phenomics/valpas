@@ -105,3 +105,43 @@ class Experiment:
         else:
             return experiment_
 
+
+    def rm_low_confidence_items(
+            self,
+            threshold: float=0,
+            inplace: bool=True
+            ) -> None | Experiment:
+
+        from copy import deepcopy
+        from .processing import _remove_low_confidence_items
+
+        if inplace:
+            experiment_ = self
+        else:
+            experiment_ = deepcopy(self)
+
+        idx_omic_x = experiment_.omic_x_features
+        idx_omic_y = experiment_.omic_y_features
+
+        if experiment_.combined_values is not None:
+            df = experiment_.combined_values
+        else:
+            df = experiment_.omic_x_values
+
+        df, index = _remove_low_confidence_items(df=df, threshold=threshold)
+        if len(index.values) > 0:
+            # print("Removed items: ", end="", file=sys.stderr)
+            # print(*index.values, sep=", ", file=sys.stderr)
+            idx_omic_x_ret = idx_omic_x.difference(index)
+            idx_omic_x_ret.name = idx_omic_x.name
+            experiment_.omic_x_features = idx_omic_x_ret
+            if idx_omic_y is not None:
+                idx_omic_y_ret = idx_omic_y.difference(index)
+                idx_omic_y_ret.name = idx_omic_y.name
+                experiment_.omic_y_features = idx_omic_y_ret
+        
+        if inplace:
+            return None
+        else:
+            return experiment_
+
