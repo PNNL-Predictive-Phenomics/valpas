@@ -18,13 +18,13 @@ from scipy.spatial.distance import cosine
 from sklearn.metrics import mutual_info_score
 from sklearn.metrics import jaccard_score
 
-from valpas.utils.data_handling import prep_data
+from valpas.utils.processing import prep_single_experiment
 from valpas.utils.b_spline import mutual_information
 from .. import Experiment
 
 
 def calc_association(    
-        experiments: list[Experiment],
+        experiment: Experiment,
         association: Literal[
             'pearson', 'spearman',
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
@@ -93,13 +93,13 @@ def calc_association(
     ------
     ValueError
         ValueError that is passed along from 
-        ``valpas.utils.data_handling.prep_data()``
+        ``valpas.utils.data_handling.prep_single_experiment()``
     """
 
     if association in ['pearson', 'spearman']:
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_correlation(
-                experiments=experiments,
+                experiment=experiment,
                 corr_func=association,
                 filter_cutoff=filter_cutoff,
             )
@@ -108,7 +108,7 @@ def calc_association(
     elif association in ['cosine_similarity', 'cosine_distance']:
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_cosine_dist(
-                experiments=experiments,
+                experiment=experiment,
                 filter_cutoff=filter_cutoff,
                 threshold=threshold
             )
@@ -124,7 +124,7 @@ def calc_association(
             threshold = 0.5
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_jaccard_sim(
-                experiments=experiments,
+                experiment=experiment,
                 filter_cutoff=filter_cutoff,
                 threshold=threshold
             )
@@ -137,7 +137,7 @@ def calc_association(
     elif association == 'mutual_information':
         try:
             df_assoc, df_counts, idx1, idx2 = _calc_mut_info(
-                experiments=experiments,
+                experiment=experiment,
                 filter_cutoff=filter_cutoff
             )
         except ValueError as e:
@@ -154,7 +154,7 @@ def calc_association(
 
 
 def _calc_correlation(
-        experiments: list[Experiment],
+        experiment: Experiment,
         corr_func: Literal['pearson', 'kendall', 'spearman']='pearson',
         filter_cutoff: float=0.9,
     ) -> tuple:
@@ -205,12 +205,12 @@ def _calc_correlation(
     Raises
     ------
     ValueError
-        Passes along ValueError that might be raised by prep_data().
+        Passes along ValueError that might be raised by prep_single_experiment().
     """
 
     try:
-        df, idx1, idx2 = prep_data(
-            experiments=experiments,
+        df, idx1, idx2 = prep_single_experiment(
+            experiment=experiment,
             filter_cutoff=filter_cutoff)
     except ValueError as e:
         raise e
@@ -221,7 +221,7 @@ def _calc_correlation(
 
 
 def _calc_cosine_dist(
-        experiments: list[Experiment],
+        experiment: Experiment,
         filter_cutoff: float=0.9,
         threshold: float=None
         ) -> pd.DataFrame:
@@ -273,12 +273,12 @@ def _calc_cosine_dist(
     Raises
     ------
     ValueError
-        Passes along ValueError that might be raised by prep_data().
+        Passes along ValueError that might be raised by prep_single_experiment().
     """
 
     try:
-        df, idx1, idx2 = prep_data(
-            experiments=experiments,
+        df, idx1, idx2 = prep_single_experiment(
+            experiment=experiment,
             filter_cutoff=filter_cutoff,
             threshold=threshold
         )
@@ -294,7 +294,7 @@ def _calc_cosine_dist(
 
 
 def _calc_jaccard_sim(
-        experiments: list[Experiment],
+        experiment: Experiment,
         filter_cutoff: float=0.9,
         threshold: float=0.5
         ) -> pd.DataFrame:
@@ -346,12 +346,12 @@ def _calc_jaccard_sim(
     Raises
     ------
     ValueError
-        Passes along ValueError that might be raised by prep_data().
+        Passes along ValueError that might be raised by prep_single_experiment().
     """
 
     try:
-        df, idx1, idx2 = prep_data(
-            experiments=experiments,
+        df, idx1, idx2 = prep_single_experiment(
+            experiment=experiment,
             filter_cutoff=filter_cutoff,
             threshold=threshold
         )
@@ -364,7 +364,7 @@ def _calc_jaccard_sim(
 
 
 def _calc_mut_info(
-        experiments: list[Experiment],
+        experiment: Experiment,
         filter_cutoff: float=0.9,
         ) -> pd.DataFrame:
     """
@@ -412,11 +412,11 @@ def _calc_mut_info(
     Raises
     ------
     ValueError
-        Passes along ValueError that might be raised by prep_data().
+        Passes along ValueError that might be raised by prep_single_experiment().
     """
     try:
-        df, idx1, idx2 = prep_data(
-            experiments=experiments,
+        df, idx1, idx2 = prep_single_experiment(
+            experiment=experiment,
             filter_cutoff=filter_cutoff)
     except ValueError as e:
         raise e

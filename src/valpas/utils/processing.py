@@ -1,50 +1,19 @@
 """
-Module containing helper functions to deal with data handling (i.e. 
-input & output).
-
-.. deprecated:: 0
-    This module will be deprecated and the remaining functionality moved
-    into a different submodule
+_summary_
 """
 
-
+from typing import Literal
 import sys
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from .. import Experiment
 
-def reduce_to_shared_conditions(
-        df_1: pd.DataFrame, df_2: pd.DataFrame
-        ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """ 
-    This function operates on already inmported and transposed 
-    pd.DataFrame objects. This means that the individual conditions in 
-    the raw data (columns) are represented as rows (index).  
-
-    .. deprecated:: 0
-        ``reduce_to_shared_conditions`` no longer needed as separate
-        function. ``prep_data`` performs merge / join on two imported 
-        DataFrames which already contains this functionality.
-    """
-    intersect = df_1.columns.intersection(df_2.columns)
-    df_1_ret = df_1.filter(items=intersect, axis="columns")
-    df_2_ret = df_2.filter(items=intersect, axis="columns")
-
-    df_1_ret.replace(0, np.nan, inplace=True)
-    df_1_ret.dropna(axis="columns", how="all", inplace=True)
-    df_1_ret.replace(np.nan, 0, inplace=True)
-
-    df_2_ret.replace(0, np.nan, inplace=True)
-    df_2_ret.dropna(axis="columns", how="all", inplace=True)
-    df_2_ret.replace(np.nan, 0, inplace=True)
-   
-    return (df_1_ret, df_2_ret)
 
 
-def prep_data(
-        experiments: list[Experiment],
+def prep_single_experiment(
+        experiment: Experiment,
         filter_cutoff: float=0.9,
         cut: bool=False,
         threshold: float=None,
@@ -114,13 +83,6 @@ def prep_data(
 
     """
 
-    if len(experiments) == 1:
-        experiment = experiments.pop()
-    else:
-        raise NotImplementedError(
-            "Handling more than 1 Experiment is currently not implemented"
-            )
-
     idx1 = experiment.omic_x_features
     idx2 = experiment.omic_y_features
     if experiment.has_two_omics():
@@ -134,7 +96,7 @@ def prep_data(
     else:
         df = experiment.omic_x_values
     # removing low confidence items
-    df, index = remove_low_confidence_items(df=df, cutoff=filter_cutoff)
+    df, index = _remove_low_confidence_items(df=df, cutoff=filter_cutoff)
     if len(index.values) > 0:
         print("Removed items: ", end="", file=sys.stderr)
         print(*index.values, sep=", ", file=sys.stderr)
@@ -147,19 +109,19 @@ def prep_data(
             idx2_ret = idx2
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
-        df = bin(df=df)
+        df = _bin(df=df)
 
     # this is done if thersholding is necessary (e.g. for jaccard dist)
     if threshold:
-        df = threshold_df(df=df, threshold_rel=threshold)
+        df = _threshold_df(df=df, threshold_rel=threshold)
 
     if idx2 is None:
         return (df.transpose(), idx1_ret, None)
     else:
         return (df.transpose(), idx1_ret, idx2_ret)
+    
 
-
-def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
+def _bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     """
     Helper function for binning the values of rows in a DataFrame
 
@@ -185,7 +147,7 @@ def bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     return df
 
 
-def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
+def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     """
     Thresholds rows in a pd.DataFrame containing aboslute or relative 
     abunances for items (rows, e.g. metabolites) across different 
@@ -249,7 +211,7 @@ def threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     return df_ret
 
 
-def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
+def _remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
         drop_na_cols: bool=True) -> tuple[pd.DataFrame, pd.Index]:
     """
     Removes low confidence (to many NAs) 
@@ -311,4 +273,3 @@ def remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
     
     # return both the filtered df and the index of dropped items
     return (df_filtered, index)
-

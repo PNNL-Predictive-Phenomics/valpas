@@ -336,7 +336,7 @@ def associate(args):
         )
     try:
         ret_dict = calc_association(
-            experiments=experiments,
+            experiment=experiments.pop(),
             association=args.ASSOCIATION_TYPE,
             filter_cutoff=args.FILTER_CUTOFF,  
         )
