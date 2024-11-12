@@ -2,6 +2,7 @@
 _summary_
 """
 
+from copy import deepcopy
 from typing import Literal
 import sys
 
@@ -96,7 +97,7 @@ def prep_single_experiment(
     else:
         df = experiment.omic_x_values
     # removing low confidence items
-    df, index = _remove_low_confidence_items(df=df, cutoff=filter_cutoff)
+    df, index = _remove_low_confidence_items(df=df, threshold=filter_cutoff)
     if len(index.values) > 0:
         print("Removed items: ", end="", file=sys.stderr)
         print(*index.values, sep=", ", file=sys.stderr)
@@ -211,7 +212,7 @@ def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     return df_ret
 
 
-def _remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
+def _remove_low_confidence_items(df: pd.DataFrame, threshold: float=0.9,
         drop_na_cols: bool=True) -> tuple[pd.DataFrame, pd.Index]:
     """
     Removes low confidence (to many NAs) 
@@ -255,7 +256,7 @@ def _remove_low_confidence_items(df: pd.DataFrame, cutoff: float=0.9,
         (df.isna() # create truth table whether values is NaN
          .sum(axis=1) # sum "True" iterating over columns for each row
          /df.shape[1]) # divide by the number of columns
-         .gt(1-cutoff) # check if fraction of NAs (in row) is > cutoff
+         .gt(1-threshold) # check if fraction of NAs (in row) is > cutoff
         )
     index = s[s].index # creating the actual index (i.e. which rows to drop)
 
