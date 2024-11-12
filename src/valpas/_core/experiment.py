@@ -2,6 +2,7 @@
 _summary_
 
 """
+from __future__ import annotations
 
 import pandas as pd
 
@@ -53,7 +54,7 @@ class Experiment:
             omic_y_values: pd.DataFrame=None,
             omic_y_type: str=None,
             omic_y_features: pd.Index=None,
-            ):
+            ) -> None:
         self.name = name
         self.omic_x_values = omic_x_values
         self.omic_x_type = omic_x_type
@@ -61,6 +62,8 @@ class Experiment:
         self.omic_y_values = omic_y_values
         self.omic_y_type = omic_y_type
         self.omic_y_features = omic_y_features
+        self.combined_values = None
+
 
     def has_two_omics(self) -> bool: 
         """
@@ -73,3 +76,32 @@ class Experiment:
         """
         if self.omic_y_type is not None:
             return True
+        
+    
+    def combine_omics(self, inplace: bool=True) -> None | Experiment:
+    
+        from copy import deepcopy
+
+        if inplace:
+            experiment_ = self
+        else:
+            experiment_ = deepcopy(self)
+
+        if experiment_.has_two_omics():
+            df = pd.concat(
+                [
+                    experiment_.omic_x_values,
+                    experiment_.omic_y_values
+                ],
+                join='inner'
+                )
+        else:
+            df = experiment_.omic_x_values
+        
+        experiment_.combined_values = df
+
+        if inplace:
+            return None
+        else:
+            return experiment_
+
