@@ -86,7 +86,10 @@ def prep_single_experiment(
 
 
     experiment.combine_omics(inplace=True)
-    experiment.rm_low_confidence_features(threshold=filter_threshold)
+    experiment.rm_low_confidence_features(
+        threshold=filter_threshold,
+        inplace=True
+        )
     idx1_ret = experiment.omic_x_features
     idx2_ret = experiment.omic_y_features
 

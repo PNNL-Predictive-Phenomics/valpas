@@ -15,10 +15,8 @@ from numpy.typing import ArrayLike
 import pandas as pd
 
 from scipy.spatial.distance import cosine
-from sklearn.metrics import mutual_info_score
 from sklearn.metrics import jaccard_score
 
-from valpas.utils.processing import prep_single_experiment
 from valpas.utils.b_spline import mutual_information
 from .. import Experiment
 
@@ -209,9 +207,15 @@ def _calc_correlation(
     """
 
     try:
-        df, idx1, idx2 = prep_single_experiment(
-            experiment=experiment,
-            filter_cutoff=filter_cutoff)
+
+        experiment.pre_process(
+            rm_low_conf_features=filter_cutoff,
+            inplace=True
+            )
+        df = experiment.combined_values
+        idx1 = experiment.omic_x_features
+        idx2 = experiment.omic_y_features
+
     except ValueError as e:
         raise e
     df_corr = df.corr(method=corr_func)
@@ -277,11 +281,16 @@ def _calc_cosine_dist(
     """
 
     try:
-        df, idx1, idx2 = prep_single_experiment(
-            experiment=experiment,
-            filter_cutoff=filter_cutoff,
-            threshold=threshold
-        )
+
+        experiment.pre_process(
+            rm_low_conf_features=filter_cutoff,
+            threshold=threshold,
+            inplace=True
+            )
+        df = experiment.combined_values
+        idx1 = experiment.omic_x_features
+        idx2 = experiment.omic_y_features
+
     except ValueError as e:
         raise e
     df_cos_dist = df.corr(method=cosine)
@@ -350,11 +359,16 @@ def _calc_jaccard_sim(
     """
 
     try:
-        df, idx1, idx2 = prep_single_experiment(
-            experiment=experiment,
-            filter_cutoff=filter_cutoff,
-            threshold=threshold
-        )
+
+        experiment.pre_process(
+            rm_low_conf_features=filter_cutoff,
+            threshold=threshold,
+            inplace=True
+            )
+        df = experiment.combined_values
+        idx1 = experiment.omic_x_features
+        idx2 = experiment.omic_y_features
+
     except ValueError as e:
         raise e
     df_jaccard_sim = df.corr(method=jaccard_score)
@@ -415,9 +429,15 @@ def _calc_mut_info(
         Passes along ValueError that might be raised by prep_single_experiment().
     """
     try:
-        df, idx1, idx2 = prep_single_experiment(
-            experiment=experiment,
-            filter_cutoff=filter_cutoff)
+
+        experiment.pre_process(
+            rm_low_conf_features=filter_cutoff,
+            inplace=True
+            )
+        df = experiment.combined_values
+        idx1 = experiment.omic_x_features
+        idx2 = experiment.omic_y_features
+
     except ValueError as e:
         raise e
     df_mut_inf = df.corr(method=mutual_information)

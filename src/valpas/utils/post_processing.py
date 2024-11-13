@@ -133,8 +133,15 @@ def rm_duplicates(
         # data types. In this case we filter the DF such that the rows 
         # are limited to items from `idx1` and the columns are limited 
         # to `idx2`.
-        df_ret = df.drop(labels=idx2, axis='index')
-        df_ret.drop(labels=idx1, axis='columns', inplace=True)
+
+        df_ret = df.drop(
+            labels=df.index.difference(idx2),
+            axis='index',
+            )
+        df_ret.drop(
+            labels=df.columns.difference(idx1),
+            axis='columns',
+            inplace=True)
         return df_ret
 
 
