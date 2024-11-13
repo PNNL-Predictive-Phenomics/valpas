@@ -145,3 +145,50 @@ class Experiment:
         else:
             return experiment_
 
+
+
+    def pre_process(
+            self,
+            normalize: bool=False,
+            rm_low_conf_features: float=0,
+            threshold: float=None,
+            bin: bool=False,
+            inplace: bool=False,
+            ) -> None | Experiment:
+        
+        from copy import deepcopy
+        from .processing import _bin
+        from .processing import _threshold_df
+
+        if inplace:
+            experiment_ = self
+        else:
+            experiment_ = deepcopy(self)
+
+        experiment_.combine_omics(inplace=True)
+        experiment_.rm_low_confidence_features(
+            threshold=rm_low_conf_features,
+            inplace=True,
+            )
+
+        experiment_vals = experiment_.combined_values
+
+        if bin:
+            experiment_vals = _bin(df=experiment_vals)
+        
+        if threshold:
+            experiment_vals = _threshold_df(
+                df=experiment_vals,
+                threshold_rel=threshold,
+                )
+        
+        # if normalize:
+        #     experiment_vals.normalize()
+
+        experiment_.combined_values = experiment_vals.T
+
+        if inplace:
+            return None
+        else:
+            return experiment_
+
