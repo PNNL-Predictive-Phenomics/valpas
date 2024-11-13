@@ -132,6 +132,7 @@ class Experiment:
         if len(index.values) > 0:
             # print("Removed items: ", end="", file=sys.stderr)
             # print(*index.values, sep=", ", file=sys.stderr)
+            experiment_.combined_values = df
             idx_omic_x_ret = idx_omic_x.difference(index)
             idx_omic_x_ret.name = idx_omic_x.name
             experiment_.omic_x_features = idx_omic_x_ret
