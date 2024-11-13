@@ -78,7 +78,7 @@ class Experiment:
             return True
         
     
-    def combine_omics(self, inplace: bool=True) -> None | Experiment:
+    def combine_omics(self, inplace: bool=False) -> None | Experiment:
     
         from copy import deepcopy
 
@@ -106,14 +106,14 @@ class Experiment:
             return experiment_
 
 
-    def rm_low_confidence_items(
+    def rm_low_confidence_features(
             self,
             threshold: float=0,
-            inplace: bool=True
+            inplace: bool=False
             ) -> None | Experiment:
 
         from copy import deepcopy
-        from .processing import _remove_low_confidence_items
+        from .processing import _remove_low_confidence_features
 
         if inplace:
             experiment_ = self
@@ -128,7 +128,7 @@ class Experiment:
         else:
             df = experiment_.omic_x_values
 
-        df, index = _remove_low_confidence_items(df=df, threshold=threshold)
+        df, index = _remove_low_confidence_features(df=df, threshold=threshold)
         if len(index.values) > 0:
             # print("Removed items: ", end="", file=sys.stderr)
             # print(*index.values, sep=", ", file=sys.stderr)
