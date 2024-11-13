@@ -12,6 +12,38 @@ import pandas as pd
 from .. import Experiment
 
 
+            
+
+def combine_experiments(
+        experiments: list[Experiment],
+        axis: Literal['omics', 'conditions'] = 'omics',
+        ) -> pd.DataFrame:
+    
+    combined_df = None
+
+    if axis == 'omics':
+        axis_ = 'index'
+    elif axis == 'conditions':
+        axis_ = 'columns'
+    else:
+        raise ValueError(f"'{axis}' not in allowed values for 'axis'.")
+
+    for experiment in experiments:
+        if combined_df is None:
+            combined_df = experiment.combined_values
+        else:
+            combined_df = pd.concat(
+                objs=[
+                    combined_df,
+                    experiment.combined_values,
+                ],
+                axis=axis_,
+                join='inner'
+            )
+
+    return combined_df
+    
+
 
 def prep_single_experiment(
         experiment: Experiment,
