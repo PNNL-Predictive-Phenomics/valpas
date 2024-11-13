@@ -15,7 +15,7 @@ from .. import Experiment
 
 def prep_single_experiment(
         experiment: Experiment,
-        filter_cutoff: float=0.9,
+        filter_threshold: float=0.9,
         cut: bool=False,
         threshold: float=None,
         ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
@@ -84,30 +84,13 @@ def prep_single_experiment(
 
     """
 
-    idx1 = experiment.omic_x_features
-    idx2 = experiment.omic_y_features
-    if experiment.has_two_omics():
-        df = pd.concat(
-            [
-                experiment.omic_x_values,
-                experiment.omic_y_values
-            ],
-            join='inner'
-            )
-    else:
-        df = experiment.omic_x_values
-    # removing low confidence items
-    df, index = _remove_low_confidence_items(df=df, threshold=filter_cutoff)
-    if len(index.values) > 0:
-        print("Removed items: ", end="", file=sys.stderr)
-        print(*index.values, sep=", ", file=sys.stderr)
-        idx1_ret = idx1.difference(index)
-        idx1_ret.name = idx1.name
-        if idx2 is not None:
-            idx2_ret = idx2.difference(index)
-            idx2_ret.name = idx2.name
-        else:
-            idx2_ret = idx2
+
+    experiment.combine_omics(inplace=True)
+    experiment.rm_low_confidence_features(threshold=filter_threshold)
+    idx1_ret = experiment.omic_x_features
+    idx2_ret = experiment.omic_y_features
+
+    df = experiment.combined_values
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
         df = _bin(df=df)
@@ -116,10 +99,7 @@ def prep_single_experiment(
     if threshold:
         df = _threshold_df(df=df, threshold_rel=threshold)
 
-    if idx2 is None:
-        return (df.transpose(), idx1_ret, None)
-    else:
-        return (df.transpose(), idx1_ret, idx2_ret)
+    return (df.transpose(), idx1_ret, idx2_ret)
     
 
 def _bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
@@ -212,7 +192,7 @@ def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     return df_ret
 
 
-def _remove_low_confidence_items(df: pd.DataFrame, threshold: float=0.9,
+def _remove_low_confidence_features(df: pd.DataFrame, threshold: float=0.9,
         drop_na_cols: bool=True) -> tuple[pd.DataFrame, pd.Index]:
     """
     Removes low confidence (to many NAs) 
