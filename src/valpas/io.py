@@ -16,7 +16,7 @@ from pandas import ExcelWriter
 import numpy as np
 
 from .utils.post_processing import beautify_series
-from . import Experiment
+from . import SingleExperiment
 
 def export_csv(
         filepath_or_buffer: str | PathLike | Path | TextIOBase,
@@ -291,7 +291,7 @@ def import_experiments(
         file_type: Literal['csv', 'xlsx'],
         path2: str|PathLike|Path|None=None,
         sheet_names: list|None=None,
-        ) -> list[Experiment]:
+        ) -> list[SingleExperiment]:
     pass
 
 
@@ -300,7 +300,7 @@ def import_from_folder(
         path: PathLike | Path, 
         file_type: Literal['csv', 'xlsx'],
         sheet_names: list=None,
-        ) -> list[Experiment]:
+        ) -> list[SingleExperiment]:
     ret_dict = {}
     for child in path.glob(f'*.{file_type}'):
         if file_type == 'csv':
@@ -309,7 +309,7 @@ def import_from_folder(
                 )
             values = _import_csv(child.absolute())
             if experiment_name not in ret_dict:
-                experiment = Experiment(
+                experiment = SingleExperiment(
                     name=experiment_name,
                     omic_x_values=values,
                     omic_x_type=omic_type,
@@ -332,7 +332,7 @@ def import_from_folder(
                 values = _import_xls(child, sheet=sheet_name)
                 omic_type = sheet_name
                 if experiment_name not in ret_dict:
-                    experiment = Experiment(
+                    experiment = SingleExperiment(
                         name=experiment_name,
                         omic_x_values=values,
                         omic_x_type=omic_type,
@@ -368,7 +368,7 @@ def import_from_files(
             )
             omic_y_values = _import_csv(filepath_or_buffer=filepath_2)
             omic_y_features = omic_y_values.index
-            experiment = Experiment(
+            experiment = SingleExperiment(
                 name=experiment_name,
                 omic_x_values=omic_x_values,
                 omic_x_type=omic_x_type,
@@ -378,7 +378,7 @@ def import_from_files(
                 omic_y_features=omic_y_features
             )
         else:
-            experiment = Experiment(
+            experiment = SingleExperiment(
                 name=experiment_name,
                 omic_x_values=omic_x_values,
                 omic_x_type=omic_x_type,
@@ -405,7 +405,7 @@ def import_from_files(
                 )
             omic_y_type = sheet_names[1]
             omic_y_features = omic_y_values.index
-            experiment = Experiment(
+            experiment = SingleExperiment(
                 name=experiment_name,
                 omic_x_values=omic_x_values,
                 omic_x_type=omic_x_type,
@@ -415,7 +415,7 @@ def import_from_files(
                 omic_y_features=omic_y_features
             )
         else:
-            experiment = Experiment(
+            experiment = SingleExperiment(
                 name=experiment_name,
                 omic_x_values=omic_x_values,
                 omic_x_type=omic_x_type,

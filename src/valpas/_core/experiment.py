@@ -6,7 +6,29 @@ from __future__ import annotations
 
 import pandas as pd
 
-class Experiment:
+
+class Experiment():
+
+    def __init__(
+            self,
+            name: str=None,
+            ) -> None:
+        
+        self.name = name
+    
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._name = value
+
+    @name.deleter
+    def name(self):
+        del self._name    
+
+class SingleExperiment(Experiment):
     """
     Custom Class that stores experiment data.
 
@@ -55,7 +77,9 @@ class Experiment:
             omic_y_type: str=None,
             omic_y_features: pd.Index=None,
             ) -> None:
-        self.name = name
+        
+        super().__init__(name)
+
         self.omic_x_values = omic_x_values
         self.omic_x_type = omic_x_type
         self.omic_x_features = omic_x_features
@@ -78,7 +102,7 @@ class Experiment:
             return True
         
     
-    def combine_omics(self, inplace: bool=False) -> None | Experiment:
+    def combine_omics(self, inplace: bool=False) -> None | SingleExperiment:
     
         from copy import deepcopy
 
@@ -110,7 +134,7 @@ class Experiment:
             self,
             threshold: float=0,
             inplace: bool=False
-            ) -> None | Experiment:
+            ) -> None | SingleExperiment:
 
         from copy import deepcopy
         from .processing import _remove_low_confidence_features
@@ -155,8 +179,7 @@ class Experiment:
             threshold: float=None,
             bin: bool=False,
             inplace: bool=False,
-            ) -> None | Experiment:
-        
+            ) -> None | SingleExperiment:
         from copy import deepcopy
         from .processing import _bin
         from .processing import _threshold_df

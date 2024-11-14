@@ -18,11 +18,11 @@ from scipy.spatial.distance import cosine
 from sklearn.metrics import jaccard_score
 
 from valpas.utils.b_spline import mutual_information
-from .. import Experiment
+from .. import SingleExperiment
 
 
 def calc_association(    
-        experiment: Experiment,
+        experiment: SingleExperiment,
         association: Literal[
             'pearson', 'spearman',
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
@@ -152,7 +152,7 @@ def calc_association(
 
 
 def _calc_correlation(
-        experiment: Experiment,
+        experiment: SingleExperiment,
         corr_func: Literal['pearson', 'kendall', 'spearman']='pearson',
         filter_cutoff: float=0.9,
     ) -> tuple:
@@ -225,7 +225,7 @@ def _calc_correlation(
 
 
 def _calc_cosine_dist(
-        experiment: Experiment,
+        experiment: SingleExperiment,
         filter_cutoff: float=0.9,
         threshold: float=None
         ) -> pd.DataFrame:
@@ -303,7 +303,7 @@ def _calc_cosine_dist(
 
 
 def _calc_jaccard_sim(
-        experiment: Experiment,
+        experiment: SingleExperiment,
         filter_cutoff: float=0.9,
         threshold: float=0.5
         ) -> pd.DataFrame:
@@ -378,7 +378,7 @@ def _calc_jaccard_sim(
 
 
 def _calc_mut_info(
-        experiment: Experiment,
+        experiment: SingleExperiment,
         filter_cutoff: float=0.9,
         ) -> pd.DataFrame:
     """

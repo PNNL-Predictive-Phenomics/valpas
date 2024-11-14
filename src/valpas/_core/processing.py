@@ -9,13 +9,13 @@ import sys
 import numpy as np
 import pandas as pd
 
-from .. import Experiment
+from .. import SingleExperiment
 
 
             
 
 def combine_experiments(
-        experiments: list[Experiment],
+        experiments: list[SingleExperiment],
         axis: Literal['omics', 'conditions'] = 'omics',
         ) -> pd.DataFrame:
     
@@ -46,7 +46,7 @@ def combine_experiments(
 
 
 def prep_single_experiment(
-        experiment: Experiment,
+        experiment: SingleExperiment,
         filter_threshold: float=0.9,
         cut: bool=False,
         threshold: float=None,
