@@ -30,12 +30,12 @@ def combine_experiments(
 
     for experiment in experiments:
         if combined_df is None:
-            combined_df = experiment.combined_values
+            combined_df = experiment.measurements
         else:
             combined_df = pd.concat(
                 objs=[
                     combined_df,
-                    experiment.combined_values,
+                    experiment.measurements,
                 ],
                 axis=axis_,
                 join='inner'
@@ -125,7 +125,7 @@ def prep_single_experiment(
     idx1_ret = experiment.omic_x_features
     idx2_ret = experiment.omic_y_features
 
-    df = experiment.combined_values
+    df = experiment.measurements
     # this is done if binning is necessary (e.g. for mutual information)
     if cut:
         df = _bin(df=df)

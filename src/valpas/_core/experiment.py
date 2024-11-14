@@ -4,6 +4,9 @@ _summary_
 """
 from __future__ import annotations
 
+from copy import deepcopy
+from typing import Literal
+
 import pandas as pd
 
 
@@ -12,9 +15,11 @@ class Experiment():
     def __init__(
             self,
             name: str=None,
+            measurements: pd.DataFrame=None,
             ) -> None:
         
         self.name = name
+        self.measurements = measurements
     
     @property
     def name(self):
@@ -27,6 +32,19 @@ class Experiment():
     @name.deleter
     def name(self):
         del self._name    
+
+    @property
+    def measurements(self):
+        return self._measurements
+    
+    @measurements.setter
+    def measurements(self, value):
+        self._measurements = value
+    
+    @measurements.deleter
+    def measurements(self):
+        del self._measurements
+
 
 class SingleExperiment(Experiment):
     """
@@ -86,7 +104,6 @@ class SingleExperiment(Experiment):
         self.omic_y_values = omic_y_values
         self.omic_y_type = omic_y_type
         self.omic_y_features = omic_y_features
-        self.combined_values = None
 
 
     def has_two_omics(self) -> bool: 
@@ -104,7 +121,6 @@ class SingleExperiment(Experiment):
     
     def combine_omics(self, inplace: bool=False) -> None | SingleExperiment:
     
-        from copy import deepcopy
 
         if inplace:
             experiment_ = self
@@ -122,7 +138,7 @@ class SingleExperiment(Experiment):
         else:
             df = experiment_.omic_x_values
         
-        experiment_.combined_values = df
+        experiment_.measurements = df
 
         if inplace:
             return None
@@ -136,7 +152,6 @@ class SingleExperiment(Experiment):
             inplace: bool=False
             ) -> None | SingleExperiment:
 
-        from copy import deepcopy
         from .processing import _remove_low_confidence_features
 
         if inplace:
@@ -147,8 +162,8 @@ class SingleExperiment(Experiment):
         idx_omic_x = experiment_.omic_x_features
         idx_omic_y = experiment_.omic_y_features
 
-        if experiment_.combined_values is not None:
-            df = experiment_.combined_values
+        if experiment_.measurements is not None:
+            df = experiment_.measurements
         else:
             df = experiment_.omic_x_values
 
@@ -156,7 +171,7 @@ class SingleExperiment(Experiment):
         if len(index.values) > 0:
             # print("Removed items: ", end="", file=sys.stderr)
             # print(*index.values, sep=", ", file=sys.stderr)
-            experiment_.combined_values = df
+            experiment_.measurements = df
             idx_omic_x_ret = idx_omic_x.difference(index)
             idx_omic_x_ret.name = idx_omic_x.name
             experiment_.omic_x_features = idx_omic_x_ret
@@ -170,6 +185,14 @@ class SingleExperiment(Experiment):
         else:
             return experiment_
 
+    
+    def normalize(
+            self,
+            method: Literal['power', 'log'],
+            inplace: bool=False,
+            ) -> None | SingleExperiment:
+        
+        pass
 
 
     def pre_process(
@@ -180,7 +203,28 @@ class SingleExperiment(Experiment):
             bin: bool=False,
             inplace: bool=False,
             ) -> None | SingleExperiment:
-        from copy import deepcopy
+        """
+        _summary_
+
+        Parameters
+        ----------
+        normalize : bool, optional
+            _description_, by default False
+        rm_low_conf_features : float, optional
+            _description_, by default 0
+        threshold : float, optional
+            _description_, by default None
+        bin : bool, optional
+            _description_, by default False
+        inplace : bool, optional
+            _description_, by default False
+
+        Returns
+        -------
+        None | Experiment
+            _description_
+        """
+
         from .processing import _bin
         from .processing import _threshold_df
 
@@ -195,7 +239,7 @@ class SingleExperiment(Experiment):
             inplace=True,
             )
 
-        experiment_vals = experiment_.combined_values
+        experiment_vals = experiment_.measurements
 
         if bin:
             experiment_vals = _bin(df=experiment_vals)
@@ -209,10 +253,9 @@ class SingleExperiment(Experiment):
         # if normalize:
         #     experiment_vals.normalize()
 
-        experiment_.combined_values = experiment_vals.T
+        experiment_.measurements = experiment_vals.T
 
         if inplace:
             return None
         else:
             return experiment_
-

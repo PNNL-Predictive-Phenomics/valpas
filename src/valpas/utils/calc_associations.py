@@ -212,7 +212,7 @@ def _calc_correlation(
             rm_low_conf_features=filter_cutoff,
             inplace=True
             )
-        df = experiment.combined_values
+        df = experiment.measurements
         idx1 = experiment.omic_x_features
         idx2 = experiment.omic_y_features
 
@@ -287,7 +287,7 @@ def _calc_cosine_dist(
             threshold=threshold,
             inplace=True
             )
-        df = experiment.combined_values
+        df = experiment.measurements
         idx1 = experiment.omic_x_features
         idx2 = experiment.omic_y_features
 
@@ -365,7 +365,7 @@ def _calc_jaccard_sim(
             threshold=threshold,
             inplace=True
             )
-        df = experiment.combined_values
+        df = experiment.measurements
         idx1 = experiment.omic_x_features
         idx2 = experiment.omic_y_features
 
@@ -434,7 +434,7 @@ def _calc_mut_info(
             rm_low_conf_features=filter_cutoff,
             inplace=True
             )
-        df = experiment.combined_values
+        df = experiment.measurements
         idx1 = experiment.omic_x_features
         idx2 = experiment.omic_y_features
 
