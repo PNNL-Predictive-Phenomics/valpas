@@ -11,9 +11,11 @@ functionality for proteins of previously unknown function.
 """
 
 from ._core.experiment import SingleExperiment
+from ._core.omics import OmicMeasurement
 
 __all__ = [
     'utils',
     'visualization',
     'SingleExperiment',
+    'OmicMeasurement',
     ]
