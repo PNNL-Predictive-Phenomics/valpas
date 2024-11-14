@@ -10,7 +10,7 @@ class OmicMeasurement():
             self,
             type: str,
             measurements: pd.DataFrame,
-            features: list,
+            features: pd.Index,
             ) -> None:
         
         self.type = type
