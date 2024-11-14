@@ -11,7 +11,7 @@ import networkx as nx
 
 from pathlib import Path
 
-from .utils.calc_associations import calc_association
+from ._core.association import calc_association
 from .utils.checker import check_infile
 from .utils.checker import check_outfile
 from .utils.checker import check_cutoff_range
