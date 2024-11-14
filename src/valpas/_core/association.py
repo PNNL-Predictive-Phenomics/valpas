@@ -16,6 +16,7 @@ from scipy.spatial.distance import cosine
 from sklearn.metrics import jaccard_score
 
 from valpas.utils.b_spline import mutual_information
+from .. import CrossExperiment
 from .. import SingleExperiment
 
 
@@ -93,7 +94,7 @@ class AssociationResult():
 
 
 def calc_association(    
-        experiment: SingleExperiment,
+        experiment: SingleExperiment | CrossExperiment,
         association: Literal[
             'pearson', 'spearman',
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
