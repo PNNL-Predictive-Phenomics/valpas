@@ -9,6 +9,7 @@ from typing import Literal
 
 import pandas as pd
 
+from .omics import OmicMeasurement
 
 class Experiment():
 
@@ -88,23 +89,54 @@ class SingleExperiment(Experiment):
     def __init__(
             self,
             name: str,
-            omic_x_values: pd.DataFrame,
-            omic_x_type: str,
-            omic_x_features: pd.Index,
-            omic_y_values: pd.DataFrame=None,
-            omic_y_type: str=None,
-            omic_y_features: pd.Index=None,
+            omic_x: OmicMeasurement,
+            omic_y: OmicMeasurement=None,
             ) -> None:
         
         super().__init__(name)
 
-        self.omic_x_values = omic_x_values
-        self.omic_x_type = omic_x_type
-        self.omic_x_features = omic_x_features
-        self.omic_y_values = omic_y_values
-        self.omic_y_type = omic_y_type
-        self.omic_y_features = omic_y_features
+        self.omic_x = omic_x
+        self.omic_y = omic_y
 
+        # self.omic_x_values = omic_x_values
+        # self.omic_x_type = omic_x_type
+        # self.omic_x_features = omic_x_features
+        # self.omic_y_values = omic_y_values
+        # self.omic_y_type = omic_y_type
+        # self.omic_y_features = omic_y_features
+
+    # ---------------------------
+    # getters, setters & deleters
+    # ---------------------------
+
+    @property
+    def omic_x(self):
+        return self._omic_x
+    
+    @omic_x.setter
+    def omic_x(self, value):
+        self._omic_x = value
+    
+    @omic_x.deleter
+    def omic_x(self):
+        del self._omic_x
+
+    @property
+    def omic_y(self):
+        return self._omic_y
+    
+    @omic_y.setter
+    def omic_y(self, value):
+        self._omic_y = value
+    
+    @omic_y.deleter
+    def omic_y(self):
+        del self._omic_y
+
+
+    # ------------------
+    # instance functions
+    # ------------------
 
     def has_two_omics(self) -> bool: 
         """
@@ -115,7 +147,7 @@ class SingleExperiment(Experiment):
         bool
             _description_
         """
-        if self.omic_y_type is not None:
+        if self.omic_y is not None:
             return True
         
     
@@ -130,13 +162,13 @@ class SingleExperiment(Experiment):
         if experiment_.has_two_omics():
             df = pd.concat(
                 [
-                    experiment_.omic_x_values,
-                    experiment_.omic_y_values
+                    experiment_.omic_x.measurements,
+                    experiment_.omic_y.measurements,
                 ],
                 join='inner'
                 )
         else:
-            df = experiment_.omic_x_values
+            df = experiment_.omic_x.measurements
         
         experiment_.measurements = df
 
@@ -159,13 +191,13 @@ class SingleExperiment(Experiment):
         else:
             experiment_ = deepcopy(self)
 
-        idx_omic_x = experiment_.omic_x_features
-        idx_omic_y = experiment_.omic_y_features
+        idx_omic_x = experiment_.omic_x.features
+        idx_omic_y = experiment_.omic_y.features
 
         if experiment_.measurements is not None:
             df = experiment_.measurements
         else:
-            df = experiment_.omic_x_values
+            df = experiment_.omic_x.measurements
 
         df, index = _remove_low_confidence_features(df=df, threshold=threshold)
         if len(index.values) > 0:

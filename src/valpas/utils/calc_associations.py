@@ -213,8 +213,8 @@ def _calc_correlation(
             inplace=True
             )
         df = experiment.measurements
-        idx1 = experiment.omic_x_features
-        idx2 = experiment.omic_y_features
+        idx1 = experiment.omic_x.features
+        idx2 = experiment.omic_y.features
 
     except ValueError as e:
         raise e
@@ -288,8 +288,8 @@ def _calc_cosine_dist(
             inplace=True
             )
         df = experiment.measurements
-        idx1 = experiment.omic_x_features
-        idx2 = experiment.omic_y_features
+        idx1 = experiment.omic_x.features
+        idx2 = experiment.omic_y.features
 
     except ValueError as e:
         raise e
@@ -366,8 +366,8 @@ def _calc_jaccard_sim(
             inplace=True
             )
         df = experiment.measurements
-        idx1 = experiment.omic_x_features
-        idx2 = experiment.omic_y_features
+        idx1 = experiment.omic_x.features
+        idx2 = experiment.omic_y.features
 
     except ValueError as e:
         raise e
@@ -435,8 +435,8 @@ def _calc_mut_info(
             inplace=True
             )
         df = experiment.measurements
-        idx1 = experiment.omic_x_features
-        idx2 = experiment.omic_y_features
+        idx1 = experiment.omic_x.features
+        idx2 = experiment.omic_y.features
 
     except ValueError as e:
         raise e
