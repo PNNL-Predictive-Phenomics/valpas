@@ -24,6 +24,8 @@ from .utils.post_processing import idx_name
 
 from .visualization.heatmap import create_fig
 
+from valpas import CrossExperiment
+
 def main(args):
     """
     The main method.
@@ -318,7 +320,7 @@ def associate(args):
             raise ValueError(
                 "Import of more than two CSV files currently not supported."
             )
-        if args.xlsx and len(files) != 1:
+        # if args.xlsx: # and len(files) != 1:
             raise ValueError(
                 "Import of more than one XLSX file currently not supported."
             )
@@ -364,6 +366,30 @@ def associate(args):
                 f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
             )
     
+    elif len(experiments) == 2:
+        for experiment in experiments:
+            experiment.pre_process(
+                rm_low_conf_features=args.FILTER_CUTOFF,
+                threshold=threshold,
+                inplace=True
+            )
+        cross_experiment = CrossExperiment(
+            name='cross_experiment',
+            experiments=experiments,
+        )
+        cross_experiment.combine(inplace=True)
+
+        try:
+            result = cross_experiment.associate(
+                metric=args.ASSOCIATION_TYPE,
+                thresholded=thresholded
+            )
+        except ValueError:
+            sys.exit(
+                f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+            )
+            
+
     
     else:
         raise NotImplementedError(

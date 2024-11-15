@@ -10,12 +10,13 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from ..association import calc_association
+from ..association import calculate_association
+
+from .omics import Omic
 
 if TYPE_CHECKING:
     from valpas._typing import(
         AssociationResult,
-        Omic,
         OmicMeasurement,
     )
 
