@@ -4,19 +4,16 @@ _summary_
 
 import pandas as pd
 
-class OmicMeasurement():
+class Omic():
 
     def __init__(
             self,
             type: str,
-            measurements: pd.DataFrame,
             features: pd.Index,
             ) -> None:
         
         self.type = type
-        self.measurements = measurements
         self.features = features
-
 
     @property
     def type(self):
@@ -31,18 +28,6 @@ class OmicMeasurement():
         del self._type
 
     @property
-    def measurements(self):
-        return self._measurements
-    
-    @measurements.setter
-    def measurements(self, value):
-        self._measurements = value
-    
-    @measurements.deleter
-    def measurements(self):
-        del self._measurements
-
-    @property
     def features(self):
         return self._features
     
@@ -53,3 +38,30 @@ class OmicMeasurement():
     @features.deleter
     def features(self):
         del self._features
+
+
+class OmicMeasurement(Omic):
+
+    def __init__(
+            self,
+            type: str,
+            measurements: pd.DataFrame,
+            features: pd.Index,
+            ) -> None:
+        
+        super().__init__(type, features)
+
+        self.measurements = measurements
+
+
+    @property
+    def measurements(self):
+        return self._measurements
+    
+    @measurements.setter
+    def measurements(self, value):
+        self._measurements = value
+    
+    @measurements.deleter
+    def measurements(self):
+        del self._measurements

@@ -9,132 +9,99 @@ import sys
 import numpy as np
 import pandas as pd
 
-from .. import SingleExperiment
 
 
-            
 
-def combine_experiments(
-        experiments: list[SingleExperiment],
-        axis: Literal['omics', 'conditions'] = 'omics',
-        ) -> pd.DataFrame:
-    
-    combined_df = None
+# def prep_single_experiment(
+#         experiment: SingleExperiment,
+#         filter_threshold: float=0.9,
+#         cut: bool=False,
+#         threshold: float=None,
+#         ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
+#     """
+#     Imports data file(s) into pandas DataFrame. Can handle import from 
+#     one or two data files. If provided data files are Excel files, the 
+#     sheets from which to import also have to be defined.
 
-    if axis == 'omics':
-        axis_ = 'index'
-    elif axis == 'conditions':
-        axis_ = 'columns'
-    else:
-        raise ValueError(f"'{axis}' not in allowed values for 'axis'.")
+#     Parameters
+#     ----------
+#     filepath_or_buffer : str | PathLike | Path
+#         Defines the path to the main file to be imported and used as a 
+#         basis to calculate associations from. Can be CSV or Excel file.
+#         If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
+#         be defined.
+#     filepath_or_buffer_2 : str | PathLike | Path, default = None
+#         Optinonal path definition to a second input file. If 
+#         ``filepath_or_buffer_2`` is defined, then associations between
+#         datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
+#         are calculated. Note, if an Excel file is defined as input 
+#         ``sheet2`` needs to be defined.
+#     sheet1 : str, default = None
+#         Used to define the name of the Excel sheet that should be 
+#         imported. Only used when ``filepath_or_buffer`` points to an 
+#         Excel file.
+#     sheet2 : str, default = None
+#         See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
+#         Excel file) the defined sheet will be imported from there. 
+#         Otherwise the sheet will be imported from ``filepath_or_buffer``.
+#     filter_cutoff : float, default = 0.9
+#         Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
+#         fraction of ``filter_cutoff`` values that are not `0.0` or 
+#         `NaN`. Any rows that have less defined values will excluded from
+#         the calculation of the association value.
+#     cut : bool, default = False
+#         Determines if the values in the DataFrame should be binned for 
+#         further association calculations
+#     threshold : float, default = None
+#         Optional argument that defines the threshold values that is used
+#         for thresholding values.
 
-    for experiment in experiments:
-        if combined_df is None:
-            combined_df = experiment.measurements
-        else:
-            combined_df = pd.concat(
-                objs=[
-                    combined_df,
-                    experiment.measurements,
-                ],
-                axis=axis_,
-                join='inner'
-            )
+#     Returns
+#     -------
+#     tuple[pd.DataFrame, pd.Index, pd.Index]
+#         Return tuple contains three objects:
+#             1. a pandas DataFrame object containing transposed data
+#             2. a pandas Index object containing the index of the 
+#                DataFrame resulting from importing ``filepath_or_buffer``
+#             3. a pandas Index object containing the index of the 
+#                DataFrame resulting from importing 
+#                ``filepath_or_buffer_2`` or if ``filepath_or_buffer_2``
+#                was not passed to the function (i.e. `None`) then `None` 
+#                is returned as the 3rd position of the tuple
 
-    return combined_df
-    
+#     Notes
+#     -----
+#     Imports data file(s) into pandas DataFrame object(s). If two data 
+#     files are provided, the two imported DataFrames are concatenated 
+#     over their shared columns (conditions). Finally, (depending on the 
+#     arguments passed to the function call) the resulting DataFrame is:
 
+#     - cleaned of low confidence items (rows) that contain to many 0 
+#       values.
+#     - binned (necessary for mutual information)
+#     - thresholded (necessary for Jaccard Index/Similarity)
 
-def prep_single_experiment(
-        experiment: SingleExperiment,
-        filter_threshold: float=0.9,
-        cut: bool=False,
-        threshold: float=None,
-        ) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
-    """
-    Imports data file(s) into pandas DataFrame. Can handle import from 
-    one or two data files. If provided data files are Excel files, the 
-    sheets from which to import also have to be defined.
-
-    Parameters
-    ----------
-    filepath_or_buffer : str | PathLike | Path
-        Defines the path to the main file to be imported and used as a 
-        basis to calculate associations from. Can be CSV or Excel file.
-        If ``filepath_or_buffer`` is an Excel file, ``sheet1`` needs to 
-        be defined.
-    filepath_or_buffer_2 : str | PathLike | Path, default = None
-        Optinonal path definition to a second input file. If 
-        ``filepath_or_buffer_2`` is defined, then associations between
-        datapoints in ``filepath_or_buffer`` and ``filepath_or_buffer``
-        are calculated. Note, if an Excel file is defined as input 
-        ``sheet2`` needs to be defined.
-    sheet1 : str, default = None
-        Used to define the name of the Excel sheet that should be 
-        imported. Only used when ``filepath_or_buffer`` points to an 
-        Excel file.
-    sheet2 : str, default = None
-        See ``sheet1``. If ``filepath_or_buffer2`` is defined (and an 
-        Excel file) the defined sheet will be imported from there. 
-        Otherwise the sheet will be imported from ``filepath_or_buffer``.
-    filter_cutoff : float, default = 0.9
-        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
-        fraction of ``filter_cutoff`` values that are not `0.0` or 
-        `NaN`. Any rows that have less defined values will excluded from
-        the calculation of the association value.
-    cut : bool, default = False
-        Determines if the values in the DataFrame should be binned for 
-        further association calculations
-    threshold : float, default = None
-        Optional argument that defines the threshold values that is used
-        for thresholding values.
-
-    Returns
-    -------
-    tuple[pd.DataFrame, pd.Index, pd.Index]
-        Return tuple contains three objects:
-            1. a pandas DataFrame object containing transposed data
-            2. a pandas Index object containing the index of the 
-               DataFrame resulting from importing ``filepath_or_buffer``
-            3. a pandas Index object containing the index of the 
-               DataFrame resulting from importing 
-               ``filepath_or_buffer_2`` or if ``filepath_or_buffer_2``
-               was not passed to the function (i.e. `None`) then `None` 
-               is returned as the 3rd position of the tuple
-
-    Notes
-    -----
-    Imports data file(s) into pandas DataFrame object(s). If two data 
-    files are provided, the two imported DataFrames are concatenated 
-    over their shared columns (conditions). Finally, (depending on the 
-    arguments passed to the function call) the resulting DataFrame is:
-
-    - cleaned of low confidence items (rows) that contain to many 0 
-      values.
-    - binned (necessary for mutual information)
-    - thresholded (necessary for Jaccard Index/Similarity)
-
-    """
+#     """
 
 
-    experiment.combine_omics(inplace=True)
-    experiment.rm_low_confidence_features(
-        threshold=filter_threshold,
-        inplace=True
-        )
-    idx1_ret = experiment.omic_x_features
-    idx2_ret = experiment.omic_y_features
+#     experiment.combine_omics(inplace=True)
+#     experiment.rm_low_confidence_features(
+#         threshold=filter_threshold,
+#         inplace=True
+#         )
+#     idx1_ret = experiment.omic_x.features
+#     idx2_ret = experiment.omic_y.features
 
-    df = experiment.measurements
-    # this is done if binning is necessary (e.g. for mutual information)
-    if cut:
-        df = _bin(df=df)
+#     df = experiment.measurements
+#     # this is done if binning is necessary (e.g. for mutual information)
+#     if cut:
+#         df = _bin(df=df)
 
-    # this is done if thersholding is necessary (e.g. for jaccard dist)
-    if threshold:
-        df = _threshold_df(df=df, threshold_rel=threshold)
+#     # this is done if thersholding is necessary (e.g. for jaccard dist)
+#     if threshold:
+#         df = _threshold_df(df=df, threshold_rel=threshold)
 
-    return (df.transpose(), idx1_ret, idx2_ret)
+#     return (df.transpose(), idx1_ret, idx2_ret)
     
 
 def _bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:

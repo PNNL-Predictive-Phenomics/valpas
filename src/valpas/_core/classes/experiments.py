@@ -10,10 +10,8 @@ from typing import Literal
 import pandas as pd
 
 from .omics import OmicMeasurement
-from .association import AssociationResult
-from .association import calc_association
+from .results import AssociationResult
 
-from .processing import combine_experiments
 
 class Experiment():
 
@@ -72,62 +70,6 @@ class Experiment():
             thershold: float=None,
             ) -> AssociationResult:
         pass
-
-
-class CrossExperiment(Experiment):
-
-    def __init__(
-            self,
-            name: str,
-            experiments: list[SingleExperiment],
-            ) -> None:
-
-        super.__init__(name)
-        
-        self.experiments = experiments
-
- 
-    # ---------------------------
-    # getters, setters & deleters
-    # ---------------------------
-
-    @property
-    def experiments(self):
-        return self._experiments
-
-    @experiments.setter
-    def experiments(self, value):
-        self._experiments = value
-
-    @experiments.deleter
-    def experiments(self):
-        del self._experiments       
-
-
-    # ------------------
-    # instance functions
-    # ------------------
-
-    def combine(
-            self,
-            axis: Literal['omics', 'conditions']='omics',
-            inplace: bool=True
-            ) -> None | CrossExperiment:
-        
-        if inplace:
-            experiment_ = self
-        else:
-            experiment_ = deepcopy(self)
-        
-        experiment_.measurements = combine_experiments(
-            experiments=experiment_._experiments,
-            axis=axis,
-            )
-
-        if inplace:
-            return None
-        else:
-            return experiment_
 
 
 
@@ -261,7 +203,7 @@ class SingleExperiment(Experiment):
             inplace: bool=False
             ) -> None | SingleExperiment:
 
-        from .processing import _remove_low_confidence_features
+        from ..processing import _remove_low_confidence_features
 
         if inplace:
             experiment_ = self
@@ -283,11 +225,11 @@ class SingleExperiment(Experiment):
             experiment_.measurements = df
             idx_omic_x_ret = idx_omic_x.difference(index)
             idx_omic_x_ret.name = idx_omic_x.name
-            experiment_.omic_x_features = idx_omic_x_ret
+            experiment_.omic_x.features = idx_omic_x_ret
             if idx_omic_y is not None:
                 idx_omic_y_ret = idx_omic_y.difference(index)
                 idx_omic_y_ret.name = idx_omic_y.name
-                experiment_.omic_y_features = idx_omic_y_ret
+                experiment_.omic_y.features = idx_omic_y_ret
         
         if inplace:
             return None
@@ -334,8 +276,8 @@ class SingleExperiment(Experiment):
             _description_
         """
 
-        from .processing import _bin
-        from .processing import _threshold_df
+        from ..processing import _bin
+        from ..processing import _threshold_df
 
         if inplace:
             experiment_ = self
@@ -363,6 +305,84 @@ class SingleExperiment(Experiment):
         #     experiment_vals.normalize()
 
         experiment_.measurements = experiment_vals.T
+
+        if inplace:
+            return None
+        else:
+            return experiment_
+
+
+class CrossExperiment(Experiment):
+
+    def __init__(
+            self,
+            name: str,
+            experiments: list[SingleExperiment],
+            omic_x_features: pd.Index=None,
+            omic_y_features: pd.Index=None,
+            ) -> None:
+
+        super().__init__(name)
+        
+        self.experiments = experiments
+
+ 
+    # ---------------------------
+    # getters, setters & deleters
+    # ---------------------------
+
+    @property
+    def experiments(self):
+        return self._experiments
+
+    @experiments.setter
+    def experiments(self, value):
+        self._experiments = value
+
+    @experiments.deleter
+    def experiments(self):
+        del self._experiments       
+
+
+    # ------------------
+    # instance functions
+    # ------------------
+
+
+    def combine(
+            self,
+            axis: Literal['omics', 'conditions']='omics',
+            inplace: bool=False,
+            ) -> None | CrossExperiment:
+        
+        if inplace:
+            experiment_ = self
+        else:
+            experiment_ = deepcopy(self)
+    
+        combined_df = None
+
+        if axis == 'omics':
+            axis_ = 'index'
+        elif axis == 'conditions':
+            axis_ = 'columns'
+        else:
+            raise ValueError(f"'{axis}' not in allowed values for 'axis'.")
+
+        for experiment in experiment_.experiments:
+            if combined_df is None:
+                combined_df = experiment.measurements
+            else:
+                combined_df = pd.concat(
+                    objs=[
+                        combined_df,
+                        experiment.measurements,
+                    ],
+                    axis=axis_,
+                    join='inner'
+                )
+
+        experiment_.measurements = combined_df
 
         if inplace:
             return None
