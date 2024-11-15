@@ -10,6 +10,7 @@ from typing import Literal
 import pandas as pd
 
 from .omics import OmicMeasurement
+from .omics import Omic
 from .results import AssociationResult
 
 
@@ -318,13 +319,15 @@ class CrossExperiment(Experiment):
             self,
             name: str,
             experiments: list[SingleExperiment],
-            omic_x_features: pd.Index=None,
-            omic_y_features: pd.Index=None,
+            omic_x: Omic=None,
+            omic_y: Omic=None,
             ) -> None:
 
         super().__init__(name)
         
         self.experiments = experiments
+        self.omic_x = omic_x
+        self.omic_y = omic_y
 
  
     # ---------------------------
@@ -341,8 +344,31 @@ class CrossExperiment(Experiment):
 
     @experiments.deleter
     def experiments(self):
-        del self._experiments       
+        del self._experiments
 
+    @property
+    def omic_x(self):
+        return self._omic_x
+
+    @omic_x.setter
+    def omic_x(self, value):
+        self._omic_x = value
+
+    @omic_x.deleter
+    def omic_x(self):
+        del self._omic_x
+
+    @property
+    def omic_y(self):
+        return self._omic_y
+
+    @omic_y.setter
+    def omic_y(self, value):
+        self._omic_y = value
+
+    @omic_y.deleter
+    def omic_y(self):
+        del self._omic_y
 
     # ------------------
     # instance functions
@@ -360,7 +386,11 @@ class CrossExperiment(Experiment):
         else:
             experiment_ = deepcopy(self)
     
-        combined_df = None
+        measurments = None
+        omic_x_features = None
+        omic_x_type = None
+        omic_y_features = None
+        omic_y_type = None
 
         if axis == 'omics':
             axis_ = 'index'
@@ -370,19 +400,49 @@ class CrossExperiment(Experiment):
             raise ValueError(f"'{axis}' not in allowed values for 'axis'.")
 
         for experiment in experiment_.experiments:
-            if combined_df is None:
-                combined_df = experiment.measurements
+            if measurments is None:
+                measurments = experiment.measurements
             else:
-                combined_df = pd.concat(
+                measurments = pd.concat(
                     objs=[
-                        combined_df,
+                        measurments,
                         experiment.measurements,
                     ],
                     axis=axis_,
                     join='inner'
                 )
+            if omic_x_type is None:
+                omic_x_type = experiment.omic_x.type
+            elif omic_x_type != experiment.omic_x.type:
+                raise ValueError(
+                    f"Omic types don't match during CrossExperiment combining."
+                    f"omics attempted to be combined: '{omic_x_type}' & "
+                    f"'{experiment.omic_x.type}'."
+                )
+            if omic_y_type is None:
+                omic_y_type = experiment.omic_y.type
+            elif omic_y_type != experiment.omic_y.type:
+                raise ValueError(
+                    f"Omic types don't match during CrossExperiment combining."
+                    f"omics attempted to be combined: '{omic_y_type}' & "
+                    f"'{experiment.omic_y.type}'."
+                )
+            if omic_x_features is None:
+                omic_x_features = experiment.omic_x.features
+            else:
+                omic_x_features = omic_x_features.intersection(
+                    experiment.omic_x.features
+                    )
+            if omic_y_features is None:
+                omic_y_features = experiment.omic_y.features
+            else:
+                omic_y_features = omic_y_features.intersection(
+                    experiment.omic_y.features
+                    )
 
-        experiment_.measurements = combined_df
+        experiment_.omic_x = Omic(omic_x_type, omic_x_features)
+        experiment_.omic_y = Omic(omic_y_type, omic_y_features)
+        experiment_.measurements = measurments
 
         if inplace:
             return None
