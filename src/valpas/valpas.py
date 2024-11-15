@@ -396,17 +396,7 @@ def associate(args):
             "Cross Experiment assocations for more than 2 experiments is"
             "currently not supported."
             )
-    # try:
-    #     result = calculate_association(
-    #         experiment=experiments.pop(),
-    #         method=args.ASSOCIATION_TYPE,
-    #         filter_cutoff=args.FILTER_CUTOFF,  
-    #     )
-    # except ValueError:
-    #     sys.exit(
-    #         f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
-    #         )
-    
+
     idx1 = result.features_x
     idx2 = result.features_y
 
