@@ -1,5 +1,7 @@
+from __future__ import annotations
 
 from typing import Literal
+from typing import TYPE_CHECKING
 
 import sys
 
@@ -12,8 +14,13 @@ from sklearn.metrics import jaccard_score
 
 from valpas.utils.b_spline import mutual_information
 
-from .classes.experiments import SingleExperiment
-from .classes.experiments import CrossExperiment
+
+if TYPE_CHECKING:
+    from valpas._typing import(
+        AssociationResult,
+        CrossExperiment,
+        SingleExperiment,
+    )
 
 
 def calc_association(    
@@ -91,7 +98,7 @@ def calc_association(
 
     if association in ['pearson', 'spearman']:
         try:
-            df_assoc, df_counts, idx1, idx2 = _calc_correlation(
+            result = _calc_correlation(
                 experiment=experiment,
                 corr_func=association,
                 filter_cutoff=filter_cutoff,
@@ -100,7 +107,7 @@ def calc_association(
             sys.exit(e)
     elif association in ['cosine_similarity', 'cosine_distance']:
         try:
-            df_assoc, df_counts, idx1, idx2 = _calc_cosine_dist(
+            result = _calc_cosine_dist(
                 experiment=experiment,
                 filter_cutoff=filter_cutoff,
                 threshold=threshold
@@ -109,14 +116,14 @@ def calc_association(
             sys.exit(e)
         if association == 'cosine_similarity':
             # converting distance to similarity
-            df_assoc = df_assoc.rsub(1)
+            result.values = result.values.rsub(1)
 
     elif association in ['jaccard_similarity', 'jaccard_distance',
                          'jaccard_index']:
         if threshold is None:
             threshold = 0.5
         try:
-            df_assoc, df_counts, idx1, idx2 = _calc_jaccard_sim(
+            result = _calc_jaccard_sim(
                 experiment=experiment,
                 filter_cutoff=filter_cutoff,
                 threshold=threshold
@@ -125,11 +132,11 @@ def calc_association(
             sys.exit(e)
         if association == 'jaccard_distance':
             # converting jaccard similarity to distance
-            df_assoc = df_assoc.rsub(1)
+            result.values = result.values.rsub(1)
     
     elif association == 'mutual_information':
         try:
-            df_assoc, df_counts, idx1, idx2 = _calc_mut_info(
+            result = _calc_mut_info(
                 experiment=experiment,
                 filter_cutoff=filter_cutoff
             )
@@ -139,11 +146,8 @@ def calc_association(
     else:
         raise ValueError(f"Association type {association} not supported!")
     
-    ret = {
-        'df_assoc': df_assoc, 'df_counts': df_counts,
-        'idx1': idx1, 'idx2': idx2
-        }
-    return ret
+
+    return result
 
 
 def _calc_correlation(
@@ -216,7 +220,14 @@ def _calc_correlation(
     df_corr = df.corr(method=corr_func)
     df_counts = df.corr(method=count_vals_in_association)
 
-    return df_corr, df_counts, idx1, idx2
+    result = AssociationResult(
+        values=df_corr,
+        counts=df_counts,
+        features_x=idx1,
+        features_y=idx2
+        )
+
+    return result
 
 
 def _calc_cosine_dist(
@@ -294,7 +305,15 @@ def _calc_cosine_dist(
     else:
         df_counts = df.corr(method=count_vals_in_thresholded_association)
 
-    return df_cos_dist, df_counts, idx1, idx2
+    result = AssociationResult(
+        values=df_cos_dist,
+        counts=df_counts,
+        features_x=idx1,
+        features_y=idx2
+        )
+
+    return result
+
 
 
 def _calc_jaccard_sim(
@@ -369,7 +388,15 @@ def _calc_jaccard_sim(
     df_jaccard_sim = df.corr(method=jaccard_score)
     df_counts = df.corr(method=count_vals_in_thresholded_association)
 
-    return df_jaccard_sim, df_counts, idx1, idx2
+    result = AssociationResult(
+        values=df_jaccard_sim,
+        counts=df_counts,
+        features_x=idx1,
+        features_y=idx2
+        )
+
+    return result
+
 
 
 def _calc_mut_info(
@@ -438,7 +465,15 @@ def _calc_mut_info(
     df_mut_inf = df.corr(method=mutual_information)
     df_counts = df.corr(method=count_vals_in_association)
     
-    return df_mut_inf, df_counts, idx1, idx2
+    result = AssociationResult(
+        values=df_mut_inf,
+        counts=df_counts,
+        features_x=idx1,
+        features_y=idx2
+        )
+
+    return result
+
 
 
 def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:

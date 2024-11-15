@@ -9,6 +9,7 @@ import sys
 from typing import Literal
 from typing import TextIO
 from typing import BinaryIO
+from typing import TYPE_CHECKING
 from warnings import warn
 
 import pandas as pd
@@ -16,8 +17,13 @@ from pandas import ExcelWriter
 import numpy as np
 
 from .utils.post_processing import beautify_series
-from . import SingleExperiment
-from . import OmicMeasurement
+
+if TYPE_CHECKING:
+    from valpas._typing import(
+        SingleExperiment,
+        OmicMeasurement,
+    )
+
 
 def export_csv(
         filepath_or_buffer: str | PathLike | Path | TextIOBase,

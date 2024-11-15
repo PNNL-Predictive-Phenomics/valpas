@@ -6,12 +6,18 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Literal
+from typing import TYPE_CHECKING
 
 import pandas as pd
 
-from .omics import OmicMeasurement
-from .omics import Omic
-from .results import AssociationResult
+if TYPE_CHECKING:
+    from valpas._typing import(
+        AssociationResult,
+        Omic,
+        OmicMeasurement,
+    )
+
+from ..association import calc_association
 
 
 class Experiment():
@@ -68,9 +74,15 @@ class Experiment():
                 'cosine_similarity', 'cosine_distance',
                 ]='pearson',
             filter_cutoff: float=0.9,
-            thershold: float=None,
+            threshold: float=None,
             ) -> AssociationResult:
-        pass
+        
+        return calc_association(
+            self,
+            association=metric,
+            filter_cutoff=filter_cutoff,
+            threshold=threshold
+            )
 
 
 
