@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 
+from ..association import calc_association
+
 if TYPE_CHECKING:
     from valpas._typing import(
         AssociationResult,
@@ -17,7 +19,6 @@ if TYPE_CHECKING:
         OmicMeasurement,
     )
 
-from ..association import calc_association
 
 
 class Experiment():

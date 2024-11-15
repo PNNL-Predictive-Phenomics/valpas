@@ -18,11 +18,8 @@ import numpy as np
 
 from .utils.post_processing import beautify_series
 
-if TYPE_CHECKING:
-    from valpas._typing import(
-        SingleExperiment,
-        OmicMeasurement,
-    )
+from valpas import SingleExperiment
+from valpas import OmicMeasurement
 
 
 def export_csv(

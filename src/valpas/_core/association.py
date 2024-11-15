@@ -14,10 +14,11 @@ from sklearn.metrics import jaccard_score
 
 from valpas.utils.b_spline import mutual_information
 
+from valpas import AssociationResult
+
 
 if TYPE_CHECKING:
     from valpas._typing import(
-        AssociationResult,
         CrossExperiment,
         SingleExperiment,
     )

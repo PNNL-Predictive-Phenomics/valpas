@@ -10,14 +10,24 @@ datatypes that then can be leveraged to postulate hypothesis of protein
 functionality for proteins of previously unknown function.
 """
 
-from ._core.classes.experiments import SingleExperiment
-from ._core.classes.experiments import CrossExperiment
-from ._core.classes.omics import OmicMeasurement
+from ._core.classes.omics import (
+    Omic,
+    OmicMeasurement,
+    )
+from ._core.classes.results import (
+    AssociationResult,
+)
+from ._core.classes.experiments import (
+    SingleExperiment,
+    CrossExperiment,
+)
 
 __all__ = [
     'utils',
     'visualization',
+    'AssociationResult',
+    'Omic',
+    'OmicMeasurement',
     'SingleExperiment',
     'CrossExperiment',
-    'OmicMeasurement',
     ]
