@@ -11,7 +11,7 @@ import networkx as nx
 
 from pathlib import Path
 
-from ._core.association import calc_association
+from ._core.association import calculate_association
 from .utils.checker import check_infile
 from .utils.checker import check_outfile
 from .utils.checker import check_cutoff_range
@@ -334,22 +334,58 @@ def associate(args):
             filepath_2=args.INFILE2,
             sheet_names=sheet_names
         )
-    try:
-        ret_dict = calc_association(
-            experiment=experiments.pop(),
-            association=args.ASSOCIATION_TYPE,
-            filter_cutoff=args.FILTER_CUTOFF,  
+    
+    if args.ASSOCIATION_TYPE in [
+            'jaccard_similarity',
+            'jaccard_index',
+            'jaccard_distance'
+            ]:
+        threshold = 0.5
+        thresholded = True
+    else:
+        threshold = None
+        thresholded = False
+
+    if len(experiments) == 1:
+        experiment = experiments.pop()
+
+        experiment.pre_process(
+            rm_low_conf_features=args.FILTER_CUTOFF,
+            threshold=threshold,
+            inplace=True
         )
-    except ValueError:
-        sys.exit(
-            f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+        try:
+            result = experiment.associate(
+                metric=args.ASSOCIATION_TYPE,
+                thresholded=thresholded
+            )
+        except ValueError:
+            sys.exit(
+                f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
             )
     
-    idx1 = ret_dict['idx1']
-    idx2 = ret_dict['idx2']
+    
+    else:
+        raise NotImplementedError(
+            "Cross Experiment assocations for more than 2 experiments is"
+            "currently not supported."
+            )
+    # try:
+    #     result = calculate_association(
+    #         experiment=experiments.pop(),
+    #         method=args.ASSOCIATION_TYPE,
+    #         filter_cutoff=args.FILTER_CUTOFF,  
+    #     )
+    # except ValueError:
+    #     sys.exit(
+    #         f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+    #         )
+    
+    idx1 = result.features_x
+    idx2 = result.features_y
 
-    df_assoc = rm_duplicates(df=ret_dict['df_assoc'], idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=ret_dict['df_counts'], idx1=idx1, idx2=idx2)
+    df_assoc = rm_duplicates(df=result.values, idx1=idx1, idx2=idx2)
+    df_counts = rm_duplicates(df=result.counts, idx1=idx1, idx2=idx2)
     df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
     df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
     if idx2 is None:

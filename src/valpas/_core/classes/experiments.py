@@ -74,15 +74,13 @@ class Experiment():
                 'mutual_information',
                 'cosine_similarity', 'cosine_distance',
                 ]='pearson',
-            filter_cutoff: float=0.9,
-            threshold: float=None,
+            thresholded: bool=False,
             ) -> AssociationResult:
         
-        return calc_association(
+        return calculate_association(
             self,
-            association=metric,
-            filter_cutoff=filter_cutoff,
-            threshold=threshold
+            method=metric,
+            thresholded=thresholded
             )
 
 
