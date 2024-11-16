@@ -119,8 +119,8 @@ def calculate_association(
     result = AssociationResult(
         values=result_values,
         counts=result_counts,
-        features_x=experiment.omic_x.features,
-        features_y=experiment.omic_y.features,
+        omic_x=experiment.omic_x,
+        omic_y=experiment.omic_y,
     )
 
     return result

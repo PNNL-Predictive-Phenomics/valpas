@@ -3,7 +3,17 @@ Module containing functions for the calculation of associations used by
 ValPAS.
 """
 
+from io import TextIOBase
+from os import PathLike
+from pathlib import Path
+from typing import Literal
+
 import pandas as pd
+
+
+from ...utils.post_processing import rm_duplicates
+from ...utils.post_processing import idx_name
+from .omics import Omic
 
 class AssociationResult():
 
@@ -11,14 +21,14 @@ class AssociationResult():
             self,
             values: pd.DataFrame,
             counts: pd.DataFrame,
-            features_x: pd.Index,
-            features_y: pd.Index,
+            omic_x: Omic,
+            omic_y: Omic,
             ) -> None:
         
         self.values = values
         self.counts = counts
-        self.features_x = features_x
-        self.features_y = features_y
+        self.omic_x = omic_x
+        self.omic_y = omic_y
     
     # ---------------------------
     # getters, setters & deleters
@@ -50,29 +60,71 @@ class AssociationResult():
     def counts(self):
         del self._counts
 
-    # features_x
+    # omic_x
     @property
-    def features_x(self):
-        return self._features_x
+    def omic_x(self):
+        return self._omic_x
     
-    @features_x.setter
-    def features_x(self, value):
-        self._features_x = value
+    @omic_x.setter
+    def omic_x(self, value):
+        self._omic_x = value
     
-    @features_x.deleter
-    def features_x(self):
-        del self._features_x
+    @omic_x.deleter
+    def omic_x(self):
+        del self._omic_x
 
-    # features_y
+    # omic_y
     @property
-    def features_y(self):
-        return self._features_y    
+    def omic_y(self):
+        return self._omic_y    
     
-    @features_y.setter
-    def features_y(self, value):
-        self._features_y = value
+    @omic_y.setter
+    def omic_y(self, value):
+        self._omic_y = value
     
-    @features_y.deleter
-    def features_y(self):
-        del self._features_y
+    @omic_y.deleter
+    def omic_y(self):
+        del self._omic_y    
 
+
+    def save(
+            self,
+            file_handle: str | PathLike | Path | TextIOBase,
+            type: Literal['sorted_list', 'assocation_matrix']='sorted_list',
+            overwrite: bool=False,
+            **kwargs
+            ) -> None:
+        from ...io import write_outfile
+
+        assocation_metric = kwargs.get('association_metric', 'association')
+
+        if self.omic_y.type is None:
+            self.omic_x.type = "_".join([self.omic_x.type, "1"])
+            self.omic_y.type = "_".join([self.omic_y.type, "2"])
+
+        self.values = rm_duplicates(
+            df=self.values,
+            idx1=self.omic_x.features,
+            idx2=self.omic_y.features,
+        )
+
+        self.counts = rm_duplicates(
+            df=self.counts,
+            idx1=self.omic_x.features,
+            idx2=self.omic_y.features,
+        )
+
+        self.values.index.name = self.omic_x.type
+        self.values.columns.name = self.omic_y.type
+        
+        self.counts.index.name = self.omic_x.type
+        self.counts.columns.name = self.omic_y.type
+        
+        write_outfile(
+            data=(self.values, self.counts),
+            file_handle=file_handle,
+            idx=(self.omic_x.type, self.omic_y.type),
+            output_type=type,
+            overwrite=overwrite,
+            association_type=assocation_metric
+        )
