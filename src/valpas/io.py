@@ -308,7 +308,7 @@ def import_from_folder(
     ret_dict = {}
     for child in path.glob(f'*.{file_type}'):
         if file_type == 'csv':
-            experiment_name, omic_type = child.name.rsplit(
+            experiment_name, omic_type = child.stem.rsplit(
                 sep="__", maxsplit=1
                 )
             values = _import_csv(child.absolute())
@@ -327,7 +327,7 @@ def import_from_folder(
                 experiment.omic_y = omic_measurement
             ret_dict[experiment_name] = experiment
         elif file_type == 'xlsx':
-            experiment_name = child.name
+            experiment_name = child.stem
             if sheet_names is None:
                 raise ValueError(
                     f"'sheet_names' must not be 'None' if file_type 'xlsx' is"
@@ -363,7 +363,7 @@ def import_from_files(
     
 
     if file_type == 'csv':
-        experiment_name, omic_x_type = filepath.name.rsplit(
+        experiment_name, omic_x_type = filepath.stem.rsplit(
             sep="__", maxsplit=1
         )
         omic_x_values = _import_csv(filepath_or_buffer=filepath)
@@ -372,9 +372,8 @@ def import_from_files(
             measurements=omic_x_values,
             features=omic_x_values.index
         )
-
         if filepath_2 is not None:
-            experiment_name, omic_y_type = filepath.name.rsplit(
+            experiment_name, omic_y_type = filepath_2.stem.rsplit(
                 sep="__", maxsplit=1
             )
             omic_y_values = _import_csv(filepath_or_buffer=filepath_2)
