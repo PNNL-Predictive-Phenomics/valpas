@@ -11,20 +11,17 @@ import networkx as nx
 
 from pathlib import Path
 
-from ._core.association import calculate_association
+from valpas import CrossExperiment
+
 from .utils.checker import check_infile
 from .utils.checker import check_outfile
 from .utils.checker import check_cutoff_range
-from .io import write_outfile
-from .io import import_asssociation_matrix
-from .io import import_from_folder
-from .io import import_from_files
-from .utils.post_processing import rm_duplicates
-from .utils.post_processing import idx_name
 
 from .visualization.heatmap import create_fig
 
-from valpas import CrossExperiment
+from .io import import_asssociation_matrix
+from .io import import_from_folder
+from .io import import_from_files
 
 def main(args):
     """
@@ -397,27 +394,13 @@ def associate(args):
             "currently not supported."
             )
 
-    idx1 = result.features_x
-    idx2 = result.features_y
-
-    df_assoc = rm_duplicates(df=result.values, idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=result.counts, idx1=idx1, idx2=idx2)
-    df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
-    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    if idx2 is None:
-        idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '2'))
-    else:
-        idx1_name = idx1.name
-        idx2_name = idx2.name
-    write_outfile(
-        data=(df_assoc, df_counts),
+    result.save(
         file_handle=args.OUTFILE,
-        idx=(idx1_name, idx2_name),
-        output_type=args.OUTPUT_TYPE,
+        type=args.OUTPUT_TYPE,
         overwrite=args.OVERWRITE_OUTPUT,
-        association_type=args.ASSOCIATION_TYPE
+        assocation_metric=args.ASSOCIATION_TYPE
     )
+
 
 def visualize(args):
     if args.TYPE == "heatmap":
