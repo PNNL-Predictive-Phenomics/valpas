@@ -367,6 +367,7 @@ def associate(args):
         for experiment in experiments:
             experiment.pre_process(
                 rm_low_conf_features=args.FILTER_CUTOFF,
+                normalize=True,
                 threshold=threshold,
                 inplace=True
             )
