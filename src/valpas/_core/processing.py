@@ -2,13 +2,21 @@
 _summary_
 """
 
+
 from copy import deepcopy
 from typing import Literal
+# from typing import TYPE_CHECKING
 import sys
 
 import numpy as np
 import pandas as pd
 
+from valpas import AssociationResult
+from valpas import Omic
+# if TYPE_CHECKING:
+#     from valpas._typing import(
+#         AssociationResult,
+#     )
 
 def _bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
     """
@@ -163,6 +171,57 @@ def _remove_low_confidence_features(df: pd.DataFrame, threshold: float=0.9,
     # return both the filtered df and the index of dropped items
     return (df_filtered, index)
 
+
+def combine_results(
+        results: list[AssociationResult],
+        normalization_metric:str='mean'
+        ):
+    
+    merged_results_vals = None
+    merged_results_counts = None
+    omic_x_type = None
+    omic_x_features = None
+    omic_y_type = None
+    omic_y_features = None
+    
+    for result in results:
+        if merged_results_vals is None:
+            merged_results_vals = deepcopy(result.values)
+        else:
+            merged_results_vals = merged_results_vals.add(result.values, fill_value=np.nan)
+        
+        if merged_results_counts is None:
+            merged_results_counts = deepcopy(result.counts)
+        else:
+            merged_results_counts = merged_results_counts.add(result.counts, fill_value=np.nan)
+    
+        if omic_x_type is None:
+            omic_x_type = deepcopy(result.omic_x.type)
+            omic_x_features = deepcopy(result.omic_x.features)
+        elif str(omic_x_type) != str(result.omic_x.type):
+            raise ValueError("Omic types don't match between results")
+        else:
+            omic_x_features = omic_x_features.intersection(result.omic_x.features)
+
+        if omic_y_type is None:
+            omic_y_type = deepcopy(result.omic_y.type)
+            omic_y_features = deepcopy(result.omic_y.features)
+        elif str(omic_y_type) != str(result.omic_y.type):
+            raise ValueError("Omic types don't match between results")
+        else:
+            omic_y_features = omic_y_features.intersection(result.omic_y.features)
+
+    if normalization_metric == 'mean':
+        merged_results_vals = merged_results_vals.div(2)
+
+    merged_result = AssociationResult(
+        values=merged_results_vals,
+        counts=merged_results_counts,
+        omic_x=Omic(type=omic_x_type, features=omic_x_features),
+        omic_y=Omic(type=omic_y_type, features=omic_y_features),
+    )
+
+    return merged_result
 
 def normalize(
         data: pd.DataFrame,

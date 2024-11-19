@@ -22,6 +22,8 @@ from .visualization.heatmap import create_fig
 from .io import import_asssociation_matrix
 from .io import import_experiments
 
+from ._core.processing import combine_results
+
 
 def main(args):
     """
@@ -180,7 +182,11 @@ def main(args):
         dest="INFOLDER",
         required=True
     )
-
+    p_from_folder.add_argument(
+        "-n", "--normalization",
+        dest="NORMALIZATION",
+        choices=('pre', 'post', 'none'),
+    )
 
     # Instatiting the subparsers of 'associate'. They are used to define
     # the source of the data files. Either from up to two directly 
@@ -365,28 +371,50 @@ def associate(args):
     
     elif len(experiments) == 2:
         for experiment in experiments:
+            if args.NORMALIZATION == 'pre':
+                normalize_ = True
+            else:
+                normalize_ = False
             experiment.pre_process(
                 rm_low_conf_features=args.FILTER_CUTOFF,
-                normalize=True,
+                normalize=normalize_,
                 threshold=threshold,
                 inplace=True
             )
-        cross_experiment = CrossExperiment(
-            name='cross_experiment',
-            experiments=experiments,
-        )
-        cross_experiment.combine(inplace=True)
+        if args.NORMALIZATION in ['pre', 'none']:
+            cross_experiment = CrossExperiment(
+                name='cross_experiment',
+                experiments=experiments,
+            )
+            cross_experiment.combine(inplace=True)
 
-        try:
-            result = cross_experiment.associate(
-                metric=args.ASSOCIATION_TYPE,
-                thresholded=thresholded
+            try:
+                result = cross_experiment.associate(
+                    metric=args.ASSOCIATION_TYPE,
+                    thresholded=thresholded
+                )
+            except ValueError:
+                sys.exit(
+                    f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+                )
+
+        elif args.NORMALIZATION == 'post':
+            results = []
+            for experiment in experiments:
+                try:
+                    result = experiment.associate(
+                        metric=args.ASSOCIATION_TYPE,
+                        thresholded=thresholded,
+                    )
+                except ValueError:
+                    sys.exit(
+                        f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+                    )
+                results.append(result)
+            result = combine_results(
+                results=results,
+                normalization_metric='mean'
             )
-        except ValueError:
-            sys.exit(
-                f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
-            )
-            
 
     
     else:
