@@ -290,149 +290,32 @@ def import_asssociation_matrix(
 
 
 def import_experiments(
-        source: Literal['from_files', 'from_folder'],
+        source: Literal['from_file', 'from_folder'],
         path: str|PathLike|Path,
         file_type: Literal['csv', 'xlsx'],
         path2: str|PathLike|Path|None=None,
         sheet_names: list|None=None,
         ) -> list[SingleExperiment]:
-    pass
-
-
-
-def import_from_folder(
-        path: PathLike | Path, 
-        file_type: Literal['csv', 'xlsx'],
-        sheet_names: list=None,
-        ) -> list[SingleExperiment]:
-    ret_dict = {}
-    for child in path.glob(f'*.{file_type}'):
-        if file_type == 'csv':
-            experiment_name, omic_type = child.stem.rsplit(
-                sep="__", maxsplit=1
-                )
-            values = _import_csv(child.absolute())
-            omic_measurement = OmicMeasurement(
-                type=omic_type,
-                measurements=values,
-                features=values.index
-            )
-            if experiment_name not in ret_dict:
-                experiment = SingleExperiment(
-                    name=experiment_name,
-                    omic_x=omic_measurement
-                )
-            else:
-                experiment = ret_dict[experiment_name]
-                experiment.omic_y = omic_measurement
-            ret_dict[experiment_name] = experiment
-        elif file_type == 'xlsx':
-            experiment_name = child.stem
-            if sheet_names is None:
-                raise ValueError(
-                    f"'sheet_names' must not be 'None' if file_type 'xlsx' is"
-                    f"chosen. Contents of 'sheet_names': {sheet_names}"
-                )
-            for sheet_name in sheet_names:
-                values = _import_xls(child, sheet=sheet_name)
-                omic_type = sheet_name
-                omic_measurement = OmicMeasurement(
-                    type=omic_type,
-                    measurements=values,
-                    features=values.index
-                )
-                if experiment_name not in ret_dict:
-                    experiment = SingleExperiment(
-                        name=experiment_name,
-                        omic_x=omic_measurement
-                    )
-                else:
-                    experiment = ret_dict[experiment_name]
-                    experiment.omic_y = omic_measurement
-                ret_dict[experiment_name] = experiment
-
-    return list(ret_dict.values())
-
-
-def import_from_files(
-        filepath: PathLike | Path,
-        file_type: Literal['csv', 'xlsx'],
-        filepath_2: (str | PathLike | Path )=None,
-        sheet_names: str=None,
-        ) -> list[SingleExperiment]:
     
+    if source == 'from_file':
+        experiments = _import_from_files(
+            filepath=path,
+            file_type=file_type,
+            filepath_2=path2,
+            sheet_names=sheet_names
+        )
+    elif source == 'from_folder':
+        experiments = _import_from_folder(
+            path=path,
+            file_type=file_type,
+            sheet_names=sheet_names
+        )
+    else:
+        raise ValueError(
+            f"Unsupported value for 'source': '{source}'"
+        )
 
-    if file_type == 'csv':
-        experiment_name, omic_x_type = filepath.stem.rsplit(
-            sep="__", maxsplit=1
-        )
-        omic_x_values = _import_csv(filepath_or_buffer=filepath)
-        omic_x_measurement = OmicMeasurement(
-            type=omic_x_type,
-            measurements=omic_x_values,
-            features=omic_x_values.index
-        )
-        if filepath_2 is not None:
-            experiment_name, omic_y_type = filepath_2.stem.rsplit(
-                sep="__", maxsplit=1
-            )
-            omic_y_values = _import_csv(filepath_or_buffer=filepath_2)
-            omic_y_measurement = OmicMeasurement(
-                type=omic_y_type,
-                measurements=omic_y_values,
-                features=omic_y_values.index
-            )
-            experiment = SingleExperiment(
-                name=experiment_name,
-                omic_x=omic_x_measurement,
-                omic_y=omic_y_measurement
-            )
-        else:
-            experiment = SingleExperiment(
-                name=experiment_name,
-                omic_x=omic_x_measurement
-            )
-            
-    elif file_type == 'xlsx':
-        if sheet_names is None:
-            raise ValueError(
-                f"'sheet_names' must be defined if file_type=='xlsx'."
-                f"sheet_names: '{sheet_names}'"
-                )
-        experiment_name = filepath.name
-        omic_x_values = _import_xls(
-            filepath_or_buffer=filepath,
-            sheet=sheet_names[0]
-            )
-        omic_x_type = sheet_names[0]
-        omic_x_measurement = OmicMeasurement(
-            type=omic_x_type,
-            measurements=omic_x_values,
-            features=omic_x_values.index
-        )
-        if len(sheet_names) != 1:
-            omic_y_values = _import_xls(
-                filepath_or_buffer=filepath,
-                sheet=sheet_names[1]
-                )
-            omic_y_type = sheet_names[1]
-            omic_y_measurement = OmicMeasurement(
-                type=omic_y_type,
-                measurements=omic_y_values,
-                features=omic_y_values.index
-            )
-            experiment = SingleExperiment(
-                name=experiment_name,
-                omic_x=omic_x_measurement,
-                omic_y=omic_y_measurement
-            )
-        else:
-            experiment = SingleExperiment(
-                name=experiment_name,
-                omic_x=omic_x_measurement
-            )
-
-    return list([experiment])
+    return experiments
 
 
 def write_outfile(
@@ -565,6 +448,141 @@ def write_outfile(
             f"Reached point that shouldn't be reachable. file_handle is of "
             f"type '{type(file_handle)}', which is not supported.")
      
+
+def _import_from_folder(
+        path: PathLike | Path, 
+        file_type: Literal['csv', 'xlsx'],
+        sheet_names: list=None,
+        ) -> list[SingleExperiment]:
+    ret_dict = {}
+    for child in path.glob(f'*.{file_type}'):
+        if file_type == 'csv':
+            experiment_name, omic_type = child.stem.rsplit(
+                sep="__", maxsplit=1
+                )
+            values = _import_csv(child.absolute())
+            omic_measurement = OmicMeasurement(
+                type=omic_type,
+                measurements=values,
+                features=values.index
+            )
+            if experiment_name not in ret_dict:
+                experiment = SingleExperiment(
+                    name=experiment_name,
+                    omic_x=omic_measurement
+                )
+            else:
+                experiment = ret_dict[experiment_name]
+                experiment.omic_y = omic_measurement
+            ret_dict[experiment_name] = experiment
+        elif file_type == 'xlsx':
+            experiment_name = child.stem
+            if sheet_names is None:
+                raise ValueError(
+                    f"'sheet_names' must not be 'None' if file_type 'xlsx' is"
+                    f"chosen. Contents of 'sheet_names': {sheet_names}"
+                )
+            for sheet_name in sheet_names:
+                values = _import_xls(child, sheet=sheet_name)
+                omic_type = sheet_name
+                omic_measurement = OmicMeasurement(
+                    type=omic_type,
+                    measurements=values,
+                    features=values.index
+                )
+                if experiment_name not in ret_dict:
+                    experiment = SingleExperiment(
+                        name=experiment_name,
+                        omic_x=omic_measurement
+                    )
+                else:
+                    experiment = ret_dict[experiment_name]
+                    experiment.omic_y = omic_measurement
+                ret_dict[experiment_name] = experiment
+
+    return list(ret_dict.values())
+
+
+def _import_from_files(
+        filepath: PathLike | Path,
+        file_type: Literal['csv', 'xlsx'],
+        filepath_2: (str | PathLike | Path )=None,
+        sheet_names: str=None,
+        ) -> list[SingleExperiment]:
+    
+
+    if file_type == 'csv':
+        experiment_name, omic_x_type = filepath.stem.rsplit(
+            sep="__", maxsplit=1
+        )
+        omic_x_values = _import_csv(filepath_or_buffer=filepath)
+        omic_x_measurement = OmicMeasurement(
+            type=omic_x_type,
+            measurements=omic_x_values,
+            features=omic_x_values.index
+        )
+        if filepath_2 is not None:
+            experiment_name, omic_y_type = filepath_2.stem.rsplit(
+                sep="__", maxsplit=1
+            )
+            omic_y_values = _import_csv(filepath_or_buffer=filepath_2)
+            omic_y_measurement = OmicMeasurement(
+                type=omic_y_type,
+                measurements=omic_y_values,
+                features=omic_y_values.index
+            )
+            experiment = SingleExperiment(
+                name=experiment_name,
+                omic_x=omic_x_measurement,
+                omic_y=omic_y_measurement
+            )
+        else:
+            experiment = SingleExperiment(
+                name=experiment_name,
+                omic_x=omic_x_measurement
+            )
+            
+    elif file_type == 'xlsx':
+        if sheet_names is None:
+            raise ValueError(
+                f"'sheet_names' must be defined if file_type=='xlsx'."
+                f"sheet_names: '{sheet_names}'"
+                )
+        experiment_name = filepath.name
+        omic_x_values = _import_xls(
+            filepath_or_buffer=filepath,
+            sheet=sheet_names[0]
+            )
+        omic_x_type = sheet_names[0]
+        omic_x_measurement = OmicMeasurement(
+            type=omic_x_type,
+            measurements=omic_x_values,
+            features=omic_x_values.index
+        )
+        if len(sheet_names) != 1:
+            omic_y_values = _import_xls(
+                filepath_or_buffer=filepath,
+                sheet=sheet_names[1]
+                )
+            omic_y_type = sheet_names[1]
+            omic_y_measurement = OmicMeasurement(
+                type=omic_y_type,
+                measurements=omic_y_values,
+                features=omic_y_values.index
+            )
+            experiment = SingleExperiment(
+                name=experiment_name,
+                omic_x=omic_x_measurement,
+                omic_y=omic_y_measurement
+            )
+        else:
+            experiment = SingleExperiment(
+                name=experiment_name,
+                omic_x=omic_x_measurement
+            )
+
+    return list([experiment])
+
 
 def _import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     """

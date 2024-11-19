@@ -20,8 +20,8 @@ from .utils.checker import check_cutoff_range
 from .visualization.heatmap import create_fig
 
 from .io import import_asssociation_matrix
-from .io import import_from_folder
-from .io import import_from_files
+from .io import import_experiments
+
 
 def main(args):
     """
@@ -310,29 +310,29 @@ def associate(args):
 
     if args.SOURCE == 'from_folder':
         inpath = Path(args.INFOLDER).absolute()
+        inpath2 = None
         files = []
         for child in inpath.glob(f'*.{file_type}'):
             files.append(child)
-        if args.csv and len(files) > 2:
+        if args.csv and len(files) > 4:
             raise ValueError(
-                "Import of more than two CSV files currently not supported."
+                "Import of more than four CSV files currently not supported."
             )
-        # if args.xlsx: # and len(files) != 1:
+        if args.xlsx and len(files) > 2:
             raise ValueError(
-                "Import of more than one XLSX file currently not supported."
-            )
-        experiments = import_from_folder(
-            path=inpath,
-            file_type=file_type,
-            sheet_names=sheet_names
+                "Import of more than two XLSX file currently not supported."
             )
     else:
-        experiments = import_from_files(
-            filepath=args.INFILE,
-            file_type=file_type,
-            filepath_2=args.INFILE2,
-            sheet_names=sheet_names
-        )
+        inpath = args.INFILE
+        inpath2 = args.INFILE2
+
+    experiments = import_experiments(
+        path=inpath,
+        file_type=file_type,
+        source=args.SOURCE,
+        path2=inpath2,
+        sheet_names=sheet_names
+    )
     
     if args.ASSOCIATION_TYPE in [
             'jaccard_similarity',
