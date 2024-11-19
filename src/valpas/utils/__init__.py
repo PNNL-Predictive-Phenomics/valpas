@@ -6,6 +6,5 @@ __all__ = [
     'b_spline',
     'calc_associations',
     'checker',
-    'data_handling',
     'post_processing',
     ]

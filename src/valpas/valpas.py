@@ -11,18 +11,17 @@ import networkx as nx
 
 from pathlib import Path
 
-from .utils.calc_associations import calc_association
+from valpas import CrossExperiment
+
 from .utils.checker import check_infile
 from .utils.checker import check_outfile
 from .utils.checker import check_cutoff_range
-from .utils.data_handling import write_outfile
-from .utils.data_handling import import_asssociation_matrix
-from .utils.data_handling import import_from_folder
-from .utils.data_handling import import_from_files
-from .utils.post_processing import rm_duplicates
-from .utils.post_processing import idx_name
 
 from .visualization.heatmap import create_fig
+
+from .io import import_asssociation_matrix
+from .io import import_experiments
+
 
 def main(args):
     """
@@ -134,6 +133,9 @@ def main(args):
              "recorded larger than 0) in at least x of a fraction of the "
              "investigated conditions."
         )
+    g_file_type = p_associate_shared_args.add_mutually_exclusive_group()
+    g_file_type.add_argument('--csv', action='store_true')
+    g_file_type.add_argument('--xlsx', action='store_true')
     
  
     p_from_file = argparse.ArgumentParser(add_help=False)
@@ -178,9 +180,6 @@ def main(args):
         dest="INFOLDER",
         required=True
     )
-    g_file_type = p_from_folder.add_mutually_exclusive_group()
-    g_file_type.add_argument('--csv', action='store_true')
-    g_file_type.add_argument('--xlsx', action='store_true')
 
 
     # Instatiting the subparsers of 'associate'. They are used to define
@@ -295,75 +294,114 @@ def main(args):
 
 def associate(args):
 
+    if args.csv:
+        file_type = 'csv'
+    elif args.xlsx:
+        file_type = 'xlsx'
+
+    sheet_names = None
+    if args.SHEET is not None:
+        sheet_names = [args.SHEET]
+    if args.SHEET2 is not None:
+        if sheet_names is not None:
+            sheet_names.append(args.SHEET2)
+        else:
+            sheet_names = [args.SHEET2]
+
     if args.SOURCE == 'from_folder':
-        if args.csv:
-            file_type = 'csv'
-        elif args.xlsx:
-            file_type = 'xlsx'
         inpath = Path(args.INFOLDER).absolute()
+        inpath2 = None
         files = []
         for child in inpath.glob(f'*.{file_type}'):
             files.append(child)
-        if args.csv and len(files) > 2:
+        if args.csv and len(files) > 4:
             raise ValueError(
-                "Import of more than two CSV files currently not supported."
+                "Import of more than four CSV files currently not supported."
             )
-        if args.xlsx and len(files) != 1:
+        if args.xlsx and len(files) > 2:
             raise ValueError(
-                "Import of more than one XLSX file currently not supported."
-            )
-        sheet_names = None
-        if args.SHEET is not None:
-            sheet_names = [args.SHEET]
-        if args.SHEET2 is not None:
-            if sheet_names is not None:
-                sheet_names.append(args.SHEET2)
-            else:
-                sheet_names = [args.SHEET2]
-        dfs = import_from_folder(
-            path=inpath,
-            file_type=file_type,
-            sheet_names=sheet_names
+                "Import of more than two XLSX file currently not supported."
             )
     else:
-        dfs = import_from_files(
-            filepath_or_buffer=args.INFILE,
-            filepath_or_buffer_2=args.INFILE2,
-            sheet1=args.SHEET,
-            sheet2=args.SHEET2,
+        inpath = args.INFILE
+        inpath2 = args.INFILE2
+
+    experiments = import_experiments(
+        path=inpath,
+        file_type=file_type,
+        source=args.SOURCE,
+        path2=inpath2,
+        sheet_names=sheet_names
+    )
+    
+    if args.ASSOCIATION_TYPE in [
+            'jaccard_similarity',
+            'jaccard_index',
+            'jaccard_distance'
+            ]:
+        threshold = 0.5
+        thresholded = True
+    else:
+        threshold = None
+        thresholded = False
+
+    if len(experiments) == 1:
+        experiment = experiments.pop()
+
+        experiment.pre_process(
+            rm_low_conf_features=args.FILTER_CUTOFF,
+            threshold=threshold,
+            inplace=True
         )
-    try:
-        ret_dict = calc_association(
-            dfs=dfs,
-            association=args.ASSOCIATION_TYPE,
-            filter_cutoff=args.FILTER_CUTOFF,  
-        )
-    except ValueError:
-        sys.exit(
-            f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+        try:
+            result = experiment.associate(
+                metric=args.ASSOCIATION_TYPE,
+                thresholded=thresholded
+            )
+        except ValueError:
+            sys.exit(
+                f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
             )
     
-    idx1 = ret_dict['idx1']
-    idx2 = ret_dict['idx2']
+    elif len(experiments) == 2:
+        for experiment in experiments:
+            experiment.pre_process(
+                rm_low_conf_features=args.FILTER_CUTOFF,
+                normalize=True,
+                threshold=threshold,
+                inplace=True
+            )
+        cross_experiment = CrossExperiment(
+            name='cross_experiment',
+            experiments=experiments,
+        )
+        cross_experiment.combine(inplace=True)
 
-    df_assoc = rm_duplicates(df=ret_dict['df_assoc'], idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=ret_dict['df_counts'], idx1=idx1, idx2=idx2)
-    df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
-    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    if idx2 is None:
-        idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '2'))
+        try:
+            result = cross_experiment.associate(
+                metric=args.ASSOCIATION_TYPE,
+                thresholded=thresholded
+            )
+        except ValueError:
+            sys.exit(
+                f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+            )
+            
+
+    
     else:
-        idx1_name = idx1.name
-        idx2_name = idx2.name
-    write_outfile(
-        data=(df_assoc, df_counts),
+        raise NotImplementedError(
+            "Cross Experiment assocations for more than 2 experiments is"
+            "currently not supported."
+            )
+
+    result.save(
         file_handle=args.OUTFILE,
-        idx=(idx1_name, idx2_name),
-        output_type=args.OUTPUT_TYPE,
+        type=args.OUTPUT_TYPE,
         overwrite=args.OVERWRITE_OUTPUT,
-        association_type=args.ASSOCIATION_TYPE
+        assocation_metric=args.ASSOCIATION_TYPE
     )
+
 
 def visualize(args):
     if args.TYPE == "heatmap":
