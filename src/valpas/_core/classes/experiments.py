@@ -8,10 +8,11 @@ from copy import deepcopy
 from typing import Literal
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 
 from ..association import calculate_association
-
+from ..processing import normalize as normalize_
 from .omics import Omic
 
 if TYPE_CHECKING:
@@ -252,11 +253,29 @@ class SingleExperiment(Experiment):
     
     def normalize(
             self,
-            method: Literal['power', 'log'],
+            method: Literal['z-score', 'pareto', 'power-scaling']='z-score',
             inplace: bool=False,
             ) -> None | SingleExperiment:
         
-        pass
+        if inplace:
+            experiment_ = self
+        else:
+            experiment_ = deepcopy(self)
+        
+        experiment_.omic_x.measurements = normalize_(
+            data=experiment_.omic_x.measurements,
+            method=method
+        )
+        if experiment_.omic_y is not None:
+            experiment_.omic_y.measurements = normalize_(
+                data=experiment_.omic_y.measurements,
+                method=method
+            )
+            
+        if inplace:
+            return None
+        else:
+            return experiment_
 
 
     def pre_process(
@@ -297,6 +316,17 @@ class SingleExperiment(Experiment):
         else:
             experiment_ = deepcopy(self)
 
+        # Temporary solution to setting 0 as nan until we figure out the
+        # order of operations for pre_process
+        #
+        # TODO: figure out if we want to keep this here or move
+        experiment_.omic_x.measurements.replace(0, np.nan, inplace=True)
+        if experiment_.omic_y is not None:
+            experiment_.omic_y.measurements.replace(0, np.nan, inplace=True)
+
+        if normalize:
+            experiment_.normalize(inplace=True)
+
         experiment_.combine_omics(inplace=True)
         experiment_.rm_low_confidence_features(
             threshold=rm_low_conf_features,
@@ -313,9 +343,6 @@ class SingleExperiment(Experiment):
                 df=experiment_vals,
                 threshold_rel=threshold,
                 )
-        
-        # if normalize:
-        #     experiment_vals.normalize()
 
         experiment_.measurements = experiment_vals.T
 
