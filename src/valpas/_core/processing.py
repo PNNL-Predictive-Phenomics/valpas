@@ -162,3 +162,38 @@ def _remove_low_confidence_features(df: pd.DataFrame, threshold: float=0.9,
     
     # return both the filtered df and the index of dropped items
     return (df_filtered, index)
+
+
+def normalize(
+        data: pd.DataFrame,
+        method: Literal['z-score', 'pareto', 'power-scaling']='z-score'
+        ):
+    
+    if method == 'z-score':
+        return _norm_z_score(data)
+    elif method == 'pareto':
+        return _norm_pareto(data)
+    elif method == 'power-scaling':
+        return _norm_power_trans(data)
+
+
+def _norm_z_score(data: pd.DataFrame) -> pd.DataFrame:
+    mean = np.nanmean(data.values)
+    std = np.nanstd(data.values, ddof=1)
+    ret_data = data.map(lambda x: (x - mean)/std, na_action='ignore')
+
+    return ret_data
+
+def _norm_pareto(data: pd.DataFrame) -> pd.DataFrame:
+    mean = np.nanmean(data.values)
+    std = np.nanstd(data.values, ddof=1)
+    ret_data = data.map(lambda x: (x - mean)/np.sqrt(std), na_action='ignore')
+
+    return ret_data
+
+def _norm_power_trans(data: pd.DataFrame) -> pd.DataFrame:
+    sqmean = np.nanmean(np.sqrt(data.values))
+    ret_data = data.map(lambda x: np.sqrt(x)-sqmean, na_action='ignore')
+
+    return ret_data
+
