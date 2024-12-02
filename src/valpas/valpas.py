@@ -459,7 +459,7 @@ def df_to_graph(file_path, index_name, net, threshold):
         net.add_node(column, label=column)
         for row in df.index:
             net.add_node(row, label=row)
-            value = df.loc[row, column]
+            value = float(df.loc[row, column].split(':')[0])
             if abs(value) > threshold:
                 net.add_edge(column, row, weight = value)
     return net
