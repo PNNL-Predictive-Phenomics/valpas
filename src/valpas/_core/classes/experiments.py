@@ -225,7 +225,10 @@ class SingleExperiment(Experiment):
             experiment_ = deepcopy(self)
 
         idx_omic_x = experiment_.omic_x.features
-        idx_omic_y = experiment_.omic_y.features
+        if experiment_.omic_y is not None:
+            idx_omic_y = experiment_.omic_y.features
+        else:
+            idx_omic_y = None
 
         if experiment_.measurements is not None:
             df = experiment_.measurements

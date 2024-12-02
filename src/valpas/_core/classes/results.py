@@ -3,6 +3,7 @@ Module containing functions for the calculation of associations used by
 ValPAS.
 """
 
+from copy import deepcopy
 from io import TextIOBase
 from os import PathLike
 from pathlib import Path
@@ -98,7 +99,8 @@ class AssociationResult():
 
         assocation_metric = kwargs.get('association_metric', 'association')
 
-        if self.omic_y.type is None:
+        if self.omic_y is None:
+            self.omic_y = deepcopy(self.omic_x)
             self.omic_x.type = "_".join([self.omic_x.type, "1"])
             self.omic_y.type = "_".join([self.omic_y.type, "2"])
 
@@ -173,7 +175,7 @@ def _rm_duplicates(
        of `idx2`.
     """
 
-    if idx2 is None:
+    if idx1.equals(idx2):
         # use case for this block: if the correlation matrix is NxN and 
         # each n in N is from only one data source we can reduce the 
         # output to pervent *association(i,j)* and *association(j,i)*
