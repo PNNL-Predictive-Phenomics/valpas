@@ -216,8 +216,29 @@ class SingleExperiment(Experiment):
             threshold: float=0,
             inplace: bool=False
             ) -> None | SingleExperiment:
+        """
+        Removes features (e.g. metabolites) that don't have enough 
+        measurements to be used reliably in the association calculation. 
 
-        from ..processing import _remove_low_confidence_features
+        Parameters
+        ----------
+        threshold : float, default=0
+            Threshold that has to be satisfied for features to be deemed
+            confident. Fraction of conditions for which measurements
+            were able to be extracted needs to be larger than
+            `threshold`. 
+        inplace : bool, default=False
+            If set to `True` the removal of low confidence values will
+            happen inplace, i.e. the underlying DataFrame will be
+            modified.
+
+        Returns
+        -------
+        None | SingleExperiment
+            Returns `None` if `inplace==True`. Otherwise a new 
+            `SingleExperiment` instance containing the measurments 
+            without the low confidence features is returned. 
+        """
 
         if inplace:
             experiment_ = self
@@ -235,10 +256,30 @@ class SingleExperiment(Experiment):
         else:
             df = experiment_.omic_x.measurements
 
-        df, index = _remove_low_confidence_features(df=df, threshold=threshold)
+            # treating '0' as NaNs for easier counting of missing values
+        df.replace(0, np.nan, inplace=True)
+
+        # creating an index of rows (items) to filter i.e. finding the rows
+        # that where the fraction of NAs is larger than 1-cutoff
+        s = (
+            (df.isna() # create truth table whether values is NaN
+            .sum(axis=1) # sum "True" iterating over columns for each row
+            /df.shape[1]) # divide by the number of columns
+            .gt(1-threshold) # check if fraction of NAs (in row) is > cutoff
+            )
+        index = s[s].index # creating the actual index (i.e. which rows to drop)
+
+        # filter the DataFrame
+        df = df.drop(
+            labels=index, # using the defined index from above
+            axis='index', # drop based on rows
+            )
+        
+        # if the above procedure generated columns (conditions) that contain
+        # only NAs as values, those will be removed.
+        df.dropna(axis="columns", how="all", inplace=True)
+
         if len(index.values) > 0:
-            # print("Removed items: ", end="", file=sys.stderr)
-            # print(*index.values, sep=", ", file=sys.stderr)
             experiment_.measurements = df
             idx_omic_x_ret = idx_omic_x.difference(index)
             idx_omic_x_ret.name = idx_omic_x.name
