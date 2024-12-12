@@ -7,6 +7,7 @@ from copy import deepcopy
 from typing import Literal
 # from typing import TYPE_CHECKING
 import sys
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -108,70 +109,6 @@ def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     return df_ret
 
 
-def _remove_low_confidence_features(df: pd.DataFrame, threshold: float=0.9,
-        drop_na_cols: bool=True) -> tuple[pd.DataFrame, pd.Index]:
-    """
-    Removes low confidence (to many NAs) 
-    items (rows) from the DataFrame. The `cutoff` argument passed to 
-    the function determines how complete (i.e. the fraction of non-NA 
-    values) an item (row) needs to be to retained in the DataFrame.
-    Additionally, the function can be told to keep any columns that 
-    are completely populated with NAs/0s as a result of removing items 
-    from the DataFrame. By default those columns are dropped.
-
-    Parameters
-    ----------
-    df : pandas.DataFrame
-        The DataFrame that should be filtered to remove low confidence
-        items.
-    cutoff : float, default=0.9
-        The cutoff that determines if an item is considered a low 
-        confidence item, i.e. if less than a fraction ``cutoff`` of 
-        data points for an item are not NaN the item is considered low 
-        confidence.
-    drop_na_cols : bool, default=True
-        If the removal of low confidence items generates new columns in 
-        the DataFrame that are entirely made up of NaN values those 
-        columns will be dropped if ``drop_na_cols`` is set to `True`.
-
-    Returns
-    -------
-    tuple[pandas.DataFrame, pandas.Index]
-        The return tuple contains two objects:
-            1. The "clean" DataFrame
-            2. An index of all dropped items
-
-    """
-    
-    # treating '0' as NaNs for easier counting of missing values
-    df.replace(0, np.nan, inplace=True)
-
-    # creating an index of rows (items) to filter i.e. finding the rows
-    # that where the fraction of NAs is larger than 1-cutoff
-    s = (
-        (df.isna() # create truth table whether values is NaN
-         .sum(axis=1) # sum "True" iterating over columns for each row
-         /df.shape[1]) # divide by the number of columns
-         .gt(1-threshold) # check if fraction of NAs (in row) is > cutoff
-        )
-    index = s[s].index # creating the actual index (i.e. which rows to drop)
-
-    # filter the DataFrame
-    df_filtered = df.drop(
-        labels=index, # using the defined index from above
-        axis='index', # drop based on rows
-        )
-    
-    # if the above procedure generated columns (conditions) that contain
-    # only NAs as values, those will be removed. The behaviour can be 
-    # toggled with a function argument (default = True)
-    if drop_na_cols:
-        df_filtered.dropna(axis="columns", how="all", inplace=True)
-    
-    # return both the filtered df and the index of dropped items
-    return (df_filtered, index)
-
-
 def combine_results(
         results: list[AssociationResult],
         normalization_metric:str='mean'
@@ -255,4 +192,128 @@ def _norm_power_trans(data: pd.DataFrame) -> pd.DataFrame:
     ret_data = data.map(lambda x: np.sqrt(x)-sqmean, na_action='ignore')
 
     return ret_data
+
+
+def sort_associations(df: pd.DataFrame, reduced_output: bool=False) -> pd.Series:
+    """
+    Takes a matrix like pandas Dataframe object, extracts the upper 
+    triangle, stacks and sorts the cell values.
+
+    .. deprecated:: 0 
+        The functionality has been moved to ``.beatify_series`` and 
+        ``.rm_duplicates``.
+
+    Returns a sorted pandas Series object with a multiindex comprised 
+    of index pairs from *df* as axis labels and the value of the *df* 
+    cell as values.
+    """
+    warn(
+        "Sorting functionality moved to *.beautify_series. Duplication "
+        "removal moved to novel function *.rm_duplicates.",
+        DeprecationWarning,
+        stacklevel=2
+        )
+
+
+    if reduced_output:
+        # use case for this block: if the correlation matrix is NxN and 
+        # each n in N is from only one data source we can reduce the 
+        # output to pervent *association(i,j)* and *association(j,i)*
+        # to show up in the output. Note that if the correlation matrix 
+        # contains NxM elements and N & M are two different sets of 
+        # data points, choosing to reduce the input will remove unique 
+        # results.
+        # 
+        # The code block extracts the upper triangle of the matrix, 
+        # sets the lower triangle (including the diagonal) to NaN.
+        # `pd.DataFrame.stack()` drops NaNs by default and therefore 
+        # excludes the pairs from sorting and being returned.
+        upper_tri = np.triu(df, -1)
+        upper_tri[np.tril_indices(upper_tri.shape[0], 0)] = np.nan
+
+        df_upper_tri = pd.DataFrame(
+            data=upper_tri,
+            index=df.index,
+            columns=df.columns
+            )
+        df_sorted = df_upper_tri.stack().sort_values(ascending=False)
+
+    else:
+        # by default full output of the sorted list is generated to 
+        # guarantuee that all results are returned. This is especially 
+        # important if association between two different data types was 
+        # generated and no "self-hits" exsist
+        df_sorted = df.stack().sort_values(ascending=False)
+
+
+    return df_sorted
+
+
+def beautify_series(df: pd.Series, value: str="Correlation") -> pd.DataFrame:
+    """
+    Takes ``pandas.DataFrame`` object, extracts index names and 
+    transforms the data into a ``pandas.DataFrame`` with column 1 & 2
+    being the indices of the Series and column 3 the association value.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame containing association values between omics data 
+        items.
+    value : str, default="Correlation"
+        Describes the association type of the values.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame object with three columns. (1) & (2) are omics 
+        identifiers, (3) is the association value
+    """
+    df = df.stack().sort_values(ascending=False)
+    try:
+        if df.index.names[0] == df.index.names[1]:
+            id_1 = '_'.join([df.index.names[0], '1'])
+            id_2 = '_'.join([df.index.names[0], '2'])
+        else:
+            id_1 = df.index.names[0]
+            id_2 = df.index.names[1]
+    except TypeError:
+        print(df.index[0])
+    df_return = pd.DataFrame({
+        id_1: df.index.get_level_values(0),
+        id_2: df.index.get_level_values(1),
+        value: df.values
+        })
+    return df_return
+
+
+def idx_name(
+        df: pd.DataFrame, idx1: pd.Index, idx2: pd.Index=None
+        ) -> pd.DataFrame:
+    """
+    Helper function to assign index and column names.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame object whose index and column should be named.
+    idx1 : pandas.Index
+        Index object that contains the name and the indentifiers for the
+        index (rows) of the DataFrame
+    idx2 : pandas.Index, default=None
+        Index object that contains the name and the indentifiers for the
+        columns of the DataFrame
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with named columns and index.
+    """
+    df.index.name = idx1.name
+    if idx2 is None:
+        df.columns.name = idx1.name
+    else:
+        df.columns.name = idx2.name
+
+    return df
 

@@ -22,8 +22,19 @@ if TYPE_CHECKING:
     )
 
 
-
 class Experiment():
+    """
+    Parent Class for ``SingleExperiment`` and ``CrossExperiment``.
+
+    Parameters
+    ----------
+    name : str
+        Name of the experiment.
+    measurements : pandas.DataFrame
+        pandas DataFrame that contains the measurements associated with 
+        the experiment.
+
+    """
 
     def __init__(
             self,
@@ -78,6 +89,30 @@ class Experiment():
                 ]='pearson',
             thresholded: bool=False,
             ) -> AssociationResult:
+        """
+        Function that calculates association values for the Experiment.
+
+        Parameters
+        ----------
+        metric : {'pearson', 'spearman', 'jaccard_similarity',\
+                  'jaccard_distance', 'jaccard_index',\
+                  'mutual_information', 'cosine_similarity',\
+                  'cosine_distance'\
+                  }, default='pearson'
+            Association metric that should be used for the association 
+            calculation.
+
+        thresholded : bool, default=False
+            Defines if the association metric requires a thresholded
+            `measurements` table.
+
+        Returns
+        -------
+        AssociationResult
+            Returns an AssociationResult object that contains the 
+            association values as well as counts for how many features
+            contributed to the association calculation.
+        """
         
         return calculate_association(
             self,
@@ -89,36 +124,20 @@ class Experiment():
 
 class SingleExperiment(Experiment):
     """
-    Custom Class that stores experiment data.
+    Object that stores information related to a single experiment.
+    Contains up to two ``OmicMeasurement`` objects storing the omic 
+    measurement information.
 
     Attributes
     ----------
     name: str
         The name for the experiment
-    omic_x_values: pandas.DataFrame
-        DataFrame containing the raw values extracted from an omic type
-        of the experimental setup
-    omic_x_type: str
-        Name of the omics type that has been evaluated in the experiment
-    omic_x_features: pandas.Index
-        Contains all features / items of the omics type x that were 
-        extracted
-    omic_y_values: pandas.DataFrame
-        Optional DataFrame containing the raw values extracted from a 
-        second omic type of the experimental setup. If not defined (i.e.
-        _None_) the assumption is that the associations among only one
-        omics type (`omic_x_type`) are going to be coducted.
-    omic_y_type: str, default = None
-        Optional name of a second omics type that has been evaluated in
-        the experiment. If not defined (i.e. _None_) the assumption is
-        that associations among only one omics type (`omic_x_type`)
-        are going to be conducted.
-    omic_y_features: pandas.Index, default = None
-        Optional pandas Index object that contains features of omics 
-        type y that have been extracted. If not defined (i.e. _None_)
-        the assumption is that associations among only one omics type 
-        (`omic_x_type`) are going to be conducted. See also 
-        `omic_y_type`.
+    omic_x : OmicMeasurement
+        Object containing the measurement data for a single omic type as
+        well as associated metadata. See also ``valpas.OmicMeasurement``.
+    omic_y : OmicMeasurement
+        See `omic_x`. Only used if associations are generated between
+        two different omic types.
 
     Methods
     -------
@@ -171,21 +190,28 @@ class SingleExperiment(Experiment):
     # ------------------
     # instance functions
     # ------------------
-
-    def has_two_omics(self) -> bool: 
-        """
-        _summary_
-
-        Returns
-        -------
-        bool
-            _description_
-        """
-        if self.omic_y is not None:
-            return True
         
     
     def combine_omics(self, inplace: bool=False) -> None | SingleExperiment:
+        """
+        Helper function that combines measurements from two omic types
+        into one pandas.DataFrame stored in the `measurements` attribute
+        of the object.
+
+        Parameters
+        ----------
+        inplace : bool, default=False
+            If set to `True` combines the two omics measurements and
+            stores the resulting DataFrame in the `measurements`
+            attribute of the class instance.
+
+        Returns
+        -------
+        None | SingleExperiment
+            Returns `None` if `inplace==True`. Otherwise a new 
+            `SingleExperiment` instance containing the combined
+            measurments is returned.
+        """
 
         if inplace:
             experiment_ = self
@@ -210,52 +236,47 @@ class SingleExperiment(Experiment):
         else:
             return experiment_
 
+    def has_two_omics(self) -> bool: 
+        """
+        Helper function to checks the experiment uses two different 
+        omic types. 
 
-    def rm_low_confidence_features(
-            self,
-            threshold: float=0,
-            inplace: bool=False
-            ) -> None | SingleExperiment:
-
-        from ..processing import _remove_low_confidence_features
-
-        if inplace:
-            experiment_ = self
-        else:
-            experiment_ = deepcopy(self)
-
-        idx_omic_x = experiment_.omic_x.features
-        idx_omic_y = experiment_.omic_y.features
-
-        if experiment_.measurements is not None:
-            df = experiment_.measurements
-        else:
-            df = experiment_.omic_x.measurements
-
-        df, index = _remove_low_confidence_features(df=df, threshold=threshold)
-        if len(index.values) > 0:
-            # print("Removed items: ", end="", file=sys.stderr)
-            # print(*index.values, sep=", ", file=sys.stderr)
-            experiment_.measurements = df
-            idx_omic_x_ret = idx_omic_x.difference(index)
-            idx_omic_x_ret.name = idx_omic_x.name
-            experiment_.omic_x.features = idx_omic_x_ret
-            if idx_omic_y is not None:
-                idx_omic_y_ret = idx_omic_y.difference(index)
-                idx_omic_y_ret.name = idx_omic_y.name
-                experiment_.omic_y.features = idx_omic_y_ret
+        Returns
+        -------
+        bool
+            True if two Omic classes are present in the Experiment
+        """
+        if self.omic_y is not None:
+            return True
         
-        if inplace:
-            return None
-        else:
-            return experiment_
 
-    
     def normalize(
             self,
             method: Literal['z-score', 'pareto', 'power-scaling']='z-score',
             inplace: bool=False,
             ) -> None | SingleExperiment:
+        """
+        Normalizes omics measurements. Designed to be used in
+        conjunction with CrossExperiments, where individual
+        SingleExperiments omics measurements are normalized before they
+        are combined into a CrossExperiment.
+
+        Parameters
+        ----------
+        method : {'z-score', 'pareto', 'power-scaling'}, \
+            default='z-score'
+            Defines the normalization method to be used.
+        inplace : bool, default=False
+            If set to `True` the method will normalize the values
+            inplace and return `None`, otherwise a copy of the 
+            `SingleExperiment` will be returned.
+
+        Returns
+        -------
+        None | SingleExperiment
+            Returns either `None` or a copy of the `SingleExperiment`
+            depending on the value of `inplace`.
+        """
         
         if inplace:
             experiment_ = self
@@ -266,7 +287,8 @@ class SingleExperiment(Experiment):
             data=experiment_.omic_x.measurements,
             method=method
         )
-        if experiment_.omic_y is not None:
+
+        if experiment_.has_two_omics():
             experiment_.omic_y.measurements = normalize_(
                 data=experiment_.omic_y.measurements,
                 method=method
@@ -287,25 +309,37 @@ class SingleExperiment(Experiment):
             inplace: bool=False,
             ) -> None | SingleExperiment:
         """
-        _summary_
+        Pre processing function for experiment data. 
 
         Parameters
         ----------
-        normalize : bool, optional
-            _description_, by default False
-        rm_low_conf_features : float, optional
-            _description_, by default 0
-        threshold : float, optional
-            _description_, by default None
-        bin : bool, optional
-            _description_, by default False
-        inplace : bool, optional
-            _description_, by default False
+        normalize : bool, default=False
+            If set to `True`, executes ``normalize()`` function before
+            combining the OmicMeasurement data (if two OmicMeasurements 
+            are defined). See also ``normalize()``
+        rm_low_conf_features : float, default=None
+            Defines the fraction of datapoints per features that need to
+            present such that a feature is considered confident and kept
+            in the dataset. See also ``rm_low_confidence_features``.
+        threshold : float, default=None
+            Defines if the OmicsMeasurements need to thresholded 
+            (required for calculation of JaccardIndex for example) and 
+            the relative threshold (e.g. 0.5 would be the midpoint
+            between the largest and smallest value recorded for a
+            feature).
+        bin : bool, default=False
+            (Deprecated) Defines if the OmicsMeasurements need to be
+            binned.
+        inplace : bool, default=False
+            If set to `True` the pre processing will be done on the 
+            object itself and `None` is returned. Otherwise a copy of
+            the object is returned.
 
         Returns
         -------
-        None | Experiment
-            _description_
+        None | SingleExperiment
+            Returns `None` if ``inplace==True`` otherwise returns a copy
+            of the object.
         """
 
         from ..processing import _bin
@@ -352,7 +386,112 @@ class SingleExperiment(Experiment):
             return experiment_
 
 
+    def rm_low_confidence_features(
+            self,
+            threshold: float=0,
+            inplace: bool=False
+            ) -> None | SingleExperiment:
+        """
+        Removes features (e.g. metabolites) that don't have enough 
+        measurements to be used reliably in the association calculation. 
+
+        Parameters
+        ----------
+        threshold : float, default=0
+            Threshold that has to be satisfied for features to be deemed
+            confident. Fraction of conditions for which measurements
+            were able to be extracted needs to be larger than
+            `threshold`. 
+        inplace : bool, default=False
+            If set to `True` the removal of low confidence values will
+            happen inplace, i.e. the underlying DataFrame will be
+            modified.
+
+        Returns
+        -------
+        None | SingleExperiment
+            Returns `None` if `inplace==True`. Otherwise a new 
+            `SingleExperiment` instance containing the measurments 
+            without the low confidence features is returned. 
+        """
+
+        # default behaviour of the function is to work on a deepcopy of
+        # the Experiment object 
+        if inplace:
+            experiment_ = self
+        else:
+            experiment_ = deepcopy(self)
+
+        # retrieving the indices of the features
+        idx_omic_x = experiment_.omic_x.features
+        if experiment_.has_two_omics():
+            idx_omic_y = experiment_.omic_y.features
+        else:
+            idx_omic_y = None
+
+        if experiment_.measurements is not None:
+            df = experiment_.measurements
+        else:
+            df = experiment_.omic_x.measurements
+
+        # treating '0' as NaNs for easier counting of missing values
+        df.replace(0, np.nan, inplace=True)
+
+        # creating an index of rows (items) to filter i.e. finding the rows
+        # that where the fraction of NAs is larger than 1-cutoff
+        s = (
+            (df.isna() # create truth table whether values is NaN
+            .sum(axis=1) # sum "True" iterating over columns for each row
+            /df.shape[1]) # divide by the number of columns
+            .gt(1-threshold) # check if fraction of NAs (in row) is > cutoff
+            )
+        index = s[s].index # creating the actual index (i.e. which rows to drop)
+
+        # filter the DataFrame
+        df = df.drop(
+            labels=index, # using the defined index from above
+            axis='index', # drop based on rows
+            )
+        
+        # if the above procedure generated columns (conditions) that contain
+        # only NAs as values, those will be removed.
+        df.dropna(axis="columns", how="all", inplace=True)
+
+        if len(index.values) > 0:
+            experiment_.measurements = df
+            idx_omic_x_ret = idx_omic_x.difference(index)
+            idx_omic_x_ret.name = idx_omic_x.name
+            experiment_.omic_x.features = idx_omic_x_ret
+            if idx_omic_y is not None:
+                idx_omic_y_ret = idx_omic_y.difference(index)
+                idx_omic_y_ret.name = idx_omic_y.name
+                experiment_.omic_y.features = idx_omic_y_ret
+        
+        if inplace:
+            return None
+        else:
+            return experiment_
+
+
 class CrossExperiment(Experiment):
+    """
+    Object that contains information and data regarding cross experiment
+    association analysis.
+
+    Attributes
+    ----------
+    name: str
+        The name for the experiment
+    experiments : list[SingleExperiment]
+        List containing ``SingleExperiment`` objects to be investigated
+        in the Cross Experiment analysis
+    omic_x : Omic
+        Object containing metadatafor a single omic type. See also 
+        ``valpas.Omic``.
+    omic_y : Omic
+        See `omic_x`. Only used if associations are generated between
+        two different omic types.
+    """
 
     def __init__(
             self,
@@ -419,6 +558,35 @@ class CrossExperiment(Experiment):
             axis: Literal['omics', 'conditions']='omics',
             inplace: bool=False,
             ) -> None | CrossExperiment:
+        """
+        Helper function that combines individual SingleExperiments 
+        measurements associated with the CrossExperiment object into one
+        measurement attribute.         
+
+        Parameters
+        ----------
+        axis : {'omics', 'conditions'}, default='omics'
+            Defines whether omics or conditions should be used as keys 
+            to combine the measurement tables.
+        inplace : bool, default=False
+            If set to `True` performs the process of combining inplace
+            and returns `None`. Otherwise combining is done on a copy of
+            the object and the copy is returned.
+
+        Returns
+        -------
+        None | CrossExperiment
+            Returns `None` if ``inplace==True``, otherwise returns a 
+            copy of the object.
+
+        Raises
+        ------
+        ValueError
+            If axis contains 'ilegal' value.
+        ValueError
+            If omics types between the individual SingleExperiments
+            don't agree.
+        """
         
         if inplace:
             experiment_ = self

@@ -25,6 +25,7 @@ from ._core.classes.experiments import (
 __all__ = [
     'utils',
     'visualization',
+    'io',
     'AssociationResult',
     'Omic',
     'OmicMeasurement',
