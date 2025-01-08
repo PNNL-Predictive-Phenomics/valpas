@@ -24,6 +24,8 @@ from .io import import_experiments
 
 from ._core.processing import combine_results
 
+from .utils.validator import validate_input
+
 
 def main(args):
     """
@@ -135,13 +137,35 @@ def main(args):
              "recorded larger than 0) in at least x of a fraction of the "
              "investigated conditions."
         )
-    g_file_type = p_associate_shared_args.add_mutually_exclusive_group()
+
+    p_import_shared_args = argparse.ArgumentParser(add_help=False)
+    
+    g_file_type = p_import_shared_args.add_mutually_exclusive_group()
     g_file_type.add_argument('--csv', action='store_true')
     g_file_type.add_argument('--xlsx', action='store_true')
     
- 
-    p_from_file = argparse.ArgumentParser(add_help=False)
-    p_from_file.add_argument(
+    p_import_shared_args.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+    p_import_shared_args.add_argument(
+        "-S", "--excel_sheet_name_2",
+        dest="SHEET2",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE2 "
+             "if INFILE2 is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+
+    p_import_from_file = argparse.ArgumentParser(
+        add_help=False,
+        parents=[p_import_shared_args],
+        )
+    p_import_from_file.add_argument(
         "-i", "--infile",
         dest="INFILE",
         required=True,
@@ -151,7 +175,7 @@ def main(args):
              "'-I') associations between data instances of only this input "
              "file will be generated."
     )
-    p_from_file.add_argument(
+    p_import_from_file.add_argument(
         "-I", "--infile2",
         dest="INFILE2",
         type=check_infile,
@@ -159,34 +183,23 @@ def main(args):
              "associations between data instances of INFILE1 and INFILE2 will "
              "be generated."
         )
-    p_from_file.add_argument(
-        "-s", "--excel_sheet_name",
-        dest="SHEET",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE "
-             "if INFILE is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
-    )
-    p_from_file.add_argument(
-        "-S", "--excel_sheet_name_2",
-        dest="SHEET2",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE2 "
-             "if INFILE2 is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
-    )
 
-    p_from_folder = argparse.ArgumentParser(add_help=False)
-    p_from_folder.add_argument(
+    p_import_from_folder = argparse.ArgumentParser(
+        add_help=False,
+        parents=[p_import_shared_args],
+        )
+    p_import_from_folder.add_argument(
         "-i", "--infolder",
         dest="INFOLDER",
         required=True
     )
-    p_from_folder.add_argument(
-        "-n", "--normalization",
-        dest="NORMALIZATION",
-        choices=('pre', 'post', 'none'),
+    p_import_from_folder.add_argument(
+        '-t',
+        '--two_omics_types',
+        dest="TWO_OMICS_TYPES",
+        action='store_true',
     )
+
 
     # Instatiting the subparsers of 'associate'. They are used to define
     # the source of the data files. Either from up to two directly 
@@ -196,36 +209,44 @@ def main(args):
         title="source",
         required=True
     )
-    p_source_from_file = p_source.add_parser(
+    p_associate_from_file = p_source.add_parser(
         "from_file",
-        parents=[p_associate_shared_args, p_from_file],
+        parents=[p_associate_shared_args, p_import_from_file],
     )
-    p_source_from_folder = p_source.add_parser(
+    p_associate_from_folder = p_source.add_parser(
         "from_folder",
-        parents=[p_associate_shared_args, p_from_folder],
+        parents=[p_associate_shared_args, p_import_from_folder],
     )
-    p_source_from_folder.add_argument(
-        '-t',
-        '--two_omics_types',
-        dest="TWO_OMICS_TYPES",
-        action='store_true',
-        )
-    p_source_from_folder.add_argument(
-        "-s", "--excel_sheet_name",
-        dest="SHEET",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE "
-             "if INFILE is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
+    p_associate_from_folder.add_argument(
+        "-n", "--normalization",
+        dest="NORMALIZATION",
+        choices=('pre', 'post', 'none'),
     )
-    p_source_from_folder.add_argument(
-        "-S", "--excel_sheet_name_2",
-        dest="SHEET2",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE2 "
-             "if INFILE2 is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
+
+
+    p_prepare = command_parsers.add_parser(
+        "prepare",
+        description=
+            """
+            The 'prepare' command performs an optional perparation and
+            validation step of the input data for the 'associate' routine.
+            """
     )
+    p_source = p_prepare.add_subparsers(
+        dest="SOURCE",
+        title="source",
+        required=True,
+    )
+    p_prepare_from_file = p_source.add_parser(
+        "from_file",
+        parents=[p_import_from_file],
+    )
+    p_prepare_from_folder = p_source.add_parser(
+        "from_folder",
+        parents=[p_import_from_folder],
+    )
+
+    p_prepare.set_defaults(func=prepare)
 
     # the subparser definition for the visulatization component
     p_visualize = command_parsers.add_parser(
@@ -429,6 +450,50 @@ def associate(args):
         overwrite=args.OVERWRITE_OUTPUT,
         assocation_metric=args.ASSOCIATION_TYPE
     )
+
+def prepare(args):
+    if args.csv:
+        file_type = 'csv'
+    elif args.xlsx:
+        file_type = 'xlsx'
+
+    sheet_names = None
+    if args.SHEET is not None:
+        sheet_names = [args.SHEET]
+    if args.SHEET2 is not None:
+        if sheet_names is not None:
+            sheet_names.append(args.SHEET2)
+        else:
+            sheet_names = [args.SHEET2]
+
+    if args.SOURCE == 'from_folder':
+        inpath = Path(args.INFOLDER).absolute()
+        inpath2 = None
+        files = []
+        for child in inpath.glob(f'*.{file_type}'):
+            files.append(child)
+        if args.csv and len(files) > 4:
+            raise ValueError(
+                "Import of more than four CSV files currently not supported."
+            )
+        if args.xlsx and len(files) > 2:
+            raise ValueError(
+                "Import of more than two XLSX file currently not supported."
+            )
+    else:
+        inpath = args.INFILE
+        inpath2 = args.INFILE2
+
+    experiments = import_experiments(
+        path=inpath,
+        file_type=file_type,
+        source=args.SOURCE,
+        path2=inpath2,
+        sheet_names=sheet_names
+    )
+
+    validate_input(experiments)
+    pass
 
 
 def visualize(args):
