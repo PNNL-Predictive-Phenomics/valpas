@@ -13,21 +13,21 @@ from pathlib import Path
 
 from valpas import CrossExperiment
 
-from .utils.checker import check_infile
-from .utils.checker import check_outfile
-from .utils.checker import check_cutoff_range
+from valpas.utils.checker import check_infile
+from valpas.utils.checker import check_outfile
+from valpas.utils.checker import check_cutoff_range
 
-from .visualization.heatmap import create_fig
+from valpas.visualization.heatmap import create_fig
 
-from .io import import_asssociation_matrix
-from .io import import_experiments
+from valpas.io import import_asssociation_matrix
+from valpas.io import import_experiments
 
-from ._core.processing import combine_results
+from valpas._core.processing import combine_results
 
-from .utils.validator import validate_input
+from valpas.utils.validator import validate_input
 
 
-def main(args):
+def main():
     """
     The main method.
     """
@@ -536,3 +536,9 @@ def assign_clusters(net):
             net.nodes[node]['group'] = i
     return net
 
+
+if __name__ == '__main__':
+    try:
+        main()
+    except:
+        KeyboardInterrupt
