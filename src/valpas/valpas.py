@@ -4,18 +4,28 @@ The main script that gets executed.
 
 import argparse
 import sys
-import textwrap
 
-from .utils.calc_associations import calc_association
+import textwrap
+import pandas as pd
+import networkx as nx
+
+from pathlib import Path
+
+from valpas import CrossExperiment
+
 from .utils.checker import check_infile
 from .utils.checker import check_outfile
 from .utils.checker import check_cutoff_range
-from .utils.data_handling import write_outfile
-from .utils.data_handling import import_asssociation_matrix
-from .utils.post_processing import rm_duplicates
-from .utils.post_processing import idx_name
 
 from .visualization.heatmap import create_fig
+
+from .io import import_asssociation_matrix
+from .io import import_experiments
+
+from ._core.processing import combine_results
+
+from .utils.validator import validate_input
+
 
 def main(args):
     """
@@ -25,8 +35,8 @@ def main(args):
     # Defining the argument parser. There are sereval (currently two)
     # subroutines (commands) that can be executed. For each of those a
     # seperate subparser is instanciated.
-    argp = argparse.ArgumentParser(
-        add_help=False,
+    main_parser = argparse.ArgumentParser(
+        add_help=True,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description=textwrap.dedent(
             '''
@@ -38,7 +48,7 @@ def main(args):
                 - visualize    (helps to visualize generated associations)
             ''')
     )
-    parsers = argp.add_subparsers(
+    command_parsers = main_parser.add_subparsers(
         dest="command",
         title="commands",
         required=True,
@@ -49,7 +59,7 @@ def main(args):
     # metabolites, etc.). This can be either associations between items
     # of one omics datatype (e.g. protein-protein) or across two
     # different omics datatypes (e.g. protein-metabolite)
-    p_associate = parsers.add_parser(
+    p_associate = command_parsers.add_parser(
         "associate",
         description=
             '''
@@ -59,13 +69,20 @@ def main(args):
             metabolomics. Typically each data type contains multiple values 
             (conditions) per data point (e.g. a metabolite). Multiple types of 
             association metrics are available to choose from (see below).
-            '''
+            ''',
+        add_help=True
     )
     # by default the function "associate" is executed with the arguments
     # that are passed to the tool on the command line (see also 
     # args.func(args) further down)
     p_associate.set_defaults(func=associate)
-    p_associate.add_argument(
+    
+    # The associate command contains additional subroutines (defined
+    # further down) that share certain command line arguments. To cover
+    # these a new ArgumentParser is defined that will serve as parent
+    # to the subparsers of 'associate'
+    p_associate_shared_args = argparse.ArgumentParser(add_help=False)
+    p_associate_shared_args.add_argument(
         "-a", "--association_type",
         dest="ASSOCIATION_TYPE",
         choices=(
@@ -82,41 +99,7 @@ def main(args):
         help="Defines the type of metric used for generating associations. "
              "Defaults to 'pearson' if omitted."
     )
-    p_associate.add_argument(
-        "-i", "--infile",
-        dest="INFILE",
-        required=True,
-        type=check_infile,
-        help="Path to input file containing data points for which "
-             "associations are to be generated. If used on it's own (without "
-             "'-I') associations between data instances of only this input "
-             "file will be generated."
-    )
-    p_associate.add_argument(
-        "-I", "--infile2",
-        dest="INFILE2",
-        type=check_infile,
-        help="Path to an optional second input file. If passed to command "
-             "associations between data instances of INFILE1 and INFILE2 will "
-             "be generated."
-        )
-    p_associate.add_argument(
-        "-s", "--excel_sheet_name",
-        dest="SHEET",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE "
-             "if INFILE is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
-    )
-    p_associate.add_argument(
-        "-S", "--excel_sheet_name_2",
-        dest="SHEET2",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE2 "
-             "if INFILE2 is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
-    )
-    p_associate.add_argument(
+    p_associate_shared_args.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
         type=check_outfile,
@@ -124,13 +107,13 @@ def main(args):
         help="Path to an optional output file. If omitted, any output "
              "generated will be piped to stdout."
     )
-    p_associate.add_argument(
+    p_associate_shared_args.add_argument(
         '-O', '--overwrite_output',
         dest='OVERWRITE_OUTPUT',
         action='store_true',
         help=''
     )
-    p_associate.add_argument(
+    p_associate_shared_args.add_argument(
         "-ot", "--output_type",
         dest="OUTPUT_TYPE",
         choices=(
@@ -144,7 +127,7 @@ def main(args):
              "descending order starting with the highest association. (2) A "
              "correlation matrix (comma separated)."
     )
-    p_associate.add_argument(
+    p_associate_shared_args.add_argument(
         "-f", "--filter_missing_values",
         dest="FILTER_CUTOFF",
         type=check_cutoff_range,
@@ -155,8 +138,118 @@ def main(args):
              "investigated conditions."
         )
 
+    p_import_shared_args = argparse.ArgumentParser(add_help=False)
+    
+    g_file_type = p_import_shared_args.add_mutually_exclusive_group()
+    g_file_type.add_argument('--csv', action='store_true')
+    g_file_type.add_argument('--xlsx', action='store_true')
+    
+    p_import_shared_args.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+    p_import_shared_args.add_argument(
+        "-S", "--excel_sheet_name_2",
+        dest="SHEET2",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE2 "
+             "if INFILE2 is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
+    )
+
+    p_import_from_file = argparse.ArgumentParser(
+        add_help=False,
+        parents=[p_import_shared_args],
+        )
+    p_import_from_file.add_argument(
+        "-i", "--infile",
+        dest="INFILE",
+        required=True,
+        type=check_infile,
+        help="Path to input file containing data points for which "
+             "associations are to be generated. If used on it's own (without "
+             "'-I') associations between data instances of only this input "
+             "file will be generated."
+    )
+    p_import_from_file.add_argument(
+        "-I", "--infile2",
+        dest="INFILE2",
+        type=check_infile,
+        help="Path to an optional second input file. If passed to command "
+             "associations between data instances of INFILE1 and INFILE2 will "
+             "be generated."
+        )
+
+    p_import_from_folder = argparse.ArgumentParser(
+        add_help=False,
+        parents=[p_import_shared_args],
+        )
+    p_import_from_folder.add_argument(
+        "-i", "--infolder",
+        dest="INFOLDER",
+        required=True
+    )
+    p_import_from_folder.add_argument(
+        '-t',
+        '--two_omics_types',
+        dest="TWO_OMICS_TYPES",
+        action='store_true',
+    )
+
+
+    # Instatiting the subparsers of 'associate'. They are used to define
+    # the source of the data files. Either from up to two directly 
+    # defined files, or 
+    p_source = p_associate.add_subparsers(
+        dest="SOURCE",
+        title="source",
+        required=True
+    )
+    p_associate_from_file = p_source.add_parser(
+        "from_file",
+        parents=[p_associate_shared_args, p_import_from_file],
+    )
+    p_associate_from_folder = p_source.add_parser(
+        "from_folder",
+        parents=[p_associate_shared_args, p_import_from_folder],
+    )
+    p_associate_from_folder.add_argument(
+        "-n", "--normalization",
+        dest="NORMALIZATION",
+        choices=('pre', 'post', 'none'),
+    )
+
+
+    p_prepare = command_parsers.add_parser(
+        "prepare",
+        description=
+            """
+            The 'prepare' command performs an optional perparation and
+            validation step of the input data for the 'associate' routine.
+            """
+    )
+    p_source = p_prepare.add_subparsers(
+        dest="SOURCE",
+        title="source",
+        required=True,
+    )
+    p_prepare_from_file = p_source.add_parser(
+        "from_file",
+        parents=[p_import_from_file],
+    )
+    p_prepare_from_folder = p_source.add_parser(
+        "from_folder",
+        parents=[p_import_from_folder],
+    )
+
+    p_prepare.set_defaults(func=prepare)
+
     # the subparser definition for the visulatization component
-    p_visualize = parsers.add_parser(
+    p_visualize = command_parsers.add_parser(
         "visualize",
         description=
             """
@@ -173,9 +266,17 @@ def main(args):
         "-i", "--infile",
         dest="INFILE",
         required=True,
-        type=argparse.FileType('r'),
+        type=Path,
         help="Path to a input datafile containing the association matix of "
              "datapoints."
+    )
+    p_visualize.add_argument(
+        "-s", "--excel_sheet_name",
+        dest="SHEET",
+        type=str,
+        help="Optional argument that defines the name of the sheet in INFILE "
+             "if INFILE is an Excel file. If argument is present but imported "
+             "file is not an Excel file this option will be ignored."
     )
     p_visualize.add_argument(
         "-t", "--visualization_type",
@@ -207,10 +308,10 @@ def main(args):
     # if not then the help will be printed (this is not standard
     # behaviour in argparse for what ever reason...) 
     if len(sys.argv) == 1:
-        argp.print_help(sys.stderr)
+        main_parser.print_help(sys.stderr)
         sys.exit(0)
     try:
-        args = argp.parse_args(args)
+        args = main_parser.parse_args(args)
     except FileNotFoundError as e:
         sys.exit(e)
     except ValueError as e:
@@ -220,46 +321,218 @@ def main(args):
 
 def associate(args):
 
-    try:
-        ret_dict = calc_association(
-            filepath_or_buffer=args.INFILE,
-                filepath_or_buffer_2=args.INFILE2,
-                sheet1=args.SHEET,
-                sheet2=args.SHEET2,
-                association=args.ASSOCIATION_TYPE,
-                filter_cutoff=args.FILTER_CUTOFF,  
+    if args.csv:
+        file_type = 'csv'
+    elif args.xlsx:
+        file_type = 'xlsx'
+
+    sheet_names = None
+    if args.SHEET is not None:
+        sheet_names = [args.SHEET]
+    if args.SHEET2 is not None:
+        if sheet_names is not None:
+            sheet_names.append(args.SHEET2)
+        else:
+            sheet_names = [args.SHEET2]
+
+    if args.SOURCE == 'from_folder':
+        inpath = Path(args.INFOLDER).absolute()
+        inpath2 = None
+        files = []
+        for child in inpath.glob(f'*.{file_type}'):
+            files.append(child)
+        if args.csv and len(files) > 4:
+            raise ValueError(
+                "Import of more than four CSV files currently not supported."
+            )
+        if args.xlsx and len(files) > 2:
+            raise ValueError(
+                "Import of more than two XLSX file currently not supported."
+            )
+    else:
+        inpath = args.INFILE
+        inpath2 = args.INFILE2
+
+    experiments = import_experiments(
+        path=inpath,
+        file_type=file_type,
+        source=args.SOURCE,
+        path2=inpath2,
+        sheet_names=sheet_names
+    )
+    
+    if args.ASSOCIATION_TYPE in [
+            'jaccard_similarity',
+            'jaccard_index',
+            'jaccard_distance'
+            ]:
+        threshold = 0.5
+        thresholded = True
+    else:
+        threshold = None
+        thresholded = False
+
+    if len(experiments) == 1:
+        experiment = experiments.pop()
+
+        experiment.pre_process(
+            rm_low_conf_features=args.FILTER_CUTOFF,
+            threshold=threshold,
+            inplace=True
         )
-    except ValueError:
-        sys.exit(
-            f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+        try:
+            result = experiment.associate(
+                metric=args.ASSOCIATION_TYPE,
+                thresholded=thresholded
+            )
+        except ValueError:
+            sys.exit(
+                f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
             )
     
-    idx1 = ret_dict['idx1']
-    idx2 = ret_dict['idx2']
+    elif len(experiments) == 2:
+        for experiment in experiments:
+            if args.NORMALIZATION == 'pre':
+                normalize_ = True
+            else:
+                normalize_ = False
+            experiment.pre_process(
+                rm_low_conf_features=args.FILTER_CUTOFF,
+                normalize=normalize_,
+                threshold=threshold,
+                inplace=True
+            )
+        if args.NORMALIZATION in ['pre', 'none']:
+            cross_experiment = CrossExperiment(
+                name='cross_experiment',
+                experiments=experiments,
+            )
+            cross_experiment.combine(inplace=True)
 
-    df_assoc = rm_duplicates(df=ret_dict['df_assoc'], idx1=idx1, idx2=idx2)
-    df_counts = rm_duplicates(df=ret_dict['df_counts'], idx1=idx1, idx2=idx2)
-    df_assoc = idx_name(df_assoc, idx1=idx1, idx2=idx2)
-    df_counts = idx_name(df_counts, idx1=idx1, idx2=idx2)
-    if idx2 is None:
-        idx1_name = '_'.join((idx1.name, '1'))
-        idx2_name = '_'.join((idx1.name, '2'))
+            try:
+                result = cross_experiment.associate(
+                    metric=args.ASSOCIATION_TYPE,
+                    thresholded=thresholded
+                )
+            except ValueError:
+                sys.exit(
+                    f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+                )
+
+        elif args.NORMALIZATION == 'post':
+            results = []
+            for experiment in experiments:
+                try:
+                    result = experiment.associate(
+                        metric=args.ASSOCIATION_TYPE,
+                        thresholded=thresholded,
+                    )
+                except ValueError:
+                    sys.exit(
+                        f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
+                    )
+                results.append(result)
+            result = combine_results(
+                results=results,
+                normalization_metric='mean'
+            )
+
+    
     else:
-        idx1_name = idx1.name
-        idx2_name = idx2.name
-    write_outfile(
-        data=(df_assoc, df_counts),
+        raise NotImplementedError(
+            "Cross Experiment assocations for more than 2 experiments is"
+            "currently not supported."
+            )
+
+    result.save(
         file_handle=args.OUTFILE,
-        idx=(idx1_name, idx2_name),
-        output_type=args.OUTPUT_TYPE,
+        type=args.OUTPUT_TYPE,
         overwrite=args.OVERWRITE_OUTPUT,
-        association_type=args.ASSOCIATION_TYPE
+        assocation_metric=args.ASSOCIATION_TYPE
     )
+
+def prepare(args):
+    if args.csv:
+        file_type = 'csv'
+    elif args.xlsx:
+        file_type = 'xlsx'
+
+    sheet_names = None
+    if args.SHEET is not None:
+        sheet_names = [args.SHEET]
+    if args.SHEET2 is not None:
+        if sheet_names is not None:
+            sheet_names.append(args.SHEET2)
+        else:
+            sheet_names = [args.SHEET2]
+
+    if args.SOURCE == 'from_folder':
+        inpath = Path(args.INFOLDER).absolute()
+        inpath2 = None
+        files = []
+        for child in inpath.glob(f'*.{file_type}'):
+            files.append(child)
+        if args.csv and len(files) > 4:
+            raise ValueError(
+                "Import of more than four CSV files currently not supported."
+            )
+        if args.xlsx and len(files) > 2:
+            raise ValueError(
+                "Import of more than two XLSX file currently not supported."
+            )
+    else:
+        inpath = args.INFILE
+        inpath2 = args.INFILE2
+
+    experiments = import_experiments(
+        path=inpath,
+        file_type=file_type,
+        source=args.SOURCE,
+        path2=inpath2,
+        sheet_names=sheet_names
+    )
+
+    validate_input(experiments)
+    pass
+
 
 def visualize(args):
     if args.TYPE == "heatmap":
-        df = import_asssociation_matrix(file_handle=args.INFILE)
+        if args.SHEET is None:
+            sheet = 0
+        else:
+            sheet = args.SHEET
+        try:
+            df = import_asssociation_matrix(filepath=args.INFILE, sheet=sheet)
+        except ValueError:
+            sys.exit(f"sheet '{sheet}' not found in file '{args.INFILE}'")
+        except FileNotFoundError:
+            sys.exit(f"file '{args.INFILE}' not found.")
         fig = create_fig(df=df, fig_out=args.OUTFILE, cbarlabel=args.LABEL)
     else:
         print("Not yet implemented.", file=sys.stderr)
+
+
+def df_to_graph(file_path, index_name, net, threshold):
+    #read in data
+    df = pd.read_csv(file_path)
+    #set row names
+    df = df.set_index(index_name)
+    df.index.names = [None]
+    #collect data for nodes, only grab edges over a given threshold
+    for column in df:
+        net.add_node(column, label=column)
+        for row in df.index:
+            net.add_node(row, label=row)
+            value = float(df.loc[row, column].split(':')[0])
+            if abs(value) > threshold:
+                net.add_edge(column, row, weight = value)
+    return net
+
+def assign_clusters(net):
+    clusters = nx.community.louvain_communities(net, seed=123)
+    for i in range(len(clusters)):
+        for node in clusters[i]:
+            net.nodes[node]['group'] = i
+    return net
 
