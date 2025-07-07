@@ -30,6 +30,7 @@ dependencies = [
   "networkx",
   "numpy",
   "pandas",
+  "openpyxl",
   "scikit-learn",
   "scipy",
 ]
