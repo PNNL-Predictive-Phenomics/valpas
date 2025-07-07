@@ -43,9 +43,9 @@ license = {text = "2-clause BSD"}
 valpas = "valpas.cli:main"
 
 [project.urls]
-Documentation = "https://github.com/Yannick Mahlich/valpas#readme"
-Issues = "https://github.com/Yannick Mahlich/valpas/issues"
-Source = "https://github.com/Yannick Mahlich/valpas"
+Documentation = "https://github.com/PNNL-Predictive-Phenomics/valpas#readme"
+Issues = "https://github.com/PNNL-Predictive-Phenomics/valpas/issues"
+Source = "https://github.com/PNNL-Predictive-Phenomics/valpas"
 
 [tool.hatch.version]
 source = "vcs"
