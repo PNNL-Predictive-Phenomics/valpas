@@ -311,7 +311,7 @@ def main():
         main_parser.print_help(sys.stderr)
         sys.exit(0)
     try:
-        args = main_parser.parse_args(args)
+        args = main_parser.parse_args()
     except FileNotFoundError as e:
         sys.exit(e)
     except ValueError as e:
@@ -538,7 +538,8 @@ def assign_clusters(net):
 
 
 if __name__ == '__main__':
+    import sys
     try:
         main()
-    except:
-        KeyboardInterrupt
+    except KeyboardInterrupt:
+        pass
