@@ -27,25 +27,25 @@ def export_csv(
         index : bool=True
         ) -> None:
     """
-    Helper function to export computed DataFrame to csv formated plain 
+    Helper function to export computed DataFrame to csv formated plain
     text.
 
     Parameters
     ----------
     filepath_or_buffer : str | PathLike | Path | TextIOBase
-        Path to the \\*.csv that should be used for the export of data. 
-        Can also be of type TextIOBase e.g. if the passed argument 
+        Path to the \\*.csv that should be used for the export of data.
+        Can also be of type TextIOBase e.g. if the passed argument
         is a stream to sys.stdout
     data : pandas.DataFrame
         Single pandas.DataFrame that contains the data to be stored.
     overwrite : bool, default=False
-        If passed to the function as 'True', then the csv-file that is 
-        pointed to by ``filepath_or_buffer`` will be overwritten if it 
+        If passed to the function as 'True', then the csv-file that is
+        pointed to by ``filepath_or_buffer`` will be overwritten if it
         already exists.
     index: bool, default=True
         Passed to ``pd.DataFrame.to_csv``. Determines if the index (
         row names) should be written to the output.
-    
+
     Returns
     -------
     None
@@ -53,11 +53,11 @@ def export_csv(
     Raises
     ------
     FileExistsError
-        If file pointed to by ``filepath_or_buffer`` already exists and 
+        If file pointed to by ``filepath_or_buffer`` already exists and
         `overwrite==False`
     TypeError
         If ``filepath_or_buffer`` passed to function is not of a 'legal'
-        type. 
+        type.
     """
 
     # check if filepath is of 'legal' type
@@ -67,7 +67,7 @@ def export_csv(
             f"filepath_or_buffer must be of type str, PathLike or Path."
             f" Supplied argument is of type {type(filepath_or_buffer)}."
         )
-    
+
     # making sure that the filepath_or_buffer does not point to an
     # existing file and overwrite has been set to False
     if not isinstance(filepath_or_buffer, TextIOBase):
@@ -101,12 +101,12 @@ def export_xlsx(
     filepath : str | PathLike | Path
         Path to \\*.xlsx file that should be used for the export of data
     dfs : pandas.DataFrame | list[pandas.DataFrame]
-        Either a single pandas.DataFrame object or a list of objects. 
-        If a list is passed to the function, **sheets** must also be a 
+        Either a single pandas.DataFrame object or a list of objects.
+        If a list is passed to the function, **sheets** must also be a
         list and the number of elements in both must be identical.
     sheets : str | list[str]
         Either a single String or a list of Strings containing the names
-        that the sheets should be stored as in the \\*.xlsx file. If a 
+        that the sheets should be stored as in the \\*.xlsx file. If a
         list is passed to the function, **dfs** also needs to be a list
         and both need to contain the same number of elements.
     overwrite : bool, default=False
@@ -136,44 +136,44 @@ def export_xlsx(
             f"Supplied argument is of type {type(filepath)}."
         )
     else:
-        # determining the mode to pass to ExcelWriter depending on 
+        # determining the mode to pass to ExcelWriter depending on
         # whether the file already exists
         filepath_ = Path(filepath).absolute()
         if filepath_.is_file():
             mode = 'a'
         else:
             mode = 'w'
-    
+
     # 'translating' the strategy of what to do if a give sheet already
-    # exists in the xlsx file (if xlsx is also already present) for 
-    # later use  
+    # exists in the xlsx file (if xlsx is also already present) for
+    # later use
     if overwrite:
         if_sheet_exists_ = 'replace'
     else:
         if_sheet_exists_ = 'error'
 
 
-    # if only one DF needs to be saved we cast dfs and sheets into lists 
-    # with only one element each to consolidate ExcelWriter calls 
+    # if only one DF needs to be saved we cast dfs and sheets into lists
+    # with only one element each to consolidate ExcelWriter calls
     if isinstance(dfs, pd.DataFrame) and isinstance(sheets, str):
         dfs = [dfs]
         sheets = [sheets]
-            
+
     # Main logic saving the DataFrame(s) into (a) Sheet(s). The else
     # blocks (raising Errors) are only called if dfs and sheets contain
     # unexpected variable types
     if isinstance(dfs, list) and isinstance(sheets, list):
-        
-        # Make sure that both dfs and sheets contain the same number of 
+
+        # Make sure that both dfs and sheets contain the same number of
         # elements
         if len(dfs) != len(sheets):
             raise ValueError(
                 f"Number of DataFrames to write to {filepath_} does "
                 "not match number of supplied Sheet names."
             )
-        # If we append to the Excel file (we previously checked if the 
-        # Excel file passed to the function exsits) we need to define 
-        # additional parameters in the ExcelWriter call. Specifically 
+        # If we append to the Excel file (we previously checked if the
+        # Excel file passed to the function exsits) we need to define
+        # additional parameters in the ExcelWriter call. Specifically
         # we need to add the information whether already exsisting
         # Sheets should be overwritten.
         if mode == 'a':
@@ -198,7 +198,7 @@ def export_xlsx(
             with ExcelWriter(filepath_, mode='w') as writer:
                 for i in range(0, len(dfs)):
                     dfs[i].to_excel(writer, sheet_name=sheets[i])
-    
+
     # The remaining elif/else statements cover / raise exceptions if the
     # variables passed to the function are not 'legal'
     elif not (isinstance(dfs, list) or isinstance(dfs, pd.DataFrame)):
@@ -215,7 +215,7 @@ def export_xlsx(
         raise TypeError(
             "dfs and sheets must type match."
         )
-    
+
     return None
 
 
@@ -224,7 +224,7 @@ def import_asssociation_matrix(
         sheet: str | float=0,
         ) -> pd.DataFrame:
     """
-    Imports a saved correlation / association matrix saved by 
+    Imports a saved correlation / association matrix saved by
     ``valpas.utils.write_outfile`` into a ``pandas.DataFrame`` object
     and returns it.
 
@@ -239,13 +239,13 @@ def import_asssociation_matrix(
     Returns
     -------
     pandas.DataFrame
-        A pandas DataFrame that contains the association values in the 
+        A pandas DataFrame that contains the association values in the
         raw data file that was imported.
 
     Notes
     -----
-    Can for example be used to read in data necessary to plot a heatmap 
-    via the `valpas.visualize.heatmap` module. 
+    Can for example be used to read in data necessary to plot a heatmap
+    via the `valpas.visualize.heatmap` module.
     """
     if not isinstance(filepath, Path):
         filepath = Path(filepath).absolute()
@@ -282,7 +282,7 @@ def import_asssociation_matrix(
             f"Supplied file is of type '{f_suffix}'. "
             "Expected '.csv' or '.xlsx'."
         )
-    
+
 
     return df
 
@@ -294,7 +294,7 @@ def import_experiments(
         path2: str|PathLike|Path|None=None,
         sheet_names: list|None=None,
         ) -> list[SingleExperiment]:
-    
+
     if source == 'from_file':
         experiments = _import_from_files(
             filepath=path,
@@ -318,7 +318,7 @@ def import_experiments(
 
 def write_outfile(
         data: tuple[pd.DataFrame, pd.DataFrame],
-        file_handle: str | PathLike | Path | TextIOBase, 
+        file_handle: str | PathLike | Path | TextIOBase,
         idx: tuple[str, str],
         output_type: Literal[
             'sorted_list', 'correlation_matrix'
@@ -334,20 +334,20 @@ def write_outfile(
     ----------
     data : tuple[pandas.DataFrame, pandas.DataFrame]
         Touple of two ``pandas.DataFrame``, one containing calculated
-        association values the other counts for how many values were 
-        used for the association value calculation between two omics 
+        association values the other counts for how many values were
+        used for the association value calculation between two omics
         data points.
     file_handle : str | PathLike | Path | TextIOBase
         Path to the outfile that should be written.
     idx : tuple[str, str]
-        Touple of two ``pandas.Index`` objects containing the index for 
-        the two omics types which were used to calculate association 
+        Touple of two ``pandas.Index`` objects containing the index for
+        the two omics types which were used to calculate association
         values.
     output_type : {'sorted_list', 'correlation_matrix'},\
                   default='sorted_list'
         The type of output file that should be written.
     overwrite : bool, default=False
-        Defines if the output file / sheet should be overwritten if it 
+        Defines if the output file / sheet should be overwritten if it
         already exists.
     association_type : str, default='correlation'
         Optional argument that is used to describe the association type
@@ -380,8 +380,8 @@ def write_outfile(
         raise Exception(
             f"Reached point that shouldn't be reachable. file_handle is of "
             f"type '{type(file_handle)}', which is not supported.")
-    
-    
+
+
     data_association = data[0]
     data_counts = data[1]
 
@@ -389,8 +389,8 @@ def write_outfile(
     # NaN / None
     data_association.dropna(axis="index", how="all", inplace=True)
     data_association.dropna(axis="columns", how="all", inplace=True)
-    
-    # Do the same for data_counts by checking which cols in 
+
+    # Do the same for data_counts by checking which cols in
     # data_associations have been dropped
     cols_to_drop = data_counts.columns.difference(data_association.columns)
     idx_to_drop = data_counts.index.difference(data_association.index)
@@ -417,8 +417,8 @@ def write_outfile(
         data_ = (
             data_association
                 .round(decimals=5) # we only want to display 5 decimals
-                .astype(str) # need to cast to String for concatenation 
-            + ':' # concatenating using a ':' as field seperator 
+                .astype(str) # need to cast to String for concatenation
+            + ':' # concatenating using a ':' as field seperator
             + data_counts.astype(str) # see above
         )
         export_csv(
@@ -445,10 +445,10 @@ def write_outfile(
         raise Exception(
             f"Reached point that shouldn't be reachable. file_handle is of "
             f"type '{type(file_handle)}', which is not supported.")
-     
+
 
 def _import_from_folder(
-        path: PathLike | Path, 
+        path: PathLike | Path,
         file_type: Literal['csv', 'xlsx'],
         sheet_names: list=None,
         ) -> list[SingleExperiment]:
@@ -507,7 +507,6 @@ def _import_from_files(
         filepath_2: (str | PathLike | Path )=None,
         sheet_names: str=None,
         ) -> list[SingleExperiment]:
-    
 
     if file_type == 'csv':
         experiment_name, omic_x_type = filepath.stem.rsplit(
@@ -539,7 +538,7 @@ def _import_from_files(
                 name=experiment_name,
                 omic_x=omic_x_measurement
             )
-            
+
     elif file_type == 'xlsx':
         if sheet_names is None:
             raise ValueError(
@@ -584,14 +583,14 @@ def _import_from_files(
 
 def _import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
     """
-    Imports a csv file. Returns a pandas DataFrame object containing 
+    Imports a csv file. Returns a pandas DataFrame object containing
     the data.
 
     Parameters
     ----------
     filepath_or_buffer: str | PathLike | TextIO
         Path to CSV file that should be imported
-    
+
     Returns
     -------
     pd.DataFrame
@@ -619,7 +618,7 @@ def _import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
             f"Supplied argument is of type {type(filepath_or_buffer_)}."
             )
         raise TypeError(error)
-    
+
     return df
 
 
@@ -634,14 +633,14 @@ def _import_xls(
     ----------
     filepath_or_buffer: str | PathLike | BinaryIO
         Path (or Buffer) to the Excel file that should be imported
-    sheet: str 
+    sheet: str
         The name of the sheet to be imported.
-    
+
     Returns
     -------
     pandas.DataFrame
         containing the contents of the defined sheet
-        
+
     Raises
     ------
     FileNotFoundError
@@ -665,5 +664,5 @@ def _import_xls(
             f"Supplied argument is of type {type(filepath_or_buffer_)}."
             )
         raise TypeError(error)
-    
+
     return df
