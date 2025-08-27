@@ -1,4 +1,4 @@
-# ValPAS prototype
+# ValPAS
 
 ## Dependencies
 
@@ -7,7 +7,7 @@ We recommend setting up a conda environment. See [https://docs.conda.io/en/lates
 ```sh
 conda env create --file environment.yml
 ```
-This will cerate a conda environment with the name `valpas-prototype`. In case conda returns a `CondaValueError: prefix already exists: [...]` error, this is most likely due to the fact that the environment `valpas-prototype` already exsits. Either delete the environment via `conda env remove -n valpas-prototype` and reinstall or define a different environment name during setup (this can be done with the `-n` flag).
+This will create a conda environment with the name `valpas`. In case conda returns a `CondaValueError: prefix already exists: [...]` error, this is most likely due to the fact that the environment `valpas` already exists. Either delete the environment via `conda env remove -n valpas` and reinstall or define a different environment name during setup (this can be done with the `-n` flag).
 
 ### Installing the valpas package
 After checking out the git repository via `git clone git@github.com:PNNL-Predictive-Phenomics/valpas.git` navigate to the root folder of the repository. Make sure that the previously installed conda environment is active. This can be achieved via:
@@ -22,9 +22,9 @@ This will install the python package in "editable" mode, i.e. if changes to the 
 
 ## Running the notebook
 ### Within a browser
-To start the jupyter server and initiailize the notebook the conda environment has to be activated first. This can be done by invoking from within the root of the git-repository via:
+To start the jupyter server and initialize the notebook the conda environment has to be activated first. This can be done by invoking from within the root of the git-repository via:
 ```sh
-conda activate valpas-prototype
+conda activate valpas
 ```
 Next the jupyter server has to be booted up. This is done via the command:
 ```sh
