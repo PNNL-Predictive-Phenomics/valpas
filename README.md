@@ -10,11 +10,11 @@ conda env create --file environment.yml
 This will cerate a conda environment with the name `valpas-prototype`. In case conda returns a `CondaValueError: prefix already exists: [...]` error, this is most likely due to the fact that the environment `valpas-prototype` already exsits. Either delete the environment via `conda env remove -n valpas-prototype` and reinstall or define a different environment name during setup (this can be done with the `-n` flag).
 
 ### Installing the valpas package
-After checking out the git repository via `git clone git@tanuki-data.pnnl.gov:VaLPAS/valpas-prototype.git` navigate to the root folder of the repository. Make sure that the previously installed conda environment is active. This can be achieved via:
+After checking out the git repository via `git clone git@github.com:PNNL-Predictive-Phenomics/valpas.git` navigate to the root folder of the repository. Make sure that the previously installed conda environment is active. This can be achieved via:
 ```sh
-conda activate valpas-prototype
+conda activate valpas
 ```
-Once the enviroment is active run pip to install the valpas package from the local git copy.
+Once the environment is active run pip to install the valpas package from the local git copy.
 ```sh
 pip install -e .
 ```
