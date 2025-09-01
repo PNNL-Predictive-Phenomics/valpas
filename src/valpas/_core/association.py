@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     )
 
 
-def calculate_association(    
+def calculate_association(
         experiment: SingleExperiment | CrossExperiment,
         method: Literal[
             'pearson', 'spearman',
@@ -36,29 +36,29 @@ def calculate_association(
     ) -> AssociationResult:
     """
     Universal wrapper function that can be called to calculate any of
-    the suppored associations between data types. Calls individual 
+    the suppored associations between data types. Calls individual
     private functions internally.
 
     Parameters
     ----------
     experiment: SingleExperiment | CrossExperiment
-        An ``Experiment`` object that has all the required information 
-        stored associated with the experiment that the association 
+        An ``Experiment`` object that has all the required information
+        stored associated with the experiment that the association
         values should be calculated for
     association : {'pearson', 'spearman', 'jaccard_similarity', \
         'jaccard_distance', 'jaccard_index', 'mutual_information', \
         'cosine_similarity', 'cosine_distance'}, default = 'pearson'
-        Defines the type of association measure that should be 
+        Defines the type of association measure that should be
         calculated.
     filter_cutoff : float, default = 0.9
-        Rows in ``filepath_or_buffer(_2)`` need to contain at least the 
-        fraction of ``filter_cutoff`` values that are not `0.0` or 
+        Rows in ``filepath_or_buffer(_2)`` need to contain at least the
+        fraction of ``filter_cutoff`` values that are not `0.0` or
         `NaN`. Any rows that have less defined values will excluded from
         the calculation of the association value.
     threshold : float, default = None
         Optional argument that defines the threshold values that is used
         for thresholding values if `cosine_similarity`,
-        `cosine_distance`, `jaccard_similiary`, `jaccard_index` or 
+        `cosine_distance`, `jaccard_similiary`, `jaccard_index` or
         `jaccard_distance` is chosen as the ``association`` metric.
 
     Returns
@@ -68,7 +68,7 @@ def calculate_association(
     Raises
     ------
     ValueError
-        ValueError that is passed along from 
+        ValueError that is passed along from
         ``valpas.utils.data_handling.prep_single_experiment()``
     """
 
@@ -82,14 +82,14 @@ def calculate_association(
         # by default
         result_values = experiment.measurements.corr(method=cosine)
 
-        if method == 'cosine_similirity':
+        if method == 'cosine_similarity':
             # converting distance to similarity
             result_values = result_values.rsub(1)
-    
+
     elif method in [
         'jaccard_similarity', 'jaccard_distance', 'jaccard_index'
             ]:
-        
+
         # `sklearn.metrics.jaccard_score` calculates jaccard similarity
         # (also known as jaccard index) by default
         result_values = experiment.measurements.corr(method=jaccard_score)
@@ -97,14 +97,18 @@ def calculate_association(
         if method == 'jaccard_distance':
             # converting similarity to distance
             result_values = result_values.rsub(1)
-    
+
     elif method == 'mutual_information':
 
         result_values = experiment.measurements.corr(method=mutual_information)
 
     else:
         raise ValueError(f"Association type {method} not supported!")
-    
+
+    # Add in: z-score calculation for results_values Matrix
+    #        this can be an option, but would make the different
+    #        metrics more comparable
+
     # getting the counts of how many values were considered in the
     # calculation of each association value
     if thresholded:
@@ -128,23 +132,23 @@ def calculate_association(
 
 def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:
     """
-    Helper function that counts the number of values that are utilized 
-    in the calculation of an association score between two arrays of 
+    Helper function that counts the number of values that are utilized
+    in the calculation of an association score between two arrays of
     data points.
 
     Parameters
     ----------
     a : ArrayLike
         One of the two arrays in the pair of arrays for which an
-        association value should be calculated. 
+        association value should be calculated.
     b : ArrayLike
         The second of the two arrays in the pair of arrays for which an
-        association value should be calculated. 
+        association value should be calculated.
 
     Returns
     -------
     int
-        The count of values in both arrays that are used to calculate 
+        The count of values in both arrays that are used to calculate
         the association value.
     """
 
@@ -161,26 +165,26 @@ def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:
 def count_vals_in_thresholded_association(
         a: ArrayLike, b: ArrayLike) -> int:
     """
-    Helper function that counts the number of values that are utilized 
+    Helper function that counts the number of values that are utilized
     in the calculation of an association score between two thresholdeded
-    arrays of data points. Note this function performs a slightly 
-    different set of instructions in comparison to 
-    ``count_vals_in_association`` to account for the thresholding of 
+    arrays of data points. Note this function performs a slightly
+    different set of instructions in comparison to
+    ``count_vals_in_association`` to account for the thresholding of
     values that has been done prior.
 
     Parameters
     ----------
     a : ArrayLike
         One of the two arrays in the pair of arrays for which an
-        association value should be calculated. 
+        association value should be calculated.
     b : ArrayLike
         The second of the two arrays in the pair of arrays for which an
-        association value should be calculated. 
+        association value should be calculated.
 
     Returns
     -------
     int
-        The count of values in both arrays that are used to calculate 
+        The count of values in both arrays that are used to calculate
         the association value.
     """
 
@@ -192,7 +196,7 @@ def count_vals_in_thresholded_association(
             )
         )
     # add only where no NaNs are present
-    # positions where at least either a or b = 1 and neither of them is 
+    # positions where at least either a or b = 1 and neither of them is
     # NaN will add up to >=1
     a_counts = np.add(a, b, where=a_logical)
 
