@@ -136,7 +136,8 @@ def calculate_association(
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),
                             output_dir)
 
-        model = torch.load_model()
+        model = torch.load_model(autoencoder_model.pth)
+        
         # Create dataset
         # FIXME: this may not always work - if the scaling method is different, e.g.
         dataset = autoencoder.ProteomicsDataset(

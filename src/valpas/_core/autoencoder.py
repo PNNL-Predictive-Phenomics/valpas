@@ -686,11 +686,6 @@ def analyze_proteomics_data(
     print("Starting proteomics data analysis...")
     print(f"Data shape: {data.shape}")
 
-    model_filename = os.path.join(output_dir, 'autoencoder_model.pth')
-
-    if load_model and os.path.exists(model_filename):
-        pass
-
     # Train autoencoder
     model, dataset, training_history = train_proteomics_autoencoder(
         data,
@@ -748,7 +743,7 @@ def analyze_proteomics_data(
                 'sample_embedding_dim': model.sample_embedding_dim
             },
             'scaler': dataset.scaler
-        }, model_filename)
+        }, os.path.join(output_dir, 'autoencoder_model.pth'))
 
         print(f"Results saved to {output_dir}/")
 
