@@ -4,3 +4,7 @@ channels:
 dependencies:
   - python
   - jupyter
+  - pytorch
+  - scikit-learn
+  - matplotlib
+  - seaborn

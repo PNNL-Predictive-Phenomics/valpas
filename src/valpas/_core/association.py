@@ -4,10 +4,13 @@ from typing import Literal
 from typing import TYPE_CHECKING
 
 import sys
+import errno
 
 import numpy as np
 from numpy.typing import ArrayLike
 import pandas as pd
+
+import torch
 
 from scipy.spatial.distance import cosine
 from sklearn.metrics import jaccard_score
@@ -15,6 +18,7 @@ from sklearn.metrics import jaccard_score
 from valpas.utils.b_spline import mutual_information
 
 from valpas import AssociationResult
+import autoencoder
 
 
 if TYPE_CHECKING:
@@ -30,7 +34,8 @@ def calculate_association(
             'pearson', 'spearman',
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
             'mutual_information',
-            'cosine_similarity', 'cosine_distance',
+            'cosine_similarity', 'cosine_distance', 'autoencoder',
+            'load_autoencoder'
             ]='pearson',
         thresholded: bool=False,
     ) -> AssociationResult:
@@ -47,13 +52,14 @@ def calculate_association(
         values should be calculated for
     association : {'pearson', 'spearman', 'jaccard_similarity', \
         'jaccard_distance', 'jaccard_index', 'mutual_information', \
-        'cosine_similarity', 'cosine_distance'}, default = 'pearson'
+        'cosine_similarity', 'cosine_distance', 'autoencoder',
+        'load_autoencoder'}, default = 'pearson'
         Defines the type of association measure that should be
         calculated.
     filter_cutoff : float, default = 0.9
         Rows in ``filepath_or_buffer(_2)`` need to contain at least the
         fraction of ``filter_cutoff`` values that are not `0.0` or
-        `NaN`. Any rows that have less defined values will excluded from
+        `NaN`. Any rows that have fewer defined values will excluded from
         the calculation of the association value.
     threshold : float, default = None
         Optional argument that defines the threshold values that is used
@@ -99,8 +105,49 @@ def calculate_association(
             result_values = result_values.rsub(1)
 
     elif method == 'mutual_information':
-
         result_values = experiment.measurements.corr(method=mutual_information)
+
+    elif method == 'autoencoder':
+        #TODO: support for parameter setting for the autoencoder training
+        # Train autoencoder
+        model, dataset, training_history = autoencoder.train_proteomics_autoencoder(
+            experiment.measurements,
+            protein_embedding_dim=64,
+            epochs=100
+        )
+
+        # Calculate similarity matrix
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        result_values = autoencoder.calculate_protein_similarity_matrix(model, dataset, device)
+
+    elif method == 'load_autoencoder':
+        #Kludge to allow development using an already trained model, since this
+        #       takes a loooong time.
+        # This anticipates that there is a folder called 'protein_analysis' to
+        #      load the model from and will throw an error if it's not there.
+        # Train autoencoder
+        #model, dataset, training_history = autoencoder.train_proteomics_autoencoder(
+        #    experiment.measurements,
+        #    protein_embedding_dim=64,
+        #    epochs=100
+        #)
+        output_dir = "proteomics_analysis"
+        if not os.path.exists(output_dir):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),
+                            output_dir)
+
+        model = torch.load_model()
+        # Create dataset
+        # FIXME: this may not always work - if the scaling method is different, e.g.
+        dataset = autoencoder.ProteomicsDataset(
+            experiment.measurements,
+            mask_probability=0.15,
+            scaling_method='robust'
+        )
+
+        # Calculate similarity matrix
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        result_values = autoencoder.calculate_protein_similarity_matrix(model, dataset, device)
 
     else:
         raise ValueError(f"Association type {method} not supported!")
