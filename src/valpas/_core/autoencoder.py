@@ -752,6 +752,59 @@ def analyze_proteomics_data(
 
     return results
 
+def load_proteomics_autoencoder(
+    model_path: str,
+    device: Optional[torch.device] = None
+) -> Dict:
+    """
+    Load a saved proteomics autoencoder model and associated artifacts
+
+    Args:
+        model_path: Path to the saved model file (.pth)
+        device: Device to load model on (if None, auto-detects)
+
+    Returns:
+        Dictionary containing loaded model, config, and scaler
+    """
+
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    print(f"Loading model from: {model_path}")
+    print(f"Loading on device: {device}")
+
+    # Load the saved checkpoint
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+
+    # Extract configuration
+    config = checkpoint['model_config']
+    print(f"Model configuration: {config}")
+
+    # Recreate the model with the same architecture
+    model = BiDirectionalAutoencoder(
+        n_proteins=config['n_proteins'],
+        n_samples=config['n_samples'],
+        protein_embedding_dim=config['protein_embedding_dim'],
+        sample_embedding_dim=config['sample_embedding_dim']
+    ).to(device)
+
+    # Load the trained weights
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()  # Set to evaluation mode
+
+    # Load the scaler
+    scaler = checkpoint['scaler']
+
+    loaded_artifacts = {
+        'model': model,
+        'config': config,
+        'scaler': scaler,
+        'device': device
+    }
+
+    print("Model loaded successfully!")
+    return loaded_artifacts
+
 # Example usage
 if __name__ == "__main__":
     # Create sample proteomics data

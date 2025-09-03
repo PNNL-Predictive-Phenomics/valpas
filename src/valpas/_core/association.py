@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import sys
 import errno
+import os
 
 import numpy as np
 from numpy.typing import ArrayLike
@@ -18,7 +19,7 @@ from sklearn.metrics import jaccard_score
 from valpas.utils.b_spline import mutual_information
 
 from valpas import AssociationResult
-import autoencoder
+from valpas._core import autoencoder
 
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def calculate_association(
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
             'mutual_information',
             'cosine_similarity', 'cosine_distance', 'autoencoder',
-            'load_autoencoder'
+            'load_autoencoder', 'load_sim'
             ]='pearson',
         thresholded: bool=False,
     ) -> AssociationResult:
@@ -53,7 +54,7 @@ def calculate_association(
     association : {'pearson', 'spearman', 'jaccard_similarity', \
         'jaccard_distance', 'jaccard_index', 'mutual_information', \
         'cosine_similarity', 'cosine_distance', 'autoencoder',
-        'load_autoencoder'}, default = 'pearson'
+        'load_autoencoder', 'load_sim'}, default = 'pearson'
         Defines the type of association measure that should be
         calculated.
     filter_cutoff : float, default = 0.9
@@ -79,11 +80,10 @@ def calculate_association(
     """
 
     if method in ['pearson', 'spearman']:
-
         result_values = experiment.measurements.corr(method=method)
+        print(result_values)
 
     elif method in ['cosine_similarity', 'cosine_distance']:
-
         # `scipy.spatial.distance.cosine()` calculates cosine distance
         # by default
         result_values = experiment.measurements.corr(method=cosine)
@@ -119,6 +119,12 @@ def calculate_association(
         # Calculate similarity matrix
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         result_values = autoencoder.calculate_protein_similarity_matrix(model, dataset, device)
+        result_counts = result_values.copy(deep=True)
+
+        # it's hard to figure out how to do this without this
+        #      information as it could be any value really?
+        # So this is an attempt to make it non-zero
+        result_counts.iloc[:, :] = 1
 
     elif method == 'load_autoencoder':
         #Kludge to allow development using an already trained model, since this
@@ -136,8 +142,9 @@ def calculate_association(
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),
                             output_dir)
 
-        model = torch.load_model(autoencoder_model.pth)
-        
+        model_path = os.path.join(output_dir, "autoencoder_model.pth")
+        model_artifacts = autoencoder.load_proteomics_autoencoder(model_path)
+
         # Create dataset
         # FIXME: this may not always work - if the scaling method is different, e.g.
         dataset = autoencoder.ProteomicsDataset(
@@ -147,8 +154,28 @@ def calculate_association(
         )
 
         # Calculate similarity matrix
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        result_values = autoencoder.calculate_protein_similarity_matrix(model, dataset, device)
+        result_values = autoencoder.calculate_protein_similarity_matrix(
+                                    model_artifacts['model'],
+                                    dataset,
+                                    model_artifacts['device'])
+        result_counts = result_values.copy(deep=True)
+
+        # it's hard to figure out how to do this without this
+        #      information as it could be any value really?
+        # So this is an attempt to make it non-zero
+        result_counts.iloc[:, :] = 1
+
+    elif method == "load_sim":
+        # allow loading of a similarity matrix as a csv
+        output_dir = "proteomics_analysis"
+        sim_path = os.path.join(output_dir, "protein_similarity_matrix.csv")
+        result_values = pd.read_csv(sim_path, index_col=0)
+        result_counts = result_values.copy(deep=True)
+
+        # it's hard to figure out how to do this without this
+        #      information as it could be any value really?
+        # So this is an attempt to make it non-zero
+        result_counts.iloc[:, :] = 1
 
     else:
         raise ValueError(f"Association type {method} not supported!")
@@ -159,14 +186,15 @@ def calculate_association(
 
     # getting the counts of how many values were considered in the
     # calculation of each association value
-    if thresholded:
-        result_counts = experiment.measurements.corr(
-            method=count_vals_in_thresholded_association
-            )
-    else:
-        result_counts = experiment.measurements.corr(
-            method=count_vals_in_association
-            )
+    if method not in ["load_sim", "load_autoencoder", "autoencoder"]:
+        if thresholded:
+            result_counts = experiment.measurements.corr(
+                method=count_vals_in_thresholded_association
+                )
+        else:
+            result_counts = experiment.measurements.corr(
+                method=count_vals_in_association
+                )
 
     result = AssociationResult(
         values=result_values,

@@ -401,6 +401,7 @@ def write_outfile(
         data_association = beautify_series(df=data_association,
                                            value=association_type)
         data_counts = beautify_series(df=data_counts, value='counts')
+        
         if f_type in ('csv', 'tsv'):
             data_ = data_association.merge(
                 data_counts,
