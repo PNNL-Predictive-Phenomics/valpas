@@ -111,14 +111,17 @@ def calculate_association(
         #TODO: support for parameter setting for the autoencoder training
         # Train autoencoder
         model, dataset, training_history = autoencoder.train_proteomics_autoencoder(
-            experiment.measurements,
+            experiment.measurements.transpose(),
             protein_embedding_dim=64,
-            epochs=100
+            epochs=2
         )
 
         # Calculate similarity matrix
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         result_values = autoencoder.calculate_protein_similarity_matrix(model, dataset, device)
+
+        autoencoder.save_autoencoder_results(model, dataset, training_history, result_values)
+
         result_counts = result_values.copy(deep=True)
 
         # it's hard to figure out how to do this without this

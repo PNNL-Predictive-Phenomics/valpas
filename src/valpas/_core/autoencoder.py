@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
+import os
+
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import StandardScaler, RobustScaler
 from sklearn.metrics.pairwise import cosine_similarity
@@ -654,6 +656,36 @@ def visualize_protein_relationships(
 
     plt.tight_layout()
     return fig
+
+
+def save_autoencoder_results(model, dataset, training_history,
+                            similarity_matrix, output_dir="proteomics_analysis",):
+    # Compile results
+    results = {
+        'model': model,
+        'dataset': dataset,
+        'training_history': training_history,
+        'similarity_matrix': similarity_matrix,
+    }
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Save similarity matrix
+    similarity_matrix.to_csv(os.path.join(output_dir, 'protein_similarity_matrix.csv'))
+
+    # Save model
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'model_config': {
+            'n_proteins': dataset.n_proteins,
+            'n_samples': dataset.n_samples,
+            'protein_embedding_dim': model.protein_embedding_dim,
+            'sample_embedding_dim': model.sample_embedding_dim
+        },
+        'scaler': dataset.scaler
+    }, os.path.join(output_dir, 'autoencoder_model.pth'))
+
+    print(f"Results saved to {output_dir}/")
 
 # Complete analysis pipeline
 def analyze_proteomics_data(
