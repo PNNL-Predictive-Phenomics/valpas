@@ -529,7 +529,10 @@ class SingleExperiment(Experiment):
             cols_to_drop = np.random.choice(df.columns, size=min(ncols, len(df.columns)), replace=False)
             df = df.drop(columns=cols_to_drop)
 
-        experiment_.measurement = df
+        if experiment_.measurements is not None:
+            experiment_.measurement = df
+        else:
+            experiment_.omic_x.measurements = df
 
         if inplace:
             return None
