@@ -526,17 +526,19 @@ class SingleExperiment(Experiment):
             np.random.seed(random_state)
 
         if percentage:
-            nconds = int(len(df.rows) * percentage)
+            nconds = int(len(df.index) * percentage)
 
         if keep_conds:
-            df = df[[cond for cond in keep_conds if col in df.rows]]
+            df = df[[cond for cond in keep_conds if cond in df.index]]
 
         elif nconds:
-            conds_to_drop = np.random.choice(df.rows, size=min(nconds, len(df.rows)), replace=False)
-            df = df.drop(rows=conds_to_drop)
+            # we want to keep nconds and drop the rest
+            dconds = len(df.index) - nconds
+            conds_to_drop = np.random.choice(df.index, size=min(dconds, len(df.index)), replace=False)
+            df = df.drop(index=conds_to_drop)
 
         if experiment_.measurements is not None:
-            experiment_.measurement = df
+            experiment_.measurements = df
         else:
             experiment_.omic_x.measurements = df
 
