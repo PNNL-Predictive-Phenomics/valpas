@@ -39,9 +39,9 @@ def calculate_association(
             'load_autoencoder', 'load_sim'
             ]='pearson',
         thresholded: bool=False,
-        subset_ncols: int=0,
+        subset_nconds: int=0,
         subset_percentage: float=0,
-        subset_keep_cols: list=None,
+        subset_keep_conds: list=None,
     ) -> AssociationResult:
     """
     Universal wrapper function that can be called to calculate any of
@@ -70,9 +70,9 @@ def calculate_association(
         for thresholding values if `cosine_similarity`,
         `cosine_distance`, `jaccard_similiary`, `jaccard_index` or
         `jaccard_distance` is chosen as the ``association`` metric.
-    subset_ncols : int, default = None
+    subset_nconds : int, default = None
     subset_percentage : float, default = None
-    subset_keep_cols : list, default = None
+    subset_keep_conds : list, default = None
 
     Returns
     -------
@@ -86,10 +86,10 @@ def calculate_association(
     """
 
     # Subset the input measurements first?
-    if subset_ncols or subset_percentage or subset_keep_cols:
-        experiment = experiment.subset_by_columns(ncols=subset_ncols,
-                                                  percentage=subset_percentage,
-                                                  keep_cols=subset_keep_cols)
+    if subset_nconds or subset_percentage or subset_keep_conds:
+        experiment = experiment.subset_by_conditions(nconds=subset_nconds,
+                                                    percentage=subset_percentage,
+                                                    keep_conds=subset_keep_conds)
 
     if method in ['pearson', 'spearman']:
         result_values = experiment.measurements.corr(method=method)

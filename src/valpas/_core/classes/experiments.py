@@ -88,9 +88,9 @@ class Experiment():
                 'cosine_similarity', 'cosine_distance',
                 ]='pearson',
             thresholded: bool=False,
-            subset_ncols: int=None,
+            subset_nconds: int=None,
             subset_percentage: float=None,
-            subset_keep_cols: list=None,
+            subset_keep_conds: list=None,
             ) -> AssociationResult:
         """
         Function that calculates association values for the Experiment.
@@ -121,9 +121,9 @@ class Experiment():
             self,
             method=metric,
             thresholded=thresholded,
-            subset_ncols=subset_ncols,
+            subset_nconds=subset_nconds,
             subset_percentage=subset_percentage,
-            subset_keep_cols=subset_keep_cols,
+            subset_keep_conds=subset_keep_conds,
             )
 
 class SingleExperiment(Experiment):
@@ -477,25 +477,25 @@ class SingleExperiment(Experiment):
             return experiment_
 
 
-    def subset_by_columns(
+    def subset_by_conditions(
                 self,
-                ncols: int=None,
+                nconds: int=None,
                 percentage: float=0.5,
-                keep_cols: list=[],
+                keep_conds: list=[],
                 inplace: bool=False,
                 random_state: int=0
                 ) -> SingleExperiment:
         """
-        Returns a copy of the experiment with a subset of columns retained.
+        Returns a copy of the experiment with a subset of conditions retained.
 
         Parameters
         ----------
-        ncols : int, default=None
-            Number of (random) columns to retain.
+        nconds : int, default=None
+            Number of (random) conditions to retain.
         percentage : float, default=0.5
-            Percentage of (random) columns to retain.
-        keep_cols :  list, default=[]
-            A list of colnames to retain.
+            Percentage of (random) conditions to retain.
+        keep_conds :  list, default=[]
+            A list of condition names to retain.
         inplace : bool, default=False
             If set to `True` the subsetting will be done
             with self, otherwise will return a copy.
@@ -526,14 +526,14 @@ class SingleExperiment(Experiment):
             np.random.seed(random_state)
 
         if percentage:
-            ncols = int(len(df.columns) * percentage)
+            nconds = int(len(df.rows) * percentage)
 
-        if keep_cols:
-            df = df[[col for col in keep_cols if col in df.columns]]
+        if keep_conds:
+            df = df[[cond for cond in keep_conds if col in df.rows]]
 
-        elif ncols:
-            cols_to_drop = np.random.choice(df.columns, size=min(ncols, len(df.columns)), replace=False)
-            df = df.drop(columns=cols_to_drop)
+        elif nconds:
+            conds_to_drop = np.random.choice(df.rows, size=min(nconds, len(df.rows)), replace=False)
+            df = df.drop(rows=conds_to_drop)
 
         if experiment_.measurements is not None:
             experiment_.measurement = df
