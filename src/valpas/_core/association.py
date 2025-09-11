@@ -39,10 +39,12 @@ def calculate_association(
             'load_autoencoder', 'load_sim'
             ]='pearson',
         thresholded: bool=False,
+        subset_ncols: int=,
+        subset_percentage: float=0
     ) -> AssociationResult:
     """
     Universal wrapper function that can be called to calculate any of
-    the suppored associations between data types. Calls individual
+    the supported associations between data types. Calls individual
     private functions internally.
 
     Parameters
@@ -67,6 +69,9 @@ def calculate_association(
         for thresholding values if `cosine_similarity`,
         `cosine_distance`, `jaccard_similiary`, `jaccard_index` or
         `jaccard_distance` is chosen as the ``association`` metric.
+    subset_ncols : int, default = None
+    subset_percentage : float, default = None
+    subset_keep_cols : list, default = None
 
     Returns
     -------
@@ -79,9 +84,14 @@ def calculate_association(
         ``valpas.utils.data_handling.prep_single_experiment()``
     """
 
+    # Subset the input measurements first?
+    if subset_ncols or subset_percentage or subset_keep_cols:
+        experiment = experiment.subset_by_columns(ncols=subset_ncols,
+                                                  percentage=subset_percentage,
+                                                  keep_cols=subset_keep_cols)
+
     if method in ['pearson', 'spearman']:
         result_values = experiment.measurements.corr(method=method)
-        print(result_values)
 
     elif method in ['cosine_similarity', 'cosine_distance']:
         # `scipy.spatial.distance.cosine()` calculates cosine distance
