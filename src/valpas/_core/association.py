@@ -39,8 +39,9 @@ def calculate_association(
             'load_autoencoder', 'load_sim'
             ]='pearson',
         thresholded: bool=False,
-        subset_ncols: int=,
-        subset_percentage: float=0
+        subset_ncols: int=0,
+        subset_percentage: float=0,
+        subset_keep_cols: list=None,
     ) -> AssociationResult:
     """
     Universal wrapper function that can be called to calculate any of

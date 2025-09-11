@@ -88,6 +88,9 @@ class Experiment():
                 'cosine_similarity', 'cosine_distance',
                 ]='pearson',
             thresholded: bool=False,
+            subset_ncols: int=None,
+            subset_percentage: float=None,
+            subset_keep_cols: list=None,
             ) -> AssociationResult:
         """
         Function that calculates association values for the Experiment.
@@ -117,7 +120,10 @@ class Experiment():
         return calculate_association(
             self,
             method=metric,
-            thresholded=thresholded
+            thresholded=thresholded,
+            subset_ncols=subset_ncols,
+            subset_percentage=subset_percentage,
+            subset_keep_cols=subset_keep_cols,
             )
 
 class SingleExperiment(Experiment):
