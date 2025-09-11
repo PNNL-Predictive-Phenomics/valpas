@@ -113,7 +113,7 @@ def calculate_association(
         model, dataset, training_history = autoencoder.train_proteomics_autoencoder(
             experiment.measurements.transpose(),
             protein_embedding_dim=64,
-            epochs=2
+            epochs=20
         )
 
         # Calculate similarity matrix
