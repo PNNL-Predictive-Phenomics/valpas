@@ -27,6 +27,9 @@ def associate(
     output_type="sorted_list",
     filter_cutoff=0.9,
     normalization="none",
+    subset_ncols=None,
+    subset_percentage=None,
+    subset_keep_cols=None,
     overwrite_output=False,
     outfile=sys.stdout,
 ):
@@ -44,6 +47,9 @@ def associate(
         output_type (str): Output format ('sorted_list', 'correlation_matrix').
         filter_cutoff (float): Cutoff for filtering missing values.
         normalization (str): Normalization mode ('pre', 'post', 'none').
+        subset_ncols (int): subset to random ncols
+        subset_percentage (float): subset to random percentage of ncols
+        subset_keep_cols (list): subset keeping these columns
         overwrite_output (bool): Whether to overwrite the existing output.
         outfile (str or Path): Path for saving the output file or `sys.stdout`.
 
@@ -84,7 +90,8 @@ def associate(
     if len(experiments) == 1:
         experiment = experiments.pop()
         experiment.pre_process(rm_low_conf_features=filter_cutoff, threshold=threshold, inplace=True)
-        result = experiment.associate(metric=association_type, thresholded=thresholded)
+        result = experiment.associate(metric=association_type, thresholded=thresholded, subset_ncols=subset_ncols,
+                                        subset_percentage=subset_percentage, subset_keep_cols=subset_keep_cols)
     elif len(experiments) == 2:
         cross_experiment = CrossExperiment(name="cross_experiment", experiments=experiments)
         if normalization == "pre":
