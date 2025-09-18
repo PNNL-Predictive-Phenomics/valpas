@@ -89,7 +89,7 @@ def associate(
 
     if len(experiments) == 1:
         experiment = experiments.pop()
-        experiment.pre_process(rm_low_conf_features=filter_cutoff, threshold=threshold, inplace=True)
+        experiment.pre_process(rm_low_conf_features=filter_cutoff, threshold=threshold, normalize=normalization, inplace=True)
         result = experiment.associate(metric=association_type, thresholded=thresholded, subset_nconds=subset_nconds,
                                         subset_percentage=subset_percentage, subset_keep_conds=subset_keep_conds)
     elif len(experiments) == 2:
