@@ -27,6 +27,7 @@ def associate(
     output_type="sorted_list",
     filter_cutoff=0.9,
     normalization="none",
+    training_interactions=None,
     subset_nconds=None,
     subset_percentage=None,
     subset_keep_conds=None,
@@ -80,6 +81,13 @@ def associate(
         sheet_names=sheet_names,
     )
 
+    if training_interactions:
+        if not isinstance(training_interactions, list):
+            # we will treat this as a file path and read in a list of tuples
+            # for now assume that this is tab-delimited with a header
+            df = pd.read_csv(training_interactions, sep='\t', header=1)
+            training_interactions = list(zip(df.iloc[:, 0], df.iloc[:, 1]))
+
     threshold = 0.5 if association_type in [
         "jaccard_similarity",
         "jaccard_index",
@@ -90,7 +98,8 @@ def associate(
     if len(experiments) == 1:
         experiment = experiments.pop()
         experiment.pre_process(rm_low_conf_features=filter_cutoff, threshold=threshold, normalize=normalization, inplace=True)
-        result = experiment.associate(metric=association_type, thresholded=thresholded, subset_nconds=subset_nconds,
+        result = experiment.associate(metric=association_type, thresholded=thresholded,
+                                      training_interactions=training_interactions, subset_nconds=subset_nconds,
                                         subset_percentage=subset_percentage, subset_keep_conds=subset_keep_conds)
     elif len(experiments) == 2:
         cross_experiment = CrossExperiment(name="cross_experiment", experiments=experiments)

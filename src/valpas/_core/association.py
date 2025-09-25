@@ -36,9 +36,10 @@ def calculate_association(
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
             'mutual_information',
             'cosine_similarity', 'cosine_distance', 'autoencoder',
-            'load_autoencoder', 'load_sim'
+            'load_autoencoder', 'load_sim', 'learn_correlation'
             ]='pearson',
         thresholded: bool=False,
+        training_interactions: list=None,
         subset_nconds: int=0,
         subset_percentage: float=0,
         subset_keep_conds: list=None,
@@ -57,7 +58,7 @@ def calculate_association(
     association : {'pearson', 'spearman', 'jaccard_similarity', \
         'jaccard_distance', 'jaccard_index', 'mutual_information', \
         'cosine_similarity', 'cosine_distance', 'autoencoder',
-        'load_autoencoder', 'load_sim'}, default = 'pearson'
+        'load_autoencoder', 'load_sim', 'learn_correlation'}, default = 'pearson'
         Defines the type of association measure that should be
         calculated.
     filter_cutoff : float, default = 0.9
@@ -70,6 +71,9 @@ def calculate_association(
         for thresholding values if `cosine_similarity`,
         `cosine_distance`, `jaccard_similiary`, `jaccard_index` or
         `jaccard_distance` is chosen as the ``association`` metric.
+    training_interactions : list, default = None
+        Optional argument used for training (currently only learn_correlation)
+        which should be a list of tuples that represent known interactions.
     subset_nconds : int, default = None
     subset_percentage : float, default = None
     subset_keep_conds : list, default = None
@@ -139,6 +143,20 @@ def calculate_association(
         #      information as it could be any value really?
         # So this is an attempt to make it non-zero
         result_counts.iloc[:, :] = 1
+
+    elif method == 'learn_correlation':
+        results = learn_correlation_weights(
+            data=experiment.measurements.transpose(),
+            interactions=training_interactions,
+            learning_method='ridge',
+            correlation_method='pearson',
+            train_split=0.7,
+            max_iterations=500 if method == 'neural' else 1000,
+            verbose=True
+        )
+        # there is a lot more returned than just this
+        # TODO: figure out how to handle that returned information
+        result_values = results['weighted_correlation_matrix']
 
     elif method == 'load_autoencoder':
         #Kludge to allow development using an already trained model, since this
