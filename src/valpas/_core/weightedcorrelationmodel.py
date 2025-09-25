@@ -32,12 +32,16 @@ def weighted_correlation_matrix(
     """
     n_proteins, n_conditions = data.shape
 
-    # Normalize weights
-    weights = np.abs(weights)  # Ensure positive weights
-    weights = weights / np.sum(weights)  # Normalize to sum to 1
+    if not weights is None:
+        # Normalize weights
+        weights = np.abs(weights)  # Ensure positive weights
+        weights = weights / np.sum(weights)  # Normalize to sum to 1
 
-    # Weight the data
-    weighted_data = data * np.sqrt(weights).reshape(1, -1)
+        # Weight the data
+        weighted_data = data * np.sqrt(weights).reshape(1, -1)
+    else:
+        # calculate unweighted correlation
+        weighted_data = data
 
     if method == 'pearson':
         # Calculate weighted Pearson correlation
@@ -255,6 +259,10 @@ def learn_correlation_weights(
     np.random.seed(random_state)
     torch.manual_seed(random_state)
 
+    # for now fill all Nan with 0
+    # FIXME: we need to be able to handle missing values better
+    data = data.fillna(0)
+
     # Prepare data
     protein_names = data.index.tolist()
     condition_names = data.columns.tolist()
@@ -298,7 +306,7 @@ def learn_correlation_weights(
     if ridge_config is None:
         ridge_config = {
             'alpha': 1.0,
-            'max_iter': 1000
+            'max_iter': max_iterations
         }
 
     if n_random_negatives is None:
@@ -310,6 +318,21 @@ def learn_correlation_weights(
         'train_objective': [],
         'weights': []
     }
+
+    # first evaluate using normal correlation
+    starting_validation_metrics = validate_correlation_predictions(
+        weighted_correlation_matrix(data, None),
+        val_interactions,
+        protein_to_idx,
+        n_random_negatives=len(val_interactions) * 2
+    )
+
+    starting_train_metrics = validate_correlation_predictions(
+        weighted_correlation_matrix(data, None),
+        train_interactions,
+        protein_to_idx,
+        n_random_negatives=len(train_interactions) * 2
+    )
 
     if learning_method == 'ridge':
         # Ridge regression approach
@@ -478,6 +501,11 @@ def learn_correlation_weights(
     )
 
     if verbose:
+        print(f"\nUnweighted results:")
+        print(f"Unweighted val AUC: {starting_validation_metrics['auc']:.4f}")
+        print(f"Unweighted val AP: {starting_validation_metrics['average_precision']:.4f}")
+        print(f"Unweighted train AUC: {starting_train_metrics['auc']:.4f}")
+        print(f"Unweighted train AP: {starting_train_metrics['average_precision']:.4f}")
         print(f"\nFinal Results:")
         print(f"Training AUC: {training_metrics['auc']:.4f}")
         print(f"Validation AUC: {validation_metrics['auc']:.4f}")

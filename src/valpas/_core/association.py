@@ -20,6 +20,7 @@ from valpas.utils.b_spline import mutual_information
 
 from valpas import AssociationResult
 from valpas._core import autoencoder
+from valpas._core import weightedcorrelationmodel
 
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ def calculate_association(
             ]='pearson',
         thresholded: bool=False,
         training_interactions: list=None,
+        learning_method: str='ridge',
         subset_nconds: int=0,
         subset_percentage: float=0,
         subset_keep_conds: list=None,
@@ -145,13 +147,13 @@ def calculate_association(
         result_counts.iloc[:, :] = 1
 
     elif method == 'learn_correlation':
-        results = learn_correlation_weights(
+        results = weightedcorrelationmodel.learn_correlation_weights(
             data=experiment.measurements.transpose(),
             interactions=training_interactions,
-            learning_method='ridge',
+            learning_method=learning_method,
             correlation_method='pearson',
             train_split=0.7,
-            max_iterations=500 if method == 'neural' else 1000,
+            max_iterations=500 if method == 'neural' else 2000,
             verbose=True
         )
         # there is a lot more returned than just this

@@ -28,6 +28,7 @@ def associate(
     filter_cutoff=0.9,
     normalization="none",
     training_interactions=None,
+    learning_method='ridge',
     subset_nconds=None,
     subset_percentage=None,
     subset_keep_conds=None,
@@ -99,7 +100,8 @@ def associate(
         experiment = experiments.pop()
         experiment.pre_process(rm_low_conf_features=filter_cutoff, threshold=threshold, normalize=normalization, inplace=True)
         result = experiment.associate(metric=association_type, thresholded=thresholded,
-                                      training_interactions=training_interactions, subset_nconds=subset_nconds,
+                                      training_interactions=training_interactions,
+                                      learning_method=learning_method, subset_nconds=subset_nconds,
                                         subset_percentage=subset_percentage, subset_keep_conds=subset_keep_conds)
     elif len(experiments) == 2:
         cross_experiment = CrossExperiment(name="cross_experiment", experiments=experiments)
