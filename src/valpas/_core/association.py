@@ -42,6 +42,10 @@ def calculate_association(
         thresholded: bool=False,
         training_interactions: list=None,
         learning_method: str='ridge',
+        vae_protein_embedding_dim: int=64,
+        vae_sample_embedding_dim: int=64,
+        vae_learning_rate: float=1e-3,
+        vae_epochs: int=200,
         subset_nconds: int=0,
         subset_percentage: float=0,
         subset_keep_conds: list=None,
@@ -129,8 +133,10 @@ def calculate_association(
         # Train autoencoder
         model, dataset, training_history = autoencoder.train_proteomics_autoencoder(
             experiment.measurements.transpose(),
-            protein_embedding_dim=64,
-            epochs=20
+            protein_embedding_dim=vae_protein_embedding_dim,
+            sample_embedding_dim=vae_sample_embedding_dim,
+            learning_rate=vae_learning_rate,
+            epochs=vae_epochs
         )
 
         # Calculate similarity matrix

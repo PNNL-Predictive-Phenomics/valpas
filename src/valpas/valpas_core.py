@@ -29,6 +29,10 @@ def associate(
     normalization="none",
     training_interactions=None,
     learning_method='ridge',
+    vae_protein_embedding_dim=64,
+    vae_sample_embedding_dim=64,
+    vae_learning_rate=1e-3,
+    vae_epochs=200,
     subset_nconds=None,
     subset_percentage=None,
     subset_keep_conds=None,
@@ -101,7 +105,11 @@ def associate(
         experiment.pre_process(rm_low_conf_features=filter_cutoff, threshold=threshold, normalize=normalization, inplace=True)
         result = experiment.associate(metric=association_type, thresholded=thresholded,
                                       training_interactions=training_interactions,
-                                      learning_method=learning_method, subset_nconds=subset_nconds,
+                                      learning_method=learning_method,
+                                      vae_protein_embedding_dim=vae_protein_embedding_dim,
+                                      vae_sample_embedding_dim=vae_sample_embedding_dim,
+                                      vae_learning_rate=vae_learning_rate,
+                                      vae_epochs=vae_epochs, subset_nconds=subset_nconds,
                                         subset_percentage=subset_percentage, subset_keep_conds=subset_keep_conds)
     elif len(experiments) == 2:
         cross_experiment = CrossExperiment(name="cross_experiment", experiments=experiments)

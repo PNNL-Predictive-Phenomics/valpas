@@ -358,6 +358,9 @@ def train_proteomics_autoencoder(
 
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # We can enable this but for smaller models mps is a lot slower than cpu 
+        # <womp-womp>
+        #device = torch.device('mps' if torch.mps.is_available() else 'cpu')
 
     print(f"Training on device: {device}")
     print(f"Data shape: {data.shape}")

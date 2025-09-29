@@ -27,6 +27,7 @@ __all__ = [
     'utils',
     'visualization',
     'io',
+    'confidence_evaluation'
     'autoencoder',
     'AssociationResult',
     'Omic',
