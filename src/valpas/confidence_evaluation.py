@@ -182,7 +182,8 @@ def generate_negative_interactions(
 
     Args:
         positive_interactions: List of positive interaction pairs
-        negative_ratio: Ratio of negatives to positives to generate
+        negative_ratio: Ratio of negatives to positives to generate. If 0 then returns
+                        all possible pairs
         strategy: Strategy for generating negatives ('random_pairs', 'non_interacting')
 
     Returns:
@@ -224,6 +225,9 @@ def generate_negative_interactions(
         if len(all_possible_pairs) < n_negatives_needed:
             print(f"Warning: Only {len(all_possible_pairs)} possible negative pairs available, "
                   f"requested {n_negatives_needed}")
+            negative_interactions = all_possible_pairs
+        elif negative_ratio == 0:
+            print('Using all possible pairs as negatives')
             negative_interactions = all_possible_pairs
         else:
             negative_interactions = list(np.random.choice(
@@ -418,7 +422,7 @@ def calculate_edge_confidence(
             print("Calculating threshold-based confidence...")
 
         # Use the original function for threshold-based confidence
-        threshold_result = calculate_edge_confidence(
+        threshold_result = calculate_edge_confidence_threshold(
             edges_df=result_df.drop(columns=['confidence_model'] if 'confidence_model' in result_df.columns else []),
             positive_interactions=positive_interactions,
             negative_interactions=negative_interactions,
@@ -438,3 +442,257 @@ def calculate_edge_confidence(
             result_df[col] = threshold_result[col]
 
     return result_df, model
+
+def calculate_edge_confidence_threshold(
+    edges_df: pd.DataFrame,
+    positive_interactions: List[Tuple[str, str]],
+    negative_interactions: List[Tuple[str, str]] = None,
+    protein_col1: str = 'protein1',
+    protein_col2: str = 'protein2',
+    weight_col: str = 'weight',
+    confidence_metric: str = 'ppv',
+    additional_metrics: List[str] = None,
+    min_threshold_samples: int = 10,
+    negative_ratio: int = 2,
+    normalize_pairs: bool = False,
+    extrapolate_confidence: bool = False,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Calculate confidence scores for edges based on positive/negative interaction lists
+
+    Args:
+        edges_df: DataFrame with protein pairs and weights
+        positive_interactions: List of (protein1, protein2) tuples for known positives
+        negative_interactions: List of (protein1, protein2) tuples for known negatives
+        protein_col1: Column name for first protein
+        protein_col2: Column name for second protein
+        weight_col: Column name for edge weights
+        confidence_metric: Primary metric ('ppv', 'precision', 'recall', 'f1', 'accuracy', 'enrichment')
+        additional_metrics: List of additional metrics to calculate
+        min_threshold_samples: Minimum samples needed above threshold for reliable confidence
+        normalize_pairs: Whether to normalize protein pair order (A,B) = (B,A)
+        extrapolate_confidence: Whether to assign predictions max confidence if they're before confidence scores
+        verbose: Whether to print progress information
+
+    Returns:
+        DataFrame with added confidence scores and metrics
+    """
+
+    if additional_metrics is None:
+        additional_metrics = []
+
+    # Validate inputs
+    required_cols = [protein_col1, protein_col2, weight_col]
+    missing_cols = [col for col in required_cols if col not in edges_df.columns]
+    if missing_cols:
+        raise ValueError(f"Missing required columns: {missing_cols}")
+
+    if len(positive_interactions) == 0:
+        raise ValueError("Must provide at least one positive interaction")
+
+    # Create a copy to avoid modifying original
+    result_df = edges_df.copy()
+
+    # Normalize interaction pairs if requested
+    def normalize_pair(pair):
+        if normalize_pairs:
+            return tuple(sorted([pair[0], pair[1]]))
+        return pair
+
+    has_positives = positive_interactions is not None and len(positive_interactions) > 0
+    has_negatives = negative_interactions is not None and len(negative_interactions) > 0
+
+    # Generate negatives if only positives provided
+    if has_positives and not has_negatives:
+        if verbose:
+            print(f"Generating negative interactions from positive set...")
+
+        negative_interactions = generate_negative_interactions(
+            positive_interactions,
+            negative_ratio=negative_ratio,
+            strategy='random_pairs'
+        )
+        has_negatives = True
+
+        if verbose:
+            print(f"Generated {len(negative_interactions)} negative interactions")
+
+    # Create sets of known interactions for fast lookup
+    positive_set = set([normalize_pair(interaction) for interaction in positive_interactions])
+    negative_set = set([normalize_pair(interaction) for interaction in negative_interactions])
+
+    if verbose:
+        print(f"Processing {len(edges_df)} edges...")
+        print(f"Positive interactions: {len(positive_set)}")
+        print(f"Negative interactions: {len(negative_set)}")
+
+        # Check for overlap
+        overlap = positive_set.intersection(negative_set)
+        if overlap:
+            print(f"Warning: {len(overlap)} interactions appear in both positive and negative sets")
+
+    # Create normalized pairs for edges
+    edge_pairs = []
+    for _, row in result_df.iterrows():
+        pair = normalize_pair((row[protein_col1], row[protein_col2]))
+        edge_pairs.append(pair)
+
+    result_df['_normalized_pair'] = edge_pairs
+
+    # Identify which edges are in positive/negative sets
+    result_df['in_positive_set'] = result_df['_normalized_pair'].isin(positive_set)
+    result_df['in_negative_set'] = result_df['_normalized_pair'].isin(negative_set)
+    result_df['in_known_set'] = result_df['in_positive_set'] | result_df['in_negative_set']
+
+    if verbose:
+        n_edges_in_positive = result_df['in_positive_set'].sum()
+        n_edges_in_negative = result_df['in_negative_set'].sum()
+        n_edges_in_known = result_df['in_known_set'].sum()
+        print(f"Edges found in positive set: {n_edges_in_positive}")
+        print(f"Edges found in negative set: {n_edges_in_negative}")
+        print(f"Total edges with known labels: {n_edges_in_known}")
+        print(f"Edges without labels: {len(result_df) - n_edges_in_known}")
+
+    # Calculate confidence scores for each edge
+    confidence_scores = []
+    metric_scores = {metric: [] for metric in additional_metrics}
+    n_samples_above = []
+    n_positives_above = []
+    n_negatives_above = []
+
+    weights = result_df[weight_col].values
+
+    for i, threshold in enumerate(weights):
+        # Find edges with weight >= current threshold
+        above_threshold_mask = weights >= threshold
+        edges_above = result_df[above_threshold_mask]
+
+        # Count positives and negatives above threshold
+        positives_above = edges_above['in_positive_set'].sum()
+        negatives_above = edges_above['in_negative_set'].sum()
+        total_known_above = positives_above + negatives_above
+
+        n_samples_above.append(total_known_above)
+        n_positives_above.append(positives_above)
+        n_negatives_above.append(negatives_above)
+
+        # Calculate primary confidence metric
+        if total_known_above < min_threshold_samples:
+            # Not enough samples for reliable confidence
+            confidence = np.nan
+        else:
+            if confidence_metric in ['ppv', 'precision']:
+                # Positive Predictive Value / Precision
+                confidence = positives_above / total_known_above if total_known_above > 0 else 0.0
+
+            elif confidence_metric == 'enrichment':
+                # Enrichment over background rate
+                background_rate = len(positive_set) / (len(positive_set) + len(negative_set))
+                observed_rate = positives_above / total_known_above if total_known_above > 0 else 0.0
+                confidence = observed_rate / background_rate if background_rate > 0 else 0.0
+
+            elif confidence_metric == 'recall':
+                # Recall (sensitivity)
+                confidence = positives_above / len(positive_set) if len(positive_set) > 0 else 0.0
+
+            elif confidence_metric == 'f1':
+                # F1 score
+                precision = positives_above / total_known_above if total_known_above > 0 else 0.0
+                recall = positives_above / len(positive_set) if len(positive_set) > 0 else 0.0
+                confidence = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+
+            elif confidence_metric == 'accuracy':
+                # Accuracy
+                total_possible = len(positive_set) + len(negative_set)
+                true_positives = positives_above
+                true_negatives = len(negative_set) - negatives_above
+                confidence = (true_positives + true_negatives) / total_possible if total_possible > 0 else 0.0
+
+            else:
+                raise ValueError(f"Unknown confidence metric: {confidence_metric}")
+
+        confidence_scores.append(confidence)
+
+        # Calculate additional metrics
+        for metric in additional_metrics:
+            if total_known_above < min_threshold_samples:
+                metric_scores[metric].append(np.nan)
+                continue
+
+            if metric == 'ppv' or metric == 'precision':
+                score = positives_above / total_known_above if total_known_above > 0 else 0.0
+            elif metric == 'recall' or metric == 'sensitivity':
+                score = positives_above / len(positive_set) if len(positive_set) > 0 else 0.0
+            elif metric == 'specificity':
+                score = (len(negative_set) - negatives_above) / len(negative_set) if len(negative_set) > 0 else 0.0
+            elif metric == 'f1':
+                precision = positives_above / total_known_above if total_known_above > 0 else 0.0
+                recall = positives_above / len(positive_set) if len(positive_set) > 0 else 0.0
+                score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+            elif metric == 'accuracy':
+                total_possible = len(positive_set) + len(negative_set)
+                true_positives = positives_above
+                true_negatives = len(negative_set) - negatives_above
+                score = (true_positives + true_negatives) / total_possible if total_possible > 0 else 0.0
+            elif metric == 'enrichment':
+                background_rate = len(positive_set) / (len(positive_set) + len(negative_set))
+                observed_rate = positives_above / total_known_above if total_known_above > 0 else 0.0
+                score = observed_rate / background_rate if background_rate > 0 else 0.0
+            elif metric == 'lift':
+                # Lift = (true positive rate) / (positive rate)
+                tpr = positives_above / len(positive_set) if len(positive_set) > 0 else 0.0
+                positive_rate = len(positive_set) / (len(positive_set) + len(negative_set))
+                score = tpr / positive_rate if positive_rate > 0 else 0.0
+            elif metric == 'odds_ratio':
+                # Odds ratio
+                tp = positives_above
+                fp = negatives_above
+                fn = len(positive_set) - positives_above
+                tn = len(negative_set) - negatives_above
+
+                if tp * tn == 0 or fp * fn == 0:
+                    score = np.nan  # Undefined odds ratio
+                else:
+                    score = (tp * tn) / (fp * fn)
+            else:
+                raise ValueError(f"Unknown additional metric: {metric}")
+
+            metric_scores[metric].append(score)
+
+    # Add confidence and additional metrics to dataframe
+    #result_df[f'confidence_{confidence_metric}'] = confidence_scores
+    result_df['confidence'] = confidence_scores
+
+    # we treat everything above the confidence line as having
+    # maximum confidence - a reasonable, though debatable strategy
+    if extrapolate_confidence:
+        if verbose:
+            print("Extrapolating maximum confidence to unassigned values")
+        max_conf = max(result_df['confidence'].fillna(0))
+        result_df['confidence'] = result_df['confidence'].fillna(max_conf)
+
+    for metric in additional_metrics:
+        result_df[f'{metric}_score'] = metric_scores[metric]
+
+    # Add supporting information
+    result_df['n_samples_above_threshold'] = n_samples_above
+    result_df['n_positives_above_threshold'] = n_positives_above
+    result_df['n_negatives_above_threshold'] = n_negatives_above
+
+    # Clean up temporary columns
+    result_df = result_df.drop(['_normalized_pair',], axis=1)
+
+    if verbose:
+        valid_confidences = ~np.isnan(confidence_scores)
+        if np.any(valid_confidences):
+            print(f"\nConfidence Statistics ({confidence_metric}):")
+            print(f"  Valid confidence scores: {np.sum(valid_confidences)}")
+            print(f"  Mean confidence: {np.nanmean(confidence_scores):.4f}")
+            print(f"  Median confidence: {np.nanmedian(confidence_scores):.4f}")
+            print(f"  Min confidence: {np.nanmin(confidence_scores):.4f}")
+            print(f"  Max confidence: {np.nanmax(confidence_scores):.4f}")
+        else:
+            print("Warning: No valid confidence scores calculated")
+
+    return result_df
