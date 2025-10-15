@@ -21,7 +21,7 @@ from valpas.utils.b_spline import mutual_information
 from valpas import AssociationResult
 from valpas._core import autoencoder
 from valpas._core import weightedcorrelationmodel
-
+from valpas._core import clr_transform
 
 if TYPE_CHECKING:
     from valpas._typing import(
@@ -41,6 +41,7 @@ def calculate_association(
             ]='pearson',
         thresholded: bool=False,
         training_interactions: list=None,
+        transform_clr: bool=False,
         learning_method: str='ridge',
         vae_protein_embedding_dim: int=64,
         vae_sample_embedding_dim: int=64,
@@ -80,6 +81,9 @@ def calculate_association(
     training_interactions : list, default = None
         Optional argument used for training (currently only learn_correlation)
         which should be a list of tuples that represent known interactions.
+    transform_clr : bool, default = False
+        If True process final similarity matrix (from specified method) using
+        the mean of Z-scores from row and column like the CLR method.
     subset_nconds : int, default = None
     subset_percentage : float, default = None
     subset_keep_conds : list, default = None
@@ -220,9 +224,9 @@ def calculate_association(
     else:
         raise ValueError(f"Association type {method} not supported!")
 
-    # Add in: z-score calculation for results_values Matrix
-    #        this can be an option, but would make the different
-    #        metrics more comparable
+    # Tranform similarity matrix using the CLR-style Zscore transform
+    if transform_clr:
+        result_values = clr_transform.clr_transform(result_values)
 
     # getting the counts of how many values were considered in the
     # calculation of each association value
