@@ -1,24 +1,120 @@
-# ValPAS
+## ValPAS
 
 ## Dependencies
 
 ### Creating the conda environment.
-We recommend setting up a conda environment. See [https://docs.conda.io/en/latest/](https://docs.conda.io/en/latest/) or [https://github.com/conda-forge/miniforge](https://github.com/conda-forge/miniforge) for more information on how to setup conda. Once conda is installed a conda environment containing all the base dependencies (`python` & `jupyter`) can be automatically setup by invoking the following command from the root folder of this repository.
-```sh
-conda env create --file environment.yml
-```
-This will create a conda environment with the name `valpas`. In case conda returns a `CondaValueError: prefix already exists: [...]` error, this is most likely due to the fact that the environment `valpas` already exists. Either delete the environment via `conda env remove -n valpas` and reinstall or define a different environment name during setup (this can be done with the `-n` flag).
+Valpas Environment Setup
 
-### Installing the valpas package
-After checking out the git repository via `git clone git@github.com:PNNL-Predictive-Phenomics/valpas.git` navigate to the root folder of the repository. Make sure that the previously installed conda environment is active. This can be achieved via:
-```sh
-conda activate valpas
+This project requires Python and several data science libraries. Follow the instructions below to set up your development environment.
+
+## Prerequisites
+
+- Python 3.7 or higher
+- pip (Python package installer)
+
+## Installation
+
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd <repository-name>
 ```
-Once the environment is active run pip to install the valpas package from the local git copy.
-```sh
-pip install -e .
+
+### 2. Create Virtual Environment
+```bash
+python -m venv valpas-env
 ```
-This will install the python package in "editable" mode, i.e. if changes to the package code are made, the package will not have to be reinstalled for those changes to go into effect.
+
+### 3. Activate Virtual Environment
+
+**Windows:**
+```bash
+valpas-env\Scripts\activate
+```
+
+**macOS/Linux:**
+```bash
+source valpas-env/bin/activate
+```
+
+### 4. Install Dependencies
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+## Quick Setup (One Command)
+
+**macOS/Linux:**
+```bash
+python -m venv valpas-env && source valpas-env/bin/activate && pip install --upgrade pip && pip install -r requirements.txt
+```
+
+**Windows:**
+```bash
+python -m venv valpas-env && valpas-env\Scripts\activate && pip install --upgrade pip && pip install -r requirements.txt
+```
+
+## Usage
+
+### Starting the Environment
+Always activate the virtual environment before working on the project:
+
+**Windows:**
+```bash
+valpas-env\Scripts\activate
+```
+
+**macOS/Linux:**
+```bash
+source valpas-env/bin/activate
+```
+
+### Running Jupyter
+Once the environment is activated, start Jupyter:
+```bash
+jupyter notebook
+```
+or
+```bash
+jupyter lab
+```
+
+### Deactivating the Environment
+When you're done working:
+```bash
+deactivate
+```
+
+## Dependencies
+
+The project uses the following main libraries:
+- **Jupyter**: Interactive notebook environment
+- **PyTorch**: Deep learning framework
+- **Scikit-learn**: Machine learning library
+- **Matplotlib**: Plotting library
+- **Seaborn**: Statistical data visualization
+
+## Troubleshooting
+
+### Python Version Issues
+If you need a specific Python version, create the environment with:
+```bash
+python3.8 -m venv valpas-env  # Replace 3.8 with your desired version
+```
+
+### PyTorch GPU Support
+For CUDA-enabled PyTorch installation, visit [pytorch.org](https://pytorch.org/get-started/locally/) and replace the `torch` line in `requirements.txt` with the appropriate command for your system.
+
+### Permission Issues
+If you encounter permission errors, try:
+```bash
+pip install --user -r requirements.txt
+```
+
+## Development
+
+Remember to activate your virtual environment (`source valpas-env/bin/activate`) every time you work on this project.
 
 ## Running the notebook
 ### Within a browser

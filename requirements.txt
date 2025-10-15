@@ -1,0 +1,5 @@
+jupyter
+torch
+scikit-learn
+matplotlib
+seaborn
