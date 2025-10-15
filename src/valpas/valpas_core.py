@@ -28,6 +28,7 @@ def associate(
     filter_cutoff=0.9,
     normalization="none",
     training_interactions=None,
+    transform_clr=False,
     learning_method='ridge',
     vae_protein_embedding_dim=64,
     vae_sample_embedding_dim=64,
@@ -105,6 +106,7 @@ def associate(
         experiment.pre_process(rm_low_conf_features=filter_cutoff, threshold=threshold, normalize=normalization, inplace=True)
         result = experiment.associate(metric=association_type, thresholded=thresholded,
                                       training_interactions=training_interactions,
+                                      transform_clr=transform_clr,
                                       learning_method=learning_method,
                                       vae_protein_embedding_dim=vae_protein_embedding_dim,
                                       vae_sample_embedding_dim=vae_sample_embedding_dim,
