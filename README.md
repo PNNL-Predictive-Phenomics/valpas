@@ -118,9 +118,9 @@ Remember to activate your virtual environment (`source valpas-env/bin/activate`)
 
 ## Running the notebook
 ### Within a browser
-To start the jupyter server and initialize the notebook the conda environment has to be activated first. This can be done by invoking from within the root of the git-repository via:
+To start the jupyter server and initialize the notebook the virtual environment has to be activated first. This can be done by invoking from within the root of the git-repository via:
 ```sh
-conda activate valpas
+source valpas-env/bin/activate
 ```
 Next the jupyter server has to be booted up. This is done via the command:
 ```sh
@@ -129,4 +129,4 @@ jupyter notebook
 The command will also automatically open a browser window and redirect to `http://localhost:8888/` from where the actual jupyter notebook can be opened.
 
 ### Within VSCode
-Running the notebook from within VSCode requires the installation of the [Jupyter extension]((https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter)). For more on VSCodes notebook functionality also see [here](https://code.visualstudio.com/docs/datascience/jupyter-notebooks). After opening the git repository as folder in VSCode and opening the jupyter notebook, the previously installed conda environment should be a selectable kernel option. If it is not available a restart of VSCode might help.
+Running the notebook from within VSCode requires the installation of the [Jupyter extension]((https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter)). For more on VSCodes notebook functionality also see [here](https://code.visualstudio.com/docs/datascience/jupyter-notebooks). After opening the git repository as folder in VSCode and opening the jupyter notebook, the previously installed virtual environment should be a selectable kernel option. If it is not available a restart of VSCode might help.
