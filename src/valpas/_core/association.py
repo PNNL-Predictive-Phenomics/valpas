@@ -79,9 +79,12 @@ def calculate_association(
     transform_clr : bool, default = False
         If True process final similarity matrix (from specified method) using
         the mean of Z-scores from row and column like the CLR method.
-    subset_nconds : int, default = None
-    subset_percentage : float, default = None
-    subset_keep_conds : list, default = None
+    subset_args : dict, default = {}
+        Keyword arguments to pass to subsetting function
+    autoencoder_args : dict, default = {}
+        Keyword arguments to pass to autoencoder function
+    learncorr_args : dict, default = {}
+        Keyword arguments to pass to learn correlation function 
 
     Returns
     -------
