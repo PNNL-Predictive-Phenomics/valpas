@@ -110,6 +110,14 @@ def main():
              "generated will be piped to stdout."
     )
     p_associate_shared_args.add_argument(
+        "-ti", "--training_interactions",
+        dest='training_interactions',
+        help="Optional argument to specify a set of training interactions "
+             "to be used for learning correlation weights and/or confidence "
+             "calculation. The format is [id1]\t[id2], where the ids are "
+             "valid protein/gene identifiers used in the input data matrices."
+    )
+    p_associate_shared_args.add_argument(
         '-O', '--overwrite_output',
         dest='OVERWRITE_OUTPUT',
         action='store_true',
