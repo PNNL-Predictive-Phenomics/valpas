@@ -497,6 +497,8 @@ class EmpiricalWeightLearner:
                 if idx1 != -1 and idx2 != -1:
                     val1, val2 = data[idx1, condition_idx], data[idx2, condition_idx]
                     if not (np.isnan(val1) or np.isnan(val2)):
+                        # Needs to be something like:
+                        # condition_correlations.append(abs(1-(val1-val2)))
                         condition_correlations.append(abs(val1 - val2))  # Inverse of difference
 
             if condition_correlations:
