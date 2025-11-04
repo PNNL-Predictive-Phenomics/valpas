@@ -335,7 +335,8 @@ def train_proteomics_autoencoder(
     mask_probability: float = 0.15,
     scaling_method: str = 'robust',
     device: Optional[torch.device] = None,
-    validation_split: float = 0.2
+    validation_split: float = 0.2,
+    **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
     Train the proteomics autoencoder
@@ -358,7 +359,7 @@ def train_proteomics_autoencoder(
 
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # We can enable this but for smaller models mps is a lot slower than cpu 
+        # We can enable this but for smaller models mps is a lot slower than cpu
         # <womp-womp>
         #device = torch.device('mps' if torch.mps.is_available() else 'cpu')
 

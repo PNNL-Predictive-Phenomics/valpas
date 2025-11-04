@@ -90,14 +90,9 @@ class Experiment():
             thresholded: bool=False,
             training_interactions: list=None,
             transform_clr: bool=False,
-            learning_method: str='ridge',
-            vae_protein_embedding_dim: int=64,
-            vae_sample_embedding_dim: int=64,
-            vae_learning_rate: float=1e-3,
-            vae_epochs: int=200,
-            subset_nconds: int=None,
-            subset_percentage: float=None,
-            subset_keep_conds: list=None,
+            learncorr_args: dict={},
+            autoencoder_args: dict={},
+            subset_args: dict={}
             ) -> AssociationResult:
         """
         Function that calculates association values for the Experiment.
@@ -115,6 +110,12 @@ class Experiment():
         thresholded : bool, default=False
             Defines if the association metric requires a thresholded
             `measurements` table.
+        learncorr_args: dict={}
+             Keyword args for learn correlation
+        autoencoder_args: dict={}
+            Keyword args for autoencoder
+        subset_args: dict={}
+            Keyword args for subsetting
 
         Returns
         -------
@@ -130,14 +131,9 @@ class Experiment():
             thresholded=thresholded,
             training_interactions=training_interactions,
             transform_clr=transform_clr,
-            learning_method=learning_method,
-            vae_protein_embedding_dim=vae_protein_embedding_dim,
-            vae_sample_embedding_dim=vae_sample_embedding_dim,
-            vae_learning_rate=vae_learning_rate,
-            vae_epochs=vae_epochs,
-            subset_nconds=subset_nconds,
-            subset_percentage=subset_percentage,
-            subset_keep_conds=subset_keep_conds,
+            learncorr_args=learncorr_args,
+            autoencoder_args=autoencoder_args,
+            subset_args=subset_args
             )
 
 class SingleExperiment(Experiment):
@@ -497,7 +493,8 @@ class SingleExperiment(Experiment):
                 percentage: float=0.5,
                 keep_conds: list=[],
                 inplace: bool=False,
-                random_state: int=0
+                random_state: int=0,
+                **kwargs
                 ) -> SingleExperiment:
         """
         Returns a copy of the experiment with a subset of conditions retained.

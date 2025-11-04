@@ -42,14 +42,9 @@ def calculate_association(
         thresholded: bool=False,
         training_interactions: list=None,
         transform_clr: bool=False,
-        learning_method: str='ridge',
-        vae_protein_embedding_dim: int=64,
-        vae_sample_embedding_dim: int=64,
-        vae_learning_rate: float=1e-3,
-        vae_epochs: int=200,
-        subset_nconds: int=0,
-        subset_percentage: float=0,
-        subset_keep_conds: list=None,
+        learncorr_args: dict={},
+        autoencoder_args: dict={},
+        subset_args: dict={},
     ) -> AssociationResult:
     """
     Universal wrapper function that can be called to calculate any of
@@ -101,9 +96,7 @@ def calculate_association(
 
     # Subset the input measurements first?
     if subset_nconds or subset_percentage or subset_keep_conds:
-        experiment = experiment.subset_by_conditions(nconds=subset_nconds,
-                                                    percentage=subset_percentage,
-                                                    keep_conds=subset_keep_conds)
+        experiment = experiment.subset_by_conditions(**subset_args)
 
     if method in ['pearson', 'spearman']:
         result_values = experiment.measurements.corr(method=method)
@@ -137,11 +130,7 @@ def calculate_association(
         # Train autoencoder
         model, dataset, training_history = autoencoder.train_proteomics_autoencoder(
             experiment.measurements.transpose(),
-            protein_embedding_dim=vae_protein_embedding_dim,
-            sample_embedding_dim=vae_sample_embedding_dim,
-            learning_rate=vae_learning_rate,
-            epochs=vae_epochs
-        )
+            **autoencoder_args)
 
         # Calculate similarity matrix
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -160,11 +149,8 @@ def calculate_association(
         results = weightedcorrelationmodel.learn_correlation_weights(
             data=experiment.measurements.transpose(),
             interactions=training_interactions,
-            learning_method=learning_method,
-            correlation_method='pearson',
-            train_split=0.7,
-            max_iterations=500 if method == 'neural' else 2000,
             verbose=True
+            **learncorr_args
         )
         # there is a lot more returned than just this
         # TODO: figure out how to handle that returned information

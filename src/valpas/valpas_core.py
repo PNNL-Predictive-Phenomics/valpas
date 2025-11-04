@@ -29,14 +29,27 @@ def associate(
     normalization="none",
     training_interactions=None,
     transform_clr=False,
-    learning_method='ridge',
-    vae_protein_embedding_dim=64,
-    vae_sample_embedding_dim=64,
-    vae_learning_rate=1e-3,
-    vae_epochs=200,
-    subset_nconds=None,
-    subset_percentage=None,
-    subset_keep_conds=None,
+    learncorr_args: dict={
+        learning_method:'ridge',
+        missing_strategy:'median'
+    },
+    autoencoder_args: dict={
+        protein_embedding_dim:128,
+        sample_embedding_dim:64,
+        hidden_dims:[256, 128],
+        epochs:200,
+        learning_rate:1e-3,
+        mask_probability:0.15,
+        scaling_method:'robust',
+        validation_split:0.2
+    },
+    subset_args: dict={
+        nconds:None,
+        percentage:0.5,
+        keep_conds:[],
+        inplace:False,
+        random_state:0,
+    },
     overwrite_output=False,
     outfile=sys.stdout,
 ):
@@ -54,9 +67,14 @@ def associate(
         output_type (str): Output format ('sorted_list', 'correlation_matrix').
         filter_cutoff (float): Cutoff for filtering missing values.
         normalization (str): Normalization mode ('pre', 'post', 'none').
-        subset_nconds (int): subset to random nconds
-        subset_percentage (float): subset to random percentage of nconds
-        subset_keep_conds (list): subset keeping these conditions
+        transform_clr
+        training_interactions
+        subset_args : dict, default = {}
+            Keyword arguments to pass to subsetting function
+        autoencoder_args : dict, default = {}
+            Keyword arguments to pass to autoencoder function
+        learncorr_args : dict, default = {}
+            Keyword arguments to pass to learn correlation function
         overwrite_output (bool): Whether to overwrite the existing output.
         outfile (str or Path): Path for saving the output file or `sys.stdout`.
 
@@ -107,12 +125,9 @@ def associate(
         result = experiment.associate(metric=association_type, thresholded=thresholded,
                                       training_interactions=training_interactions,
                                       transform_clr=transform_clr,
-                                      learning_method=learning_method,
-                                      vae_protein_embedding_dim=vae_protein_embedding_dim,
-                                      vae_sample_embedding_dim=vae_sample_embedding_dim,
-                                      vae_learning_rate=vae_learning_rate,
-                                      vae_epochs=vae_epochs, subset_nconds=subset_nconds,
-                                        subset_percentage=subset_percentage, subset_keep_conds=subset_keep_conds)
+                                      subset_args=subset_args,
+                                      autoencoder_args=autoencoder_args,
+                                      learncorr_args=learncorr_args)
     elif len(experiments) == 2:
         cross_experiment = CrossExperiment(name="cross_experiment", experiments=experiments)
         if normalization == "pre":
