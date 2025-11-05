@@ -33,7 +33,7 @@ def associate(
     calculate_confidence=False,
     transform_clr=False,
     learncorr_args: dict={
-        'learning_method':'ridge',
+        'learning_method':'empirical',
         'missing_strategy':'median'
     },
     autoencoder_args: dict={

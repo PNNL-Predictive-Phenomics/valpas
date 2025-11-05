@@ -17,137 +17,8 @@ from scipy.optimize import minimize
 import warnings
 warnings.filterwarnings('ignore')
 
-class MissingDataAnalyzer:
-    """Analyze and handle missing data patterns in proteomics datasets"""
-
-    @staticmethod
-    def analyze_patterns(data: pd.DataFrame) -> Dict:
-        """Analyze missing data patterns"""
-        total_cells = data.size
-        total_missing = data.isnull().sum().sum()
-        missing_percentage = (total_missing / total_cells) * 100
-
-        # Missing by row (proteins)
-        missing_by_protein = data.isnull().sum(axis=1)
-        proteins_with_missing = (missing_by_protein > 0).sum()
-
-        # Missing by column (conditions)
-        missing_by_condition = data.isnull().sum(axis=0)
-        conditions_with_missing = (missing_by_condition > 0).sum()
-
-        # Determine missing pattern
-        if total_missing == 0:
-            pattern = "complete"
-        elif proteins_with_missing / len(data) > 0.5:
-            pattern = "widespread_across_proteins"
-        elif conditions_with_missing / len(data.columns) > 0.5:
-            pattern = "widespread_across_conditions"
-        else:
-            pattern = "scattered"
-
-        return {
-            'total_missing': total_missing,
-            'total_cells': total_cells,
-            'missing_percentage': missing_percentage,
-            'proteins_with_missing': proteins_with_missing,
-            'conditions_with_missing': conditions_with_missing,
-            'missing_by_protein': missing_by_protein,
-            'missing_by_condition': missing_by_condition,
-            'missing_pattern': pattern,
-            'max_missing_per_protein': missing_by_protein.max(),
-            'max_missing_per_condition': missing_by_condition.max()
-        }
-
-    @staticmethod
-    def handle_missing_values(data: pd.DataFrame, strategy: str = 'median', **kwargs) -> Tuple[pd.DataFrame, Dict]:
-        """Handle missing values using specified strategy"""
-        missing_info = MissingDataAnalyzer.analyze_patterns(data)
-
-        if missing_info['total_missing'] == 0:
-            return data.copy(), missing_info
-
-        processed_data = data.copy()
-
-        if strategy == 'drop':
-            row_threshold = kwargs.get('row_threshold', 0.5)
-            col_threshold = kwargs.get('col_threshold', 0.8)
-
-            # Drop columns with too many missing values
-            cols_to_drop = []
-            for col in processed_data.columns:
-                missing_frac = processed_data[col].isnull().sum() / len(processed_data)
-                if missing_frac > col_threshold:
-                    cols_to_drop.append(col)
-
-            if cols_to_drop:
-                processed_data = processed_data.drop(columns=cols_to_drop)
-
-            # Drop rows with too many missing values
-            rows_to_drop = []
-            for idx in processed_data.index:
-                missing_frac = processed_data.loc[idx].isnull().sum() / len(processed_data.columns)
-                if missing_frac > row_threshold:
-                    rows_to_drop.append(idx)
-
-            if rows_to_drop:
-                processed_data = processed_data.drop(index=rows_to_drop)
-
-            processed_data = processed_data.dropna()
-
-        elif strategy == 'mean':
-            imputer = SimpleImputer(strategy='mean')
-            processed_data.iloc[:, :] = imputer.fit_transform(processed_data)
-
-        elif strategy == 'median':
-            imputer = SimpleImputer(strategy='median')
-            processed_data.iloc[:, :] = imputer.fit_transform(processed_data)
-
-        elif strategy == 'min':
-            global_min = processed_data.min().min()
-            fill_value = kwargs.get('fill_value', global_min * 0.1)
-            processed_data = processed_data.fillna(fill_value)
-
-        elif strategy == 'knn':
-            n_neighbors = kwargs.get('n_neighbors', 5)
-            imputer = KNNImputer(n_neighbors=n_neighbors)
-            processed_data.iloc[:, :] = imputer.fit_transform(processed_data)
-
-        elif strategy == 'iterative':
-            raise ValueError(f"Strategy 'iterative' currently not supported")
-            #max_iter = kwargs.get('max_iter', 10)
-            #random_state = kwargs.get('random_state', 42)
-            #imputer = IterativeImputer(max_iter=max_iter, random_state=random_state)
-            #processed_data.iloc[:, :] = imputer.fit_transform(processed_data)
-
-        elif strategy == 'protein_specific':
-            for protein in processed_data.index:
-                protein_data = processed_data.loc[protein]
-                if protein_data.isnull().any():
-                    fill_value = protein_data.median()
-                    if pd.isna(fill_value):
-                        fill_value = processed_data.median(axis=1).median()
-                    processed_data.loc[protein] = protein_data.fillna(fill_value)
-
-        elif strategy == 'condition_specific':
-            for condition in processed_data.columns:
-                condition_data = processed_data[condition]
-                if condition_data.isnull().any():
-                    fill_value = condition_data.median()
-                    if pd.isna(fill_value):
-                        fill_value = processed_data.median(axis=0).median()
-                    processed_data[condition] = condition_data.fillna(fill_value)
-
-        else:
-            raise ValueError(f"Unknown strategy: {strategy}")
-
-        final_missing_info = MissingDataAnalyzer.analyze_patterns(processed_data)
-        missing_info['after_processing'] = final_missing_info
-        missing_info['strategy_used'] = strategy
-
-        return processed_data, missing_info
-
 class WeightedCorrelationCalculator:
-    """Calculate weighted correlations with missing value support"""
+    """Calculate weighted correlations """
 
     @staticmethod
     # given a set of weights that are all 1 this method returns 'correlation'
@@ -622,10 +493,7 @@ class PerformanceValidator:
 class CorrelationWeightLearner:
     """Main class for learning correlation weights"""
 
-    def __init__(self, missing_strategy: str = 'median', missing_params: Dict = None,
-                 correlation_method: str = 'pearson', correlation_missing_handling: str = 'pairwise'):
-        self.missing_strategy = missing_strategy
-        self.missing_params = missing_params or {}
+    def __init__(self, correlation_method: str = 'pearson', correlation_missing_handling: str = 'pairwise'):
         self.correlation_method = correlation_method
         self.correlation_missing_handling = correlation_missing_handling
 
@@ -662,14 +530,6 @@ class CorrelationWeightLearner:
             print(f"Original data shape: {data.shape}")
             print(f"Learning method: {learning_method}")
 
-        # Handle missing values
-        # NOTE: seems to introduce very large values into the matrix,
-        #       which messes with correlation (and maybe other results?)
-        processed_data, missing_info = MissingDataAnalyzer.handle_missing_values(
-            data, strategy=self.missing_strategy, **self.missing_params
-        )
-
-        # does this fix it?
         processed_data = data
 
         if verbose:
@@ -880,7 +740,6 @@ class CorrelationWeightLearner:
             'training_history': training_history,
             'train_interactions': train_interactions,
             'val_interactions': val_interactions,
-            'missing_data_info': missing_info,
             'removed_proteins': removed_proteins,
             'original_data_shape': data.shape,
             'processed_data_shape': processed_data.shape,
@@ -888,8 +747,6 @@ class CorrelationWeightLearner:
                 'learning_method': learning_method,
                 'correlation_method': self.correlation_method,
                 'correlation_missing_handling': self.correlation_missing_handling,
-                'missing_strategy': self.missing_strategy,
-                'missing_params': self.missing_params,
                 'train_split': train_split,
                 'n_random_negatives': n_random_negatives,
                 'neural_config': neural_config if learning_method == 'neural' else None,
@@ -900,8 +757,7 @@ class CorrelationWeightLearner:
 
 # Main function wrapper for easy use
 def learn_correlation_weights(data: pd.DataFrame, interactions: List[Tuple[str, str]],
-                            learning_method: str = 'ridge', missing_strategy: str = 'median',
-                            **kwargs) -> Dict:
+                            learning_method: str = 'ridge', **kwargs) -> Dict:
     """
     Main function to learn correlation weights
 
@@ -909,15 +765,12 @@ def learn_correlation_weights(data: pd.DataFrame, interactions: List[Tuple[str, 
         data: DataFrame with proteins as rows, conditions as columns
         interactions: List of (protein1, protein2) known interactions
         learning_method: 'ridge', 'neural', or 'empirical'
-        missing_strategy: Strategy for handling missing values
         **kwargs: Additional parameters
 
     Returns:
         Dictionary with complete results
     """
     learner = CorrelationWeightLearner(
-        missing_strategy=missing_strategy,
-        missing_params=kwargs.get('missing_params', {}),
         correlation_method=kwargs.get('correlation_method', 'pearson'),
         correlation_missing_handling=kwargs.get('correlation_missing_handling', 'pairwise')
     )
