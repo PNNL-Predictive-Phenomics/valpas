@@ -37,7 +37,7 @@ def calculate_association(
             'jaccard_similarity', 'jaccard_distance', 'jaccard_index',
             'mutual_information',
             'cosine_similarity', 'cosine_distance', 'autoencoder',
-            'load_autoencoder', 'load_sim', 'learn_correlation'
+            'load_sim', 'learn_correlation'
             ]='pearson',
         thresholded: bool=False,
         training_interactions: list=None,
@@ -60,7 +60,7 @@ def calculate_association(
     association : {'pearson', 'spearman', 'jaccard_similarity', \
         'jaccard_distance', 'jaccard_index', 'mutual_information', \
         'cosine_similarity', 'cosine_distance', 'autoencoder',
-        'load_autoencoder', 'load_sim', 'learn_correlation'}, default = 'pearson'
+        'load_sim', 'learn_correlation'}, default = 'pearson'
         Defines the type of association measure that should be
         calculated.
     filter_cutoff : float, default = 0.9
@@ -159,45 +159,6 @@ def calculate_association(
         # TODO: figure out how to handle that returned information
         result_values = results['weighted_correlation_matrix']
 
-    elif method == 'load_autoencoder':
-        #Kludge to allow development using an already trained model, since this
-        #       takes a loooong time.
-        # This anticipates that there is a folder called 'protein_analysis' to
-        #      load the model from and will throw an error if it's not there.
-        # Train autoencoder
-        #model, dataset, training_history = autoencoder.train_proteomics_autoencoder(
-        #    experiment.measurements,
-        #    protein_embedding_dim=64,
-        #    epochs=100
-        #)
-        output_dir = "proteomics_analysis"
-        if not os.path.exists(output_dir):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT),
-                            output_dir)
-
-        model_path = os.path.join(output_dir, "autoencoder_model.pth")
-        model_artifacts = autoencoder.load_proteomics_autoencoder(model_path)
-
-        # Create dataset
-        # FIXME: this may not always work - if the scaling method is different, e.g.
-        dataset = autoencoder.ProteomicsDataset(
-            experiment.measurements,
-            mask_probability=0.15,
-            scaling_method='robust'
-        )
-
-        # Calculate similarity matrix
-        result_values = autoencoder.calculate_protein_similarity_matrix(
-                                    model_artifacts['model'],
-                                    dataset,
-                                    model_artifacts['device'])
-        result_counts = result_values.copy(deep=True)
-
-        # it's hard to figure out how to do this without this
-        #      information as it could be any value really?
-        # So this is an attempt to make it non-zero
-        result_counts.iloc[:, :] = 1
-
     elif method == "load_sim":
         # allow loading of a similarity matrix as a csv
         output_dir = "proteomics_analysis"
@@ -219,7 +180,7 @@ def calculate_association(
 
     # getting the counts of how many values were considered in the
     # calculation of each association value
-    if method not in ["load_sim", "load_autoencoder", "autoencoder"]:
+    if method not in ["load_sim", "autoencoder"]:
         if thresholded:
             result_counts = experiment.measurements.corr(
                 method=count_vals_in_thresholded_association
