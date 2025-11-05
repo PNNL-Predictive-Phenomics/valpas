@@ -14,6 +14,8 @@ from valpas.io import import_asssociation_matrix, import_experiments
 from valpas._core.processing import combine_results
 from valpas.visualization.heatmap import create_fig
 from valpas.utils.validator import validate_input
+from valpas.confidence_evaluation import calculate_edge_confidence_default
+from ._core.processing import beautify_series
 
 
 def associate(
@@ -28,6 +30,7 @@ def associate(
     filter_cutoff=0.9,
     normalization="none",
     training_interactions=None,
+    calculate_confidence=False,
     transform_clr=False,
     learncorr_args: dict={
         'learning_method':'ridge',
@@ -69,6 +72,9 @@ def associate(
         normalization (str): Normalization mode ('pre', 'post', 'none').
         transform_clr
         training_interactions
+        calculate_confidence (bool): if True and training_interactions are
+            provided then use training_interactions to calculate confidence
+            values for predictions
         subset_args : dict, default = {}
             Keyword arguments to pass to subsetting function
         autoencoder_args : dict, default = {}
@@ -148,6 +154,19 @@ def associate(
             raise ValueError(f"Normalization mode '{normalization}' not supported.")
     else:
         raise NotImplementedError("Cross-experiment associations for more than 2 experiments not supported.")
+
+    if calculate_confidence and training_interactions:
+        # for now confidence evaluation operates on a list of edges
+        edgelist = result.as_list()
+        confidencelist = calculate_edge_confidence_default(edgelist,
+                        positive_interactions=training_interactions,
+                        normalize_pairs=False, negative_ratio=0, min_threshold_samples=1,
+                        extrapolate_confidence=True)
+
+        # this will overwrite output no problems/no check
+        # add support for overwrite checking
+        confidencelist.to_csv(outfile, index=False)
+        return result
 
     result.save(
         file_handle=outfile,

@@ -244,216 +244,30 @@ def generate_negative_interactions(
 
     return negative_interactions
 
+# helper function to use column 1 as protein_col1,
+#                        column 2 as protein_col2,
+#                        column 3 as weight
+# As input from a result object (since we don't know
+#    a priori what the column names are)
+def calculate_edge_confidence_default(edges_df, positive_interactions, **kwargs):
+    colnames=edges_df.columns
+    kwargs['protein_col1'] = colnames[0]
+    kwargs['protein_col2'] = colnames[1]
+    kwargs['weight_col'] = colnames[2]
+    return(calculate_edge_confidence(edges_df, positive_interactions, **kwargs))
+
 def calculate_edge_confidence(
-    edges_df: pd.DataFrame,
-    positive_interactions: Optional[List[Tuple[str, str]]] = None,
-    negative_interactions: Optional[List[Tuple[str, str]]] = None,
-    input_model: Optional[ConfidenceModel] = None,
-    generate_model: bool = True,
-    model_type: str = 'logistic',
-    protein_col1: str = 'protein1',
-    protein_col2: str = 'protein2',
-    weight_col: str = 'weight',
-    confidence_metric: str = 'ppv',
-    additional_metrics: List[str] = None,
-    min_threshold_samples: int = 10,
-    negative_ratio: float = 2.0,
-    normalize_pairs: bool = True,
-    verbose: bool = True
-) -> Tuple[pd.DataFrame, Optional[ConfidenceModel]]:
-    """
-    Enhanced edge confidence calculation with model learning and application
-
-    Args:
-        edges_df: DataFrame with protein pairs and weights
-        positive_interactions: List of known positive interactions
-        negative_interactions: List of known negative interactions (optional)
-        input_model: Pre-trained confidence model (optional)
-        generate_model: Whether to generate/train a model
-        model_type: Type of model to train ('logistic', 'random_forest')
-        protein_col1: Column name for first protein
-        protein_col2: Column name for second protein
-        weight_col: Column name for edge weights
-        confidence_metric: Primary metric for threshold-based confidence
-        additional_metrics: Additional metrics to calculate
-        min_threshold_samples: Minimum samples for threshold-based confidence
-        negative_ratio: Ratio of negatives to positives when auto-generating
-        normalize_pairs: Whether to normalize protein pair order
-        verbose: Whether to print progress
-
-    Returns:
-        Tuple of (DataFrame with confidence scores, trained/updated model)
-    """
-
-    if additional_metrics is None:
-        additional_metrics = []
-
-    # Validate inputs
-    required_cols = [protein_col1, protein_col2, weight_col]
-    missing_cols = [col for col in required_cols if col not in edges_df.columns]
-    if missing_cols:
-        raise ValueError(f"Missing required columns: {missing_cols}")
-
-    result_df = edges_df.copy()
-    model = input_model
-
-    # Determine operation mode
-    has_positives = positive_interactions is not None and len(positive_interactions) > 0
-    has_negatives = negative_interactions is not None and len(negative_interactions) > 0
-    has_model = input_model is not None
-
-    if verbose:
-        print(f"Operation mode analysis:")
-        print(f"  Has positives: {has_positives}")
-        print(f"  Has negatives: {has_negatives}")
-        print(f"  Has input model: {has_model}")
-        print(f"  Generate model: {generate_model}")
-
-    # Generate negatives if only positives provided
-    if has_positives and not has_negatives:
-        if verbose:
-            print(f"Generating negative interactions from positive set...")
-
-        negative_interactions = generate_negative_interactions(
-            positive_interactions,
-            negative_ratio=negative_ratio,
-            strategy='random_pairs'
-        )
-        has_negatives = True
-
-        if verbose:
-            print(f"Generated {len(negative_interactions)} negative interactions")
-
-    # Model operations
-    if has_positives and has_negatives and generate_model:
-        # Train or update model
-
-        # Normalize pairs for consistency
-        def normalize_pair(pair):
-            return tuple(sorted([pair[0], pair[1]])) if normalize_pairs else pair
-
-        positive_set = set([normalize_pair(pair) for pair in positive_interactions])
-        negative_set = set([normalize_pair(pair) for pair in negative_interactions])
-
-        # Create edge pair mapping
-        edge_pairs = []
-        for _, row in result_df.iterrows():
-            pair = normalize_pair((row[protein_col1], row[protein_col2]))
-            edge_pairs.append(pair)
-
-        result_df['_normalized_pair'] = edge_pairs
-
-        # Find edges that are in training sets
-        result_df['in_positive_set'] = result_df['_normalized_pair'].isin(positive_set)
-        result_df['in_negative_set'] = result_df['_normalized_pair'].isin(negative_set)
-        result_df['in_training_set'] = result_df['in_positive_set'] | result_df['in_negative_set']
-
-        # Extract training data
-        training_edges = result_df[result_df['in_training_set']]
-
-        if len(training_edges) == 0:
-            if verbose:
-                print("Warning: No training edges found in edge data")
-            training_weights = []
-            training_labels = []
-        else:
-            training_weights = training_edges[weight_col].values
-            training_labels = training_edges['in_positive_set'].astype(int).values
-
-        if verbose:
-            print(f"Training data: {len(training_weights)} edges")
-            print(f"  Positives: {np.sum(training_labels)}")
-            print(f"  Negatives: {np.sum(training_labels == 0)}")
-
-        # Train or update model
-        if len(training_weights) > 0:
-            if not has_model:
-                # Train new model
-                if verbose:
-                    print(f"Training new {model_type} model...")
-
-                model = ConfidenceModel(model_type=model_type)
-                training_info = model.fit(training_weights, training_labels)
-
-                if verbose:
-                    print(f"Model training completed:")
-                    print(f"  CV AUC: {training_info['cv_auc_mean']:.4f} ± {training_info['cv_auc_std']:.4f}")
-                    print(f"  Positive rate: {training_info['positive_rate']:.4f}")
-
-            else:
-                # Update existing model
-                if verbose:
-                    print("Updating existing model with new data...")
-
-                training_info = model.fit(training_weights, training_labels, update_existing=True)
-
-                if verbose:
-                    print(f"Model update completed:")
-                    print(f"  CV AUC: {training_info['cv_auc_mean']:.4f} ± {training_info['cv_auc_std']:.4f}")
-
-        # Clean up temporary columns
-        result_df = result_df.drop(['_normalized_pair', 'in_positive_set',
-                                  'in_negative_set', 'in_training_set'], axis=1)
-
-    # Apply model to predict confidence scores
-    if model is not None:
-        if verbose:
-            print("Applying model to predict confidence scores...")
-
-        model_confidence_scores = model.predict_confidence(result_df[weight_col].values)
-        result_df['confidence_model'] = model_confidence_scores
-
-        if verbose:
-            print(f"Model confidence statistics:")
-            print(f"  Mean: {np.mean(model_confidence_scores):.4f}")
-            print(f"  Std: {np.std(model_confidence_scores):.4f}")
-            print(f"  Range: [{np.min(model_confidence_scores):.4f}, {np.max(model_confidence_scores):.4f}]")
-
-        # Get feature importance if available
-        feature_importance = model.get_feature_importance()
-        if feature_importance and verbose:
-            print("Feature importance:")
-            for feature, importance in feature_importance.items():
-                print(f"  {feature}: {importance:.4f}")
-
-    # Calculate threshold-based confidence if we have training data
-    if has_positives and has_negatives:
-        if verbose:
-            print("Calculating threshold-based confidence...")
-
-        # Use the original function for threshold-based confidence
-        threshold_result = calculate_edge_confidence_threshold(
-            edges_df=result_df.drop(columns=['confidence_model'] if 'confidence_model' in result_df.columns else []),
-            positive_interactions=positive_interactions,
-            negative_interactions=negative_interactions,
-            protein_col1=protein_col1,
-            protein_col2=protein_col2,
-            weight_col=weight_col,
-            confidence_metric=confidence_metric,
-            additional_metrics=additional_metrics,
-            min_threshold_samples=min_threshold_samples,
-            normalize_pairs=normalize_pairs,
-            verbose=False  # Avoid double output
-        )
-
-        # Merge threshold-based results
-        threshold_cols = [col for col in threshold_result.columns if col not in result_df.columns]
-        for col in threshold_cols:
-            result_df[col] = threshold_result[col]
-
-    return result_df, model
-
-def calculate_edge_confidence_threshold(
     edges_df: pd.DataFrame,
     positive_interactions: List[Tuple[str, str]],
     negative_interactions: List[Tuple[str, str]] = None,
     protein_col1: str = 'protein1',
     protein_col2: str = 'protein2',
     weight_col: str = 'weight',
+    calculate_limit: int = 10000,
     confidence_metric: str = 'ppv',
     additional_metrics: List[str] = None,
-    min_threshold_samples: int = 10,
-    negative_ratio: int = 2,
+    min_threshold_samples: int = 1,
+    negative_ratio: int = 0,
     normalize_pairs: bool = False,
     extrapolate_confidence: bool = False,
     verbose: bool = True
@@ -478,6 +292,24 @@ def calculate_edge_confidence_threshold(
     Returns:
         DataFrame with added confidence scores and metrics
     """
+
+    # first make sure that the edges are sorted by weight
+    edges_df = edges_df.sort_values(by=weight_col, ascending=False)
+
+    # these edge lists can be really big (easily 10s of millions of edges)
+    # making this function *very* slow. An easy fix is to just calculate for
+    # the top weights and leave the rest as is.
+    if calculate_limit:
+        merge_after = False
+        # This ASSUMES THE edge list is ordered descending by weight
+        #      should check this!
+        if len(edges_df) > calculate_limit:
+            if verbose:
+                print(f'Limiting confidence calculation to {calculate_limit} of {len(edges_df)} possible edges')
+            calc_part_df = edges_df.iloc[:calculate_limit, :]
+            leave_part_df = edges_df.iloc[calculate_limit:, :]
+            edges_df = calc_part_df
+            merge_after = True
 
     if additional_metrics is None:
         additional_metrics = []
@@ -694,5 +526,10 @@ def calculate_edge_confidence_threshold(
             print(f"  Max confidence: {np.nanmax(confidence_scores):.4f}")
         else:
             print("Warning: No valid confidence scores calculated")
+
+    # this leaves all the extra columns in the second part as Nan-s,
+    #      which might muck things up
+    if calculate_limit and merge_after:
+        result_df = pd.concat([result_df, leave_part_df], ignore_index=True)
 
     return result_df

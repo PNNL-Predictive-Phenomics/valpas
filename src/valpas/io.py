@@ -315,6 +315,56 @@ def import_experiments(
 
     return experiments
 
+def result_to_list(
+        data: tuple[pd.DataFrame, pd.DataFrame],
+        idx: tuple[str, str],
+        association_type: str='correlation'
+        ) -> pd.DataFrame:
+    """
+    Takes a ``pandas.DataFrame`` in the format of a correlation data_matrix
+    and converts to a list type DataFrame.
+
+    Parameters
+    ----------
+    data : tuple[pandas.DataFrame, pandas.DataFrame]
+        Touple of two ``pandas.DataFrame``, one containing calculated
+        association values the other counts for how many values were
+        used for the association value calculation between two omics
+        data points.
+    idx : tuple[str, str]
+        Touple of two ``pandas.Index`` objects containing the index for
+        the two omics types which were used to calculate association
+        values.
+    association_type : str, default='correlation'
+        Optional argument that is used to describe the association type
+        in the output.
+    """
+    data_association = data[0]
+    data_counts = data[1]
+
+    # remove idx and cols from data_associations where all values are
+    # NaN / None
+    data_association.dropna(axis="index", how="all", inplace=True)
+    data_association.dropna(axis="columns", how="all", inplace=True)
+
+    # Do the same for data_counts by checking which cols in
+    # data_associations have been dropped
+    cols_to_drop = data_counts.columns.difference(data_association.columns)
+    idx_to_drop = data_counts.index.difference(data_association.index)
+    data_counts.drop(labels=cols_to_drop.values, axis="columns", inplace=True)
+    data_counts.drop(labels=idx_to_drop.values, axis="index", inplace=True)
+
+    data_association = beautify_series(df=data_association,
+                                   value=association_type)
+
+    data_counts = beautify_series(df=data_counts, value='counts')
+
+    result_list = data_association.merge(
+            data_counts,
+            on=[idx[0],idx[1]],
+            how='inner'
+        )
+    return(result_list)
 
 def write_outfile(
         data: tuple[pd.DataFrame, pd.DataFrame],
@@ -401,7 +451,7 @@ def write_outfile(
         data_association = beautify_series(df=data_association,
                                            value=association_type)
         data_counts = beautify_series(df=data_counts, value='counts')
-        
+
         if f_type in ('csv', 'tsv'):
             data_ = data_association.merge(
                 data_counts,
