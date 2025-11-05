@@ -30,25 +30,25 @@ def associate(
     training_interactions=None,
     transform_clr=False,
     learncorr_args: dict={
-        learning_method:'ridge',
-        missing_strategy:'median'
+        'learning_method':'ridge',
+        'missing_strategy':'median'
     },
     autoencoder_args: dict={
-        protein_embedding_dim:128,
-        sample_embedding_dim:64,
-        hidden_dims:[256, 128],
-        epochs:200,
-        learning_rate:1e-3,
-        mask_probability:0.15,
-        scaling_method:'robust',
-        validation_split:0.2
+        'protein_embedding_dim':128,
+        'sample_embedding_dim':64,
+        'hidden_dims':[256, 128],
+        'epochs':200,
+        'learning_rate':1e-3,
+        'mask_probability':0.15,
+        'scaling_method':'robust',
+        'validation_split':0.2
     },
     subset_args: dict={
-        nconds:None,
-        percentage:0.5,
-        keep_conds:[],
-        inplace:False,
-        random_state:0,
+        'nconds':None,
+        'percentage':None,
+        'keep_conds':[],
+        'inplace':False,
+        'random_state':0,
     },
     overwrite_output=False,
     outfile=sys.stdout,

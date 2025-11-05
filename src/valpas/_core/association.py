@@ -84,7 +84,7 @@ def calculate_association(
     autoencoder_args : dict, default = {}
         Keyword arguments to pass to autoencoder function
     learncorr_args : dict, default = {}
-        Keyword arguments to pass to learn correlation function 
+        Keyword arguments to pass to learn correlation function
 
     Returns
     -------
@@ -98,7 +98,7 @@ def calculate_association(
     """
 
     # Subset the input measurements first?
-    if subset_nconds or subset_percentage or subset_keep_conds:
+    if subset_args['nconds'] or subset_args['percentage'] or subset_args['keep_conds']:
         experiment = experiment.subset_by_conditions(**subset_args)
 
     if method in ['pearson', 'spearman']:
@@ -152,7 +152,7 @@ def calculate_association(
         results = weightedcorrelationmodel.learn_correlation_weights(
             data=experiment.measurements.transpose(),
             interactions=training_interactions,
-            verbose=True
+            verbose=True,
             **learncorr_args
         )
         # there is a lot more returned than just this
