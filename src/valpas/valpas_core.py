@@ -66,7 +66,7 @@ def associate(
         'negative_ratio': 0,
         'normalize_pairs': False,
         'extrapolate_confidence': False,
-    }
+    },
     overwrite_output=False,
     outfile=sys.stdout,
 ):
