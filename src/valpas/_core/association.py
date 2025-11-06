@@ -146,7 +146,7 @@ def calculate_association(
         # it's hard to figure out how to do this without this
         #      information as it could be any value really?
         # So this is an attempt to make it non-zero
-        result_counts.iloc[:, :] = 1
+        result_counts.iloc[:, :] = len(experiment.measurements.transpose().columns)
 
     elif method == 'learn_correlation':
         results = weightedcorrelationmodel.learn_correlation_weights(
@@ -169,7 +169,7 @@ def calculate_association(
         # it's hard to figure out how to do this without this
         #      information as it could be any value really?
         # So this is an attempt to make it non-zero
-        result_counts.iloc[:, :] = 1
+        result_counts.iloc[:, :] = len(experiment.measurements.transpose().columns)
 
     else:
         raise ValueError(f"Association type {method} not supported!")
