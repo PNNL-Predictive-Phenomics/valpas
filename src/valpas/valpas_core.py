@@ -181,7 +181,7 @@ def associate(
         # for now confidence evaluation operates on a list of edges
         edgelist = result.as_list()
         if min_counts:
-            edgelist = edgelist[edgelist['count']>min_counts]
+            edgelist = edgelist[edgelist['counts']>min_counts]
 
         confidencelist = calculate_edge_confidence_default(edgelist,
                         positive_interactions=training_interactions,
