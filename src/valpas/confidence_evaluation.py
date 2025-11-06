@@ -174,6 +174,7 @@ class ConfidenceModel:
 
 def generate_negative_interactions(
     positive_interactions: List[Tuple[str, str]],
+    filter_interactions: List[Tuple[str,str]] = None,
     negative_ratio: float = 2.0,
     strategy: str = 'random_pairs'
 ) -> List[Tuple[str, str]]:
@@ -182,6 +183,7 @@ def generate_negative_interactions(
 
     Args:
         positive_interactions: List of positive interaction pairs
+        filter_interactions: List of other interactions to filter from negatives
         negative_ratio: Ratio of negatives to positives to generate. If 0 then returns
                         all possible pairs
         strategy: Strategy for generating negatives ('random_pairs', 'non_interacting')
@@ -208,6 +210,12 @@ def generate_negative_interactions(
         pair = tuple(sorted([p1, p2]))
         positive_set.add(pair)
 
+    filter_set = set()
+    if filter_interactions:
+        for p1, p2 in filter_interactions:
+            pair = tuple(sorted([p1, p2]))
+            filter_set.add(pair)
+
     # Generate negative interactions
     n_negatives_needed = int(len(positive_interactions) * negative_ratio)
     negative_interactions = []
@@ -218,7 +226,7 @@ def generate_negative_interactions(
         for i in range(n_proteins):
             for j in range(i + 1, n_proteins):
                 pair = tuple(sorted([proteins[i], proteins[j]]))
-                if pair not in positive_set:
+                if pair not in positive_set and pair not in filter_set:
                     all_possible_pairs.append(pair)
 
         # Randomly sample from possible negatives
@@ -260,6 +268,7 @@ def calculate_edge_confidence(
     edges_df: pd.DataFrame,
     positive_interactions: List[Tuple[str, str]],
     negative_interactions: List[Tuple[str, str]] = None,
+    exclude_negative_interactions: List[Tuple[str, str]] = None,
     protein_col1: str = 'protein1',
     protein_col2: str = 'protein2',
     weight_col: str = 'weight',
@@ -279,6 +288,7 @@ def calculate_edge_confidence(
         edges_df: DataFrame with protein pairs and weights
         positive_interactions: List of (protein1, protein2) tuples for known positives
         negative_interactions: List of (protein1, protein2) tuples for known negatives
+        exclude_negative_interactions: List of (protein1, protein2) tuples to exclude from random negatives
         protein_col1: Column name for first protein
         protein_col2: Column name for second protein
         weight_col: Column name for edge weights
@@ -342,6 +352,7 @@ def calculate_edge_confidence(
 
         negative_interactions = generate_negative_interactions(
             positive_interactions,
+            filter_interactions=exclude_negative_interactions,
             negative_ratio=negative_ratio,
             strategy='random_pairs'
         )
