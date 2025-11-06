@@ -28,6 +28,7 @@ def associate(
     sheet2=None,
     output_type="sorted_list",
     filter_cutoff=0.9,
+    min_counts=3,
     normalization="none",
     training_interactions=None,
     calculate_confidence=False,
@@ -179,6 +180,9 @@ def associate(
     if calculate_confidence and training_interactions:
         # for now confidence evaluation operates on a list of edges
         edgelist = result.as_list()
+        if min_counts:
+            edgelist = edgelist[edgelist['count']>min_counts]
+
         confidencelist = calculate_edge_confidence_default(edgelist,
                         positive_interactions=training_interactions,
                         **confidence_args)
