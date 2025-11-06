@@ -279,7 +279,8 @@ def calculate_edge_confidence(
     negative_ratio: int = 0,
     normalize_pairs: bool = False,
     extrapolate_confidence: bool = False,
-    verbose: bool = True
+    verbose: bool = True,
+    **kwargs
 ) -> pd.DataFrame:
     """
     Calculate confidence scores for edges based on positive/negative interaction lists

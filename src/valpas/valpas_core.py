@@ -53,6 +53,20 @@ def associate(
         'inplace':False,
         'random_state':0,
     },
+    confidence_args: dict={
+        'negative_interactions': None,
+        'exclude_negative_interactions': None,
+        'protein_col1': 'protein1',
+        'protein_col2': 'protein2',
+        'weight_col': 'weight',
+        'calculate_limit': 10000,
+        'confidence_metric': 'ppv',
+        'additional_metrics': None,
+        'min_threshold_samples': 1,
+        'negative_ratio': 0,
+        'normalize_pairs': False,
+        'extrapolate_confidence': False,
+    }
     overwrite_output=False,
     outfile=sys.stdout,
 ):
@@ -81,6 +95,8 @@ def associate(
             Keyword arguments to pass to autoencoder function
         learncorr_args : dict, default = {}
             Keyword arguments to pass to learn correlation function
+        confidence_args : dict, default = {}
+            Keyword arguments to pass to confidence calculation function
         overwrite_output (bool): Whether to overwrite the existing output.
         outfile (str or Path): Path for saving the output file or `sys.stdout`.
 
@@ -148,7 +164,12 @@ def associate(
             results = []
             for experiment in experiments:
                 experiment.pre_process(rm_low_conf_features=filter_cutoff, normalize=False, threshold=threshold, inplace=True)
-                results.append(experiment.associate(metric=association_type, thresholded=thresholded))
+                results.append(experiment.associate(metric=association_type, thresholded=thresholded,
+                                                    training_interactions=training_interactions,
+                                                    transform_clr=transform_clr,
+                                                    subset_args=subset_args,
+                                                    autoencoder_args=autoencoder_args,
+                                                    learncorr_args=learncorr_args))
             result = combine_results(results=results, normalization_metric="mean")
         else:
             raise ValueError(f"Normalization mode '{normalization}' not supported.")
@@ -160,8 +181,7 @@ def associate(
         edgelist = result.as_list()
         confidencelist = calculate_edge_confidence_default(edgelist,
                         positive_interactions=training_interactions,
-                        normalize_pairs=False, negative_ratio=0, min_threshold_samples=1,
-                        extrapolate_confidence=True)
+                        **confidence_args)
 
         # this will overwrite output no problems/no check
         # add support for overwrite checking
