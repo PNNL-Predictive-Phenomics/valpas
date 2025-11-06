@@ -47,8 +47,8 @@ def _bin(df: pd.DataFrame, num_bins: int=2) -> pd.DataFrame:
 
 def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     """
-    Thresholds rows in a pd.DataFrame containing aboslute or relative 
-    abunances for items (rows, e.g. metabolites) across different 
+    Thresholds rows in a pd.DataFrame containing aboslute or relative
+    abunances for items (rows, e.g. metabolites) across different
     conditions (columns).
 
     Parameters
@@ -57,36 +57,36 @@ def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
         DataFrame that contains values that should be thresholded
     threshold_rel : float, default=0.5
         Relative threshold, that is to be used for the internal
-        thresholding function. 
+        thresholding function.
 
     Returns
     -------
     pandas.DataFrame
-        A truth table encoded with 0s and 1s denoting if the value 
+        A truth table encoded with 0s and 1s denoting if the value
         falls above the determined threshold.
 
     Notes
     -----
     NA values in the DataFrame passed to the function will automatically
     be cast to 'False' / 0.
-    
+
     Thresholding is done relative to the values recorded in the rows,
     i.e.
 
     .. math::
 
         t = min(v_{ij}) + (max(v_{ij}) - min(v_{ij})) * threshold\\_rel
-    
+
     for :math:`v_{ij}` is any value :math:`v_i` in :math:`Row` :math:`j`
     """
 
     # it is assumed that the DF that is passed to the function will not
-    # contain NaNs/NAs in place of 0s. If this is not the case the if 
-    # statement below is triggered and 0s are replaced with NaN such 
+    # contain NaNs/NAs in place of 0s. If this is not the case the if
+    # statement below is triggered and 0s are replaced with NaN such
     # that they don't interfere with calulating the threshold
     if df.eq(0).any(axis=None):
         df.replace(0, np.nan, inplace=True)
-    
+
     # creating a Series containing thresholds for individual items
     # currently the threshold is calculated per item across different
     # conditions (axis = 1).
@@ -94,10 +94,10 @@ def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
         df.min(axis=1)
         + (df.max(axis=1) - df.min(axis=1)) * threshold_rel
     )
-    
+
     # generating the return DataFrame
     # ATTN: DataFrame.ge() will return 'False' for NaNs
-    # An additional step (see mask) is needed to cast NaNs back into 
+    # An additional step (see mask) is needed to cast NaNs back into
     # the return DF.
     df_ret = (
         df
@@ -105,7 +105,7 @@ def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
         .astype(int) # casts the boolean returned by `.gt()` to int(0,1)
         )
     df_ret.mask(df.isna(), df, inplace=True)
-    
+
     return df_ret
 
 
@@ -113,25 +113,25 @@ def combine_results(
         results: list[AssociationResult],
         normalization_metric:str='mean'
         ):
-    
+
     merged_results_vals = None
     merged_results_counts = None
     omic_x_type = None
     omic_x_features = None
     omic_y_type = None
     omic_y_features = None
-    
+
     for result in results:
         if merged_results_vals is None:
             merged_results_vals = deepcopy(result.values)
         else:
             merged_results_vals = merged_results_vals.add(result.values, fill_value=np.nan)
-        
+
         if merged_results_counts is None:
             merged_results_counts = deepcopy(result.counts)
         else:
             merged_results_counts = merged_results_counts.add(result.counts, fill_value=np.nan)
-    
+
         if omic_x_type is None:
             omic_x_type = deepcopy(result.omic_x.type)
             omic_x_features = deepcopy(result.omic_x.features)
@@ -164,7 +164,7 @@ def normalize(
         data: pd.DataFrame,
         method: Literal['z-score', 'pareto', 'power-scaling']='z-score'
         ):
-    
+
     if method == 'z-score':
         return _norm_z_score(data)
     elif method == 'pareto':
@@ -196,15 +196,15 @@ def _norm_power_trans(data: pd.DataFrame) -> pd.DataFrame:
 
 def sort_associations(df: pd.DataFrame, reduced_output: bool=False) -> pd.Series:
     """
-    Takes a matrix like pandas Dataframe object, extracts the upper 
+    Takes a matrix like pandas Dataframe object, extracts the upper
     triangle, stacks and sorts the cell values.
 
-    .. deprecated:: 0 
-        The functionality has been moved to ``.beatify_series`` and 
+    .. deprecated:: 0
+        The functionality has been moved to ``.beatify_series`` and
         ``.rm_duplicates``.
 
-    Returns a sorted pandas Series object with a multiindex comprised 
-    of index pairs from *df* as axis labels and the value of the *df* 
+    Returns a sorted pandas Series object with a multiindex comprised
+    of index pairs from *df* as axis labels and the value of the *df*
     cell as values.
     """
     warn(
@@ -216,17 +216,17 @@ def sort_associations(df: pd.DataFrame, reduced_output: bool=False) -> pd.Series
 
 
     if reduced_output:
-        # use case for this block: if the correlation matrix is NxN and 
-        # each n in N is from only one data source we can reduce the 
+        # use case for this block: if the correlation matrix is NxN and
+        # each n in N is from only one data source we can reduce the
         # output to pervent *association(i,j)* and *association(j,i)*
-        # to show up in the output. Note that if the correlation matrix 
-        # contains NxM elements and N & M are two different sets of 
-        # data points, choosing to reduce the input will remove unique 
+        # to show up in the output. Note that if the correlation matrix
+        # contains NxM elements and N & M are two different sets of
+        # data points, choosing to reduce the input will remove unique
         # results.
-        # 
-        # The code block extracts the upper triangle of the matrix, 
+        #
+        # The code block extracts the upper triangle of the matrix,
         # sets the lower triangle (including the diagonal) to NaN.
-        # `pd.DataFrame.stack()` drops NaNs by default and therefore 
+        # `pd.DataFrame.stack()` drops NaNs by default and therefore
         # excludes the pairs from sorting and being returned.
         upper_tri = np.triu(df, -1)
         upper_tri[np.tril_indices(upper_tri.shape[0], 0)] = np.nan
@@ -239,9 +239,9 @@ def sort_associations(df: pd.DataFrame, reduced_output: bool=False) -> pd.Series
         df_sorted = df_upper_tri.stack().sort_values(ascending=False)
 
     else:
-        # by default full output of the sorted list is generated to 
-        # guarantuee that all results are returned. This is especially 
-        # important if association between two different data types was 
+        # by default full output of the sorted list is generated to
+        # guarantuee that all results are returned. This is especially
+        # important if association between two different data types was
         # generated and no "self-hits" exsist
         df_sorted = df.stack().sort_values(ascending=False)
 
@@ -251,14 +251,14 @@ def sort_associations(df: pd.DataFrame, reduced_output: bool=False) -> pd.Series
 
 def beautify_series(df: pd.Series, value: str="Correlation") -> pd.DataFrame:
     """
-    Takes ``pandas.DataFrame`` object, extracts index names and 
+    Takes ``pandas.DataFrame`` object, extracts index names and
     transforms the data into a ``pandas.DataFrame`` with column 1 & 2
     being the indices of the Series and column 3 the association value.
 
     Parameters
     ----------
     df : pandas.DataFrame
-        DataFrame containing association values between omics data 
+        DataFrame containing association values between omics data
         items.
     value : str, default="Correlation"
         Describes the association type of the values.
@@ -266,7 +266,7 @@ def beautify_series(df: pd.Series, value: str="Correlation") -> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-        A DataFrame object with three columns. (1) & (2) are omics 
+        A DataFrame object with three columns. (1) & (2) are omics
         identifiers, (3) is the association value
     """
     df = df.stack().sort_values(ascending=False)
@@ -316,4 +316,3 @@ def idx_name(
         df.columns.name = idx2.name
 
     return df
-

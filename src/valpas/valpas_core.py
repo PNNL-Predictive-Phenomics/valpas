@@ -183,6 +183,9 @@ def associate(
         if min_counts:
             edgelist = edgelist[edgelist['counts']>min_counts]
 
+        # filter out self edges that seem to creep in somehow
+        edgelist = edgelist[edgelist.iloc[:,0] != edgelist.iloc[:,1]]
+
         confidencelist = calculate_edge_confidence_default(edgelist,
                         positive_interactions=training_interactions,
                         **confidence_args)
