@@ -309,8 +309,17 @@ def calculate_edge_confidence(
     # first make sure that the edges are sorted by weight
     edges_df = edges_df.sort_values(by=weight_col, ascending=False)
 
-    # filter for edges that have more than min_count comparisons 
+    # filter for edges that have more than min_count comparisons
     edges_df = edges_df[edges_df['counts']>min_counts]
+
+    # convert interactions to strings for comparison - this is only necessary
+    #    if the interactions are not strings (e.g. int) which happens with some
+    #    identifier types and is difficult to track down.
+    positive_interactions = [tuple(map(str, t)) for t in positive_interactions]
+    if negative_interactions:
+        negative_interactions = [tuple(map(str, t)) for t in negative_interactions]
+    if exclude_negative_interactions:
+        exclude_negative_interactions = [tuple(map(str, t)) for t in exclude_negative_interactions]
 
     # these edge lists can be really big (easily 10s of millions of edges)
     # making this function *very* slow. An easy fix is to just calculate for
