@@ -129,7 +129,6 @@ def calculate_association(
         result_values = experiment.measurements.corr(method=mutual_information)
 
     elif method == 'autoencoder':
-        #TODO: support for parameter setting for the autoencoder training
         # Train autoencoder
         model, dataset, training_history = autoencoder.train_proteomics_autoencoder(
             experiment.measurements.transpose(),
@@ -143,9 +142,6 @@ def calculate_association(
 
         result_counts = result_values.copy(deep=True)
 
-        # it's hard to figure out how to do this without this
-        #      information as it could be any value really?
-        # So this is an attempt to make it non-zero
         result_counts.iloc[:, :] = len(experiment.measurements.transpose().columns)
 
     elif method == 'learn_correlation':
