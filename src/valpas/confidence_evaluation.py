@@ -310,7 +310,10 @@ def calculate_edge_confidence(
     edges_df = edges_df.sort_values(by=weight_col, ascending=False)
 
     # filter for edges that have more than min_count comparisons
+    size_og = len(edges_df)
     edges_df = edges_df[edges_df['counts']>min_counts]
+    if verbose:
+        print(f'Filtered {size_og} edges to {len(edges_df)} with min_counts {min_counts}')
 
     # convert interactions to strings for comparison - this is only necessary
     #    if the interactions are not strings (e.g. int) which happens with some
