@@ -135,7 +135,7 @@ def main():
              "choice is between: (1) A sorted association list returning the "
              "computed associations as comma separated file, sorted in "
              "descending order starting with the highest association. (2) A "
-             "correlation matrix (comma separated)."
+             "association matrix (comma separated)."
     )
     p_associate_shared_args.add_argument(
         "-f", "--filter_missing_values",
