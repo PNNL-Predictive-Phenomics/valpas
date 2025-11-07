@@ -180,14 +180,13 @@ def associate(
     if calculate_confidence and training_interactions:
         # for now confidence evaluation operates on a list of edges
         edgelist = result.as_list()
-        if min_counts:
-            edgelist = edgelist[edgelist['counts']>min_counts]
 
         # filter out self edges that seem to creep in somehow
         edgelist = edgelist[edgelist.iloc[:,0] != edgelist.iloc[:,1]]
 
         confidencelist = calculate_edge_confidence_default(edgelist,
                         positive_interactions=training_interactions,
+                        min_counts=min_counts,
                         **confidence_args)
 
         # this will overwrite output no problems/no check

@@ -276,6 +276,7 @@ def calculate_edge_confidence(
     confidence_metric: str = 'ppv',
     additional_metrics: List[str] = None,
     min_threshold_samples: int = 1,
+    min_counts: int = 3,
     negative_ratio: int = 0,
     normalize_pairs: bool = False,
     extrapolate_confidence: bool = False,
@@ -296,6 +297,7 @@ def calculate_edge_confidence(
         confidence_metric: Primary metric ('ppv', 'precision', 'recall', 'f1', 'accuracy', 'enrichment')
         additional_metrics: List of additional metrics to calculate
         min_threshold_samples: Minimum samples needed above threshold for reliable confidence
+        min_counts: Minimum number of matching values used in association calculation
         normalize_pairs: Whether to normalize protein pair order (A,B) = (B,A)
         extrapolate_confidence: Whether to assign predictions max confidence if they're before confidence scores
         verbose: Whether to print progress information
@@ -306,6 +308,9 @@ def calculate_edge_confidence(
 
     # first make sure that the edges are sorted by weight
     edges_df = edges_df.sort_values(by=weight_col, ascending=False)
+
+    # filter for edges that have more than min_count comparisons 
+    edges_df = edges_df[edges_df['counts']>min_counts]
 
     # these edge lists can be really big (easily 10s of millions of edges)
     # making this function *very* slow. An easy fix is to just calculate for
