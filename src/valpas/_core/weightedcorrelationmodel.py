@@ -759,14 +759,14 @@ class CorrelationWeightLearner:
                 'neural_config': neural_config if learning_method == 'neural' else None,
                 'ridge_config': ridge_config if learning_method == 'ridge' else None,
                 'empirical_method': empirical_method if learning_method == 'empirical' else None
-            }
-            # Create analysis results object
-            analysisresults = WeightedCorrelationAnalysisResults(
+            }}
+
+        # Create analysis results object
+        analysisresults = WeightedCorrelationAnalysisResults(
                 results_dict=analysis_results_dict,
                 original_data=data
             )
-            return analysisresults
-        }
+        return analysisresults
 
 # Main function wrapper for easy use
 def learn_correlation_weights(data: pd.DataFrame, interactions: List[Tuple[str, str]],
