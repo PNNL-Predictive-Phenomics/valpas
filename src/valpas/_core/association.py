@@ -145,15 +145,15 @@ def calculate_association(
         result_counts.iloc[:, :] = len(experiment.measurements.transpose().columns)
 
     elif method == 'learn_correlation':
-        results = weightedcorrelationmodel.learn_correlation_weights(
+        anlysis_results = weightedcorrelationmodel.learn_correlation_weights(
             data=experiment.measurements.transpose(),
             interactions=training_interactions,
             verbose=True,
             **learncorr_args
         )
-        # there is a lot more returned than just this
-        # TODO: figure out how to handle that returned information
-        result_values = results['weighted_correlation_matrix']
+
+        # now returns an analysis results object
+        result_values = analysis_results.weighted_correlation_matrix
 
     elif method == "load_sim":
         # allow loading of a similarity matrix as a csv
@@ -191,6 +191,7 @@ def calculate_association(
         counts=result_counts,
         omic_x=experiment.omic_x,
         omic_y=experiment.omic_y,
+        analysis_results=analysis_results
     )
 
     return result

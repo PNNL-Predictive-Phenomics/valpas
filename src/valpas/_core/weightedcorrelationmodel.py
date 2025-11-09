@@ -9,12 +9,19 @@ from sklearn.metrics import roc_auc_score, average_precision_score, precision_re
 from sklearn.preprocessing import StandardScaler
 #from sklearn.impute import SimpleImputer, KNNImputer, IterativeImputer // IterativeImputer is experimental
 from sklearn.impute import SimpleImputer, KNNImputer
-from typing import List, Tuple, Dict, Union, Optional, Callable
+from typing import List, Tuple, Dict, Union, Optional, Callable, Any
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import pearsonr, spearmanr
 from scipy.optimize import minimize
 import warnings
+import base64
+from io import BytesIO
+import json
+from datetime import datetime
+
+from .classes.analysisresults import AnalysisResults
+
 warnings.filterwarnings('ignore')
 
 class WeightedCorrelationCalculator:
@@ -730,7 +737,7 @@ class CorrelationWeightLearner:
             'weight': learned_weights
         }).sort_values('weight', ascending=False)
 
-        return {
+        analysis_results_dict = {
             'model': model,
             'learned_weights': learned_weights,
             'weights_dataframe': weights_df,
@@ -753,6 +760,12 @@ class CorrelationWeightLearner:
                 'ridge_config': ridge_config if learning_method == 'ridge' else None,
                 'empirical_method': empirical_method if learning_method == 'empirical' else None
             }
+            # Create analysis results object
+            analysisresults = WeightedCorrelationAnalysisResults(
+                results_dict=analysis_results_dict,
+                original_data=data
+            )
+            return analysisresults
         }
 
 # Main function wrapper for easy use
@@ -781,3 +794,465 @@ def learn_correlation_weights(data: pd.DataFrame, interactions: List[Tuple[str, 
         learning_method=learning_method,
         # **kwargs
     )
+
+# Analysis results class
+class WeightedCorrelationAnalysisResults(AnalysisResults):
+    """
+    Specialized class for weighted correlation analysis results
+    """
+
+    def __init__(self, results_dict: Dict, original_data: pd.DataFrame = None,
+                 interactions: List[Tuple[str, str]] = None):
+        """
+        Initialize weighted correlation analysis results
+
+        Args:
+            results_dict: Results from learn_correlation_weights function
+            original_data: Original proteomics data used in analysis
+            interactions: Original interaction list used in analysis
+        """
+        super().__init__(
+            results_dict=results_dict,
+            analysis_type="Weighted Correlation Analysis",
+            metadata=results_dict.get('config', {})
+        )
+
+        self.original_data = original_data
+        self.interactions = interactions
+
+        # Extract key components for easy access
+        self.model = results_dict.get('model')
+        self.learned_weights = results_dict.get('learned_weights')
+        self.weights_dataframe = results_dict.get('weights_dataframe')
+        self.correlation_matrix = results_dict.get('weighted_correlation_matrix')
+        self.training_metrics = results_dict.get('training_metrics', {})
+        self.validation_metrics = results_dict.get('validation_metrics', {})
+        self.training_history = results_dict.get('training_history', {})
+        self.config = results_dict.get('config', {})
+
+    def get_summary_stats(self) -> Dict:
+        """Get comprehensive summary statistics"""
+        base_stats = super().get_summary_stats()
+
+        # Performance metrics
+        train_auc = self.training_metrics.get('auc', 0)
+        val_auc = self.validation_metrics.get('auc', 0)
+        train_ap = self.training_metrics.get('average_precision', 0)
+        val_ap = self.validation_metrics.get('average_precision', 0)
+
+        # Weight statistics
+        if self.weights_dataframe is not None:
+            weight_stats = {
+                'max_weight': self.weights_dataframe['weight'].max(),
+                'min_weight': self.weights_dataframe['weight'].min(),
+                'weight_std': self.weights_dataframe['weight'].std(),
+                'weight_entropy': self._calculate_weight_entropy(),
+                'top_condition': self.weights_dataframe.iloc[0]['condition']
+            }
+        else:
+            weight_stats = {}
+
+        # Data information
+        data_info = {}
+        if 'original_data_shape' in self.results:
+            data_info['original_proteins'] = self.results['original_data_shape'][0]
+            data_info['original_conditions'] = self.results['original_data_shape'][1]
+        if 'processed_data_shape' in self.results:
+            data_info['processed_proteins'] = self.results['processed_data_shape'][0]
+            data_info['processed_conditions'] = self.results['processed_data_shape'][1]
+
+        return {
+            **base_stats,
+            'learning_method': self.config.get('learning_method', 'unknown'),
+            'training_auc': train_auc,
+            'validation_auc': val_auc,
+            'training_ap': train_ap,
+            'validation_ap': val_ap,
+            'performance_gap': abs(train_auc - val_auc),
+            'n_interactions_train': len(self.results.get('train_interactions', [])),
+            'n_interactions_val': len(self.results.get('val_interactions', [])),
+            **weight_stats,
+            **data_info
+        }
+
+    def get_performance_assessment(self) -> str:
+        """Assess model performance quality"""
+        val_auc = self.validation_metrics.get('auc', 0)
+
+        if val_auc >= 0.9:
+            return "Excellent"
+        elif val_auc >= 0.8:
+            return "Good"
+        elif val_auc >= 0.7:
+            return "Fair"
+        elif val_auc >= 0.6:
+            return "Poor"
+        else:
+            return "Very Poor"
+
+    def get_top_conditions(self, n: int = 10) -> pd.DataFrame:
+        """Get top N weighted conditions"""
+        if self.weights_dataframe is None:
+            return pd.DataFrame()
+        return self.weights_dataframe.head(n)
+
+    def get_weight_concentration_stats(self) -> Dict:
+        """Calculate weight concentration statistics"""
+        if self.weights_dataframe is None:
+            return {}
+
+        weights = self.weights_dataframe['weight'].values
+        n_conditions = len(weights)
+
+        return {
+            'top_10_percent_weight': weights[:n_conditions//10].sum(),
+            'top_25_percent_weight': weights[:n_conditions//4].sum(),
+            'gini_coefficient': self._calculate_gini_coefficient(weights),
+            'effective_conditions': 1 / np.sum(weights**2)  # Inverse Simpson diversity
+        }
+
+    def _calculate_weight_entropy(self) -> float:
+        """Calculate entropy of weight distribution"""
+        if self.weights_dataframe is None:
+            return 0
+
+        weights = self.weights_dataframe['weight'].values
+        weights = weights / np.sum(weights)  # Normalize
+        return -np.sum(weights * np.log(weights + 1e-10))
+
+    def _calculate_gini_coefficient(self, weights: np.ndarray) -> float:
+        """Calculate Gini coefficient for weight inequality"""
+        sorted_weights = np.sort(weights)
+        n = len(weights)
+        cumsum = np.cumsum(sorted_weights)
+        return (n + 1 - 2 * np.sum(cumsum) / cumsum[-1]) / n
+
+    def _generate_detailed_text(self) -> List[str]:
+        """Generate detailed text representation"""
+        lines = []
+
+        # Performance Section
+        lines.append("PERFORMANCE METRICS:")
+        lines.append(f"  Training AUC: {self.training_metrics.get('auc', 0):.4f}")
+        lines.append(f"  Validation AUC: {self.validation_metrics.get('auc', 0):.4f}")
+        lines.append(f"  Training AP: {self.training_metrics.get('average_precision', 0):.4f}")
+        lines.append(f"  Validation AP: {self.validation_metrics.get('average_precision', 0):.4f}")
+        lines.append(f"  Performance Assessment: {self.get_performance_assessment()}")
+        lines.append("")
+
+        # Weight Analysis
+        if self.weights_dataframe is not None:
+            lines.append("WEIGHT ANALYSIS:")
+            concentration_stats = self.get_weight_concentration_stats()
+            lines.append(f"  Entropy: {self._calculate_weight_entropy():.4f}")
+            lines.append(f"  Gini Coefficient: {concentration_stats.get('gini_coefficient', 0):.4f}")
+            lines.append(f"  Effective Conditions: {concentration_stats.get('effective_conditions', 0):.1f}")
+            lines.append(f"  Top 10% Conditions Weight: {concentration_stats.get('top_10_percent_weight', 0):.2%}")
+            lines.append("")
+
+            lines.append("TOP 10 WEIGHTED CONDITIONS:")
+            top_conditions = self.get_top_conditions(10)
+            for idx, row in top_conditions.iterrows():
+                lines.append(f"  {row['condition']}: {row['weight']:.6f}")
+            lines.append("")
+
+        # Configuration
+        lines.append("CONFIGURATION:")
+        for key, value in self.config.items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")
+
+        # Data Information
+        if 'missing_data_info' in self.results:
+            missing_info = self.results['missing_data_info']
+            lines.append("MISSING DATA HANDLING:")
+            lines.append(f"  Strategy: {missing_info.get('strategy_used', 'N/A')}")
+            lines.append(f"  Original Missing: {missing_info.get('missing_percentage', 0):.2f}%")
+            if 'after_processing' in missing_info:
+                lines.append(f"  After Processing: {missing_info['after_processing'].get('missing_percentage', 0):.2f}%")
+            lines.append("")
+
+        return lines
+
+    def _generate_detailed_html(self) -> str:
+        """Generate detailed HTML representation"""
+        html_parts = []
+
+        # Performance metrics table
+        html_parts.append('<h3>Performance Metrics</h3>')
+        html_parts.append('<table class="results-table">')
+        html_parts.append('<tr><th>Metric</th><th>Training</th><th>Validation</th><th>Assessment</th></tr>')
+
+        train_auc = self.training_metrics.get('auc', 0)
+        val_auc = self.validation_metrics.get('auc', 0)
+        train_ap = self.training_metrics.get('average_precision', 0)
+        val_ap = self.validation_metrics.get('average_precision', 0)
+
+        auc_class = self._get_metric_class(val_auc, 0.8, 0.7)
+        ap_class = self._get_metric_class(val_ap, 0.8, 0.7)
+
+        html_parts.append(f'<tr><td>AUC</td><td>{train_auc:.4f}</td><td class="{auc_class}">{val_auc:.4f}</td><td>{self.get_performance_assessment()}</td></tr>')
+        html_parts.append(f'<tr><td>Average Precision</td><td>{train_ap:.4f}</td><td class="{ap_class}">{val_ap:.4f}</td><td>-</td></tr>')
+        html_parts.append('</table>')
+
+        # Weight analysis
+        if self.weights_dataframe is not None:
+            html_parts.append('<h3>Weight Analysis</h3>')
+            concentration_stats = self.get_weight_concentration_stats()
+
+            html_parts.append('<table class="results-table">')
+            html_parts.append('<tr><th>Statistic</th><th>Value</th><th>Interpretation</th></tr>')
+
+            entropy = self._calculate_weight_entropy()
+            gini = concentration_stats.get('gini_coefficient', 0)
+            effective_cond = concentration_stats.get('effective_conditions', 0)
+
+            html_parts.append(f'<tr><td>Weight Entropy</td><td>{entropy:.4f}</td><td>{"High diversity" if entropy > 2.5 else "Moderate diversity" if entropy > 1.5 else "Low diversity"}</td></tr>')
+            html_parts.append(f'<tr><td>Gini Coefficient</td><td>{gini:.4f}</td><td>{"High inequality" if gini > 0.7 else "Moderate inequality" if gini > 0.4 else "Low inequality"}</td></tr>')
+            html_parts.append(f'<tr><td>Effective Conditions</td><td>{effective_cond:.1f}</td><td>Equivalent to {effective_cond:.1f} equally-weighted conditions</td></tr>')
+            html_parts.append('</table>')
+
+            # Top conditions table
+            html_parts.append('<h3>Top Weighted Conditions</h3>')
+            top_conditions = self.get_top_conditions(15)
+
+            html_parts.append('<table class="results-table">')
+            html_parts.append('<tr><th>Rank</th><th>Condition</th><th>Weight</th><th>Percentage</th></tr>')
+
+            for idx, (_, row) in enumerate(top_conditions.iterrows(), 1):
+                percentage = row['weight'] * 100
+                html_parts.append(f'<tr><td>{idx}</td><td>{row["condition"]}</td><td>{row["weight"]:.6f}</td><td>{percentage:.3f}%</td></tr>')
+
+            html_parts.append('</table>')
+
+        # Configuration section
+        html_parts.append('<div class="config-section">')
+        html_parts.append('<h3>Analysis Configuration</h3>')
+        html_parts.append('<table class="results-table">')
+        html_parts.append('<tr><th>Parameter</th><th>Value</th></tr>')
+
+        for key, value in self.config.items():
+            display_key = key.replace('_', ' ').title()
+            html_parts.append(f'<tr><td>{display_key}</td><td>{value}</td></tr>')
+
+        html_parts.append('</table>')
+        html_parts.append('</div>')
+
+        return '\n'.join(html_parts)
+
+    def _generate_plots_html(self, plot_format: str = 'png', **plot_kwargs) -> str:
+        """Generate plots HTML with embedded images"""
+        html_parts = []
+
+        try:
+            # Create plots
+            plots = self.create_plots(**plot_kwargs)
+
+            for plot_name, fig in plots.items():
+                if fig is not None:
+                    # Convert plot to base64 string
+                    img_str = self._fig_to_base64(fig, format=plot_format)
+
+                    html_parts.append(f'<div class="plot-container">')
+                    html_parts.append(f'<div class="plot-title">{plot_name.replace("_", " ").title()}</div>')
+                    html_parts.append(f'<img src="data:image/{plot_format};base64,{img_str}" alt="{plot_name}" style="max-width: 100%; height: auto;">')
+                    html_parts.append('</div>')
+
+                    plt.close(fig)  # Clean up
+
+        except Exception as e:
+            html_parts.append(f'<p class="error">Error generating plots: {str(e)}</p>')
+
+        return '\n'.join(html_parts)
+
+    def _get_metric_class(self, value: float, good_threshold: float, fair_threshold: float) -> str:
+        """Get CSS class for metric value"""
+        if value >= good_threshold:
+            return "metric-good"
+        elif value >= fair_threshold:
+            return "metric-warning"
+        else:
+            return "metric-poor"
+
+    def _fig_to_base64(self, fig, format: str = 'png') -> str:
+        """Convert matplotlib figure to base64 string"""
+        buffer = BytesIO()
+        fig.savefig(buffer, format=format, bbox_inches='tight', dpi=150)
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.getvalue()).decode()
+        buffer.close()
+        return img_str
+
+    def create_plots(self, figsize: Tuple[int, int] = (15, 12), **kwargs) -> Dict:
+        """
+        Create visualization plots
+
+        Args:
+            figsize: Figure size for plots
+            **kwargs: Additional plotting parameters
+
+        Returns:
+            Dictionary of plot names to figure objects
+        """
+        plots = {}
+
+        try:
+            # 1. Weight distribution plot
+            if self.weights_dataframe is not None:
+                fig1 = plt.figure(figsize=(12, 8))
+
+                # Weight bar plot
+                ax1 = plt.subplot(2, 2, 1)
+                top_weights = self.weights_dataframe.head(20)
+                bars = ax1.bar(range(len(top_weights)), top_weights['weight'])
+                ax1.set_xlabel('Condition Rank')
+                ax1.set_ylabel('Weight')
+                ax1.set_title('Top 20 Condition Weights')
+                ax1.grid(True, alpha=0.3)
+
+                # Weight histogram
+                ax2 = plt.subplot(2, 2, 2)
+                ax2.hist(self.weights_dataframe['weight'], bins=30, alpha=0.7, edgecolor='black')
+                ax2.axvline(self.weights_dataframe['weight'].mean(), color='red', linestyle='--',
+                           label=f'Mean: {self.weights_dataframe["weight"].mean():.4f}')
+                ax2.set_xlabel('Weight Value')
+                ax2.set_ylabel('Frequency')
+                ax2.set_title('Weight Distribution')
+                ax2.legend()
+                ax2.grid(True, alpha=0.3)
+
+                # Training progress (if available)
+                ax3 = plt.subplot(2, 2, 3)
+                if len(self.training_history.get('iteration', [])) > 1:
+                    ax3.plot(self.training_history['iteration'], self.training_history['train_objective'], 'b-', linewidth=2)
+                    ax3.set_xlabel('Iteration')
+                    ax3.set_ylabel('Objective (AUC)')
+                    ax3.set_title('Training Progress')
+                    ax3.grid(True, alpha=0.3)
+                else:
+                    ax3.text(0.5, 0.5, 'Single iteration training\n(e.g., Ridge Regression)',
+                            ha='center', va='center', transform=ax3.transAxes)
+                    ax3.set_title('Training Progress')
+
+                # Performance comparison
+                ax4 = plt.subplot(2, 2, 4)
+                metrics = ['AUC', 'Average Precision']
+                train_vals = [self.training_metrics.get('auc', 0), self.training_metrics.get('average_precision', 0)]
+                val_vals = [self.validation_metrics.get('auc', 0), self.validation_metrics.get('average_precision', 0)]
+
+                x = np.arange(len(metrics))
+                width = 0.35
+
+                bars1 = ax4.bar(x - width/2, train_vals, width, label='Training', alpha=0.7)
+                bars2 = ax4.bar(x + width/2, val_vals, width, label='Validation', alpha=0.7)
+
+                ax4.set_ylabel('Score')
+                ax4.set_title('Performance Comparison')
+                ax4.set_xticks(x)
+                ax4.set_xticklabels(metrics)
+                ax4.legend()
+                ax4.grid(True, alpha=0.3)
+
+                # Add value labels
+                for bars in [bars1, bars2]:
+                    for bar in bars:
+                        height = bar.get_height()
+                        ax4.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                                f'{height:.3f}', ha='center', va='bottom', fontsize=8)
+
+                plt.tight_layout()
+                plots['weight_analysis'] = fig1
+
+            # 2. Correlation matrix heatmap (if available and not too large)
+            if self.correlation_matrix is not None and len(self.correlation_matrix) <= 100:
+                fig2 = plt.figure(figsize=(10, 8))
+
+                # Sample subset if still too large for visualization
+                if len(self.correlation_matrix) > 50:
+                    sample_indices = np.random.choice(len(self.correlation_matrix), 50, replace=False)
+                    plot_matrix = self.correlation_matrix.iloc[sample_indices, sample_indices]
+                    title_suffix = " (50 random proteins)"
+                else:
+                    plot_matrix = self.correlation_matrix
+                    title_suffix = ""
+
+                sns.heatmap(plot_matrix, cmap='RdBu_r', center=0, square=True,
+                           cbar_kws={'label': 'Weighted Correlation'})
+                plt.title(f'Weighted Correlation Matrix{title_suffix}')
+                plt.tight_layout()
+                plots['correlation_matrix'] = fig2
+
+            # 3. ROC curves (if available)
+            if ('fpr' in self.training_metrics and 'tpr' in self.training_metrics and
+                'fpr' in self.validation_metrics and 'tpr' in self.validation_metrics):
+
+                fig3 = plt.figure(figsize=(10, 6))
+
+                # ROC curve
+                ax1 =plt.subplot(1, 2, 1)
+                ax1.plot(self.training_metrics['fpr'], self.training_metrics['tpr'],
+                        label=f'Training (AUC = {self.training_metrics["auc"]:.3f})', linewidth=2)
+                ax1.plot(self.validation_metrics['fpr'], self.validation_metrics['tpr'],
+                        label=f'Validation (AUC = {self.validation_metrics["auc"]:.3f})', linewidth=2)
+                ax1.plot([0, 1], [0, 1], 'k--', alpha=0.5, label='Random')
+                ax1.set_xlabel('False Positive Rate')
+                ax1.set_ylabel('True Positive Rate')
+                ax1.set_title('ROC Curves')
+                ax1.legend()
+                ax1.grid(True, alpha=0.3)
+
+                # Precision-Recall curve (if available)
+                if ('precision' in self.training_metrics and 'recall' in self.training_metrics and
+                    'precision' in self.validation_metrics and 'recall' in self.validation_metrics):
+
+                    ax2 = plt.subplot(1, 2, 2)
+                    ax2.plot(self.training_metrics['recall'], self.training_metrics['precision'],
+                            label=f'Training (AP = {self.training_metrics["average_precision"]:.3f})', linewidth=2)
+                    ax2.plot(self.validation_metrics['recall'], self.validation_metrics['precision'],
+                            label=f'Validation (AP = {self.validation_metrics["average_precision"]:.3f})', linewidth=2)
+                    ax2.set_xlabel('Recall')
+                    ax2.set_ylabel('Precision')
+                    ax2.set_title('Precision-Recall Curves')
+                    ax2.legend()
+                    ax2.grid(True, alpha=0.3)
+
+                plt.tight_layout()
+                plots['performance_curves'] = fig3
+
+        except Exception as e:
+            print(f"Warning: Error creating plots: {e}")
+
+        return plots
+
+    def compare_with_baseline(self, baseline_results: 'WeightedCorrelationAnalysisResults') -> Dict:
+        """
+        Compare this analysis with baseline results
+
+        Args:
+            baseline_results: Another WeightedCorrelationAnalysisResults to compare against
+
+        Returns:
+            Dictionary with comparison metrics
+        """
+        comparison = {}
+
+        # Performance comparison
+        comparison['performance'] = {
+            'auc_improvement': self.validation_metrics.get('auc', 0) - baseline_results.validation_metrics.get('auc', 0),
+            'ap_improvement': self.validation_metrics.get('average_precision', 0) - baseline_results.validation_metrics.get('average_precision', 0)
+        }
+
+        # Weight analysis comparison
+        if self.weights_dataframe is not None and baseline_results.weights_dataframe is not None:
+            # Weight correlation
+            common_conditions = set(self.weights_dataframe['condition']) & set(baseline_results.weights_dataframe['condition'])
+            if common_conditions:
+                self_weights = self.weights_dataframe.set_index('condition').loc[list(common_conditions), 'weight']
+                baseline_weights = baseline_results.weights_dataframe.set_index('condition').loc[list(common_conditions), 'weight']
+                weight_correlation = np.corrcoef(self_weights, baseline_weights)[0, 1]
+                comparison['weight_correlation'] = weight_correlation
+
+            # Entropy comparison
+            comparison['entropy_difference'] = self._calculate_weight_entropy() - baseline_results._calculate_weight_entropy()
+
+        return comparison

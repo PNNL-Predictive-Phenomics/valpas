@@ -1,599 +1,739 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import pandas as pd
 import numpy as np
-import os
-
-from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler, RobustScaler
-from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Optional, Tuple, Dict, List, Union, Any
-import warnings
+from typing import Dict, List, Optional, Union, Any, Tuple
 import base64
 from io import BytesIO
 import json
+import torch
 from datetime import datetime
-
-from .classes.analysisresults import AnalysisResults
-
+import warnings
 warnings.filterwarnings('ignore')
 
-class ProteomicsDataset(Dataset):
-    """Dataset class for proteomics data with masking support"""
+class AnalysisResults:
+    """
+    Base class for storing and presenting analysis results
+    """
 
-    def __init__(
-        self,
-        data: pd.DataFrame,
-        scaler: Optional[Union[StandardScaler, RobustScaler]] = None,
-        mask_probability: float = 0.15,
-        scaling_method: str = 'standard'
-    ):
+    def __init__(self, results_dict: Dict = None, analysis_type: str = "Generic Analysis",
+                 timestamp: datetime = None, metadata: Dict = None):
         """
-        Initialize proteomics dataset
+        Initialize base analysis results
 
         Args:
-            data: DataFrame with proteins as rows, samples as columns
-            scaler: Pre-fitted scaler, if None will fit new one
-            mask_probability: Probability of masking each value during training
-            scaling_method: 'standard', 'robust', or 'none'
+            results_dict: Dictionary containing analysis results
+            analysis_type: Type of analysis performed
+            timestamp: When analysis was performed
+            metadata: Additional metadata about the analysis
         """
-        self.original_data = data.copy()
-        self.protein_names = data.index.tolist()
-        self.sample_names = data.columns.tolist()
-        self.mask_probability = mask_probability
-
-        # Handle missing values
-        if data.isnull().any().any():
-            print(f"Warning: Found {data.isnull().sum().sum()} missing values, filling with median")
-            data = data.fillna(data.median())
-
-        # Scaling
-        if scaling_method == 'none':
-            self.scaler = None
-            self.scaled_data = data.values
-        else:
-            if scaler is None:
-                if scaling_method == 'standard':
-                    self.scaler = StandardScaler()
-                elif scaling_method == 'robust':
-                    self.scaler = RobustScaler()
-                else:
-                    raise ValueError("scaling_method must be 'standard', 'robust', or 'none'")
-
-                # Fit scaler on flattened data
-                flat_data = data.values.flatten().reshape(-1, 1)
-                self.scaler.fit(flat_data)
-            else:
-                self.scaler = scaler
-
-            # Scale the data
-            flat_scaled = self.scaler.transform(data.values.flatten().reshape(-1, 1))
-            self.scaled_data = flat_scaled.reshape(data.shape)
-
-        self.data_tensor = torch.FloatTensor(self.scaled_data)
-        self.n_proteins, self.n_samples = self.data_tensor.shape
-
-    def __len__(self):
-        return 1  # We treat the entire matrix as one sample
-
-    def __getitem__(self, idx):
-        return self.data_tensor
-
-    def create_masked_batch(self, batch_size: int = 1) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Create masked version of data for training
-
-        Returns:
-            masked_data: Data with some values masked (set to 0)
-            mask: Boolean mask indicating which values were masked
-            target: Original unmasked data
-        """
-        # Create random mask
-        mask = torch.rand(self.n_proteins, self.n_samples) < self.mask_probability
-
-        # Create masked data
-        masked_data = self.data_tensor.clone()
-        masked_data[mask] = 0  # Set masked values to 0
-
-        return masked_data.unsqueeze(0), mask.unsqueeze(0), self.data_tensor.unsqueeze(0)
-
-class BiDirectionalAutoencoder(nn.Module):
-    """
-    Autoencoder that learns from both protein and sample dimensions
-    Uses separate encoders for protein embeddings and sample embeddings
-    """
-
-    def __init__(
-        self,
-        n_proteins: int,
-        n_samples: int,
-        protein_embedding_dim: int = 128,
-        sample_embedding_dim: int = 64,
-        hidden_dims: List[int] = [256, 128],
-        dropout_rate: float = 0.1,
-        activation: str = 'relu'
-    ):
-        super().__init__()
-
-        self.n_proteins = n_proteins
-        self.n_samples = n_samples
-        self.protein_embedding_dim = protein_embedding_dim
-        self.sample_embedding_dim = sample_embedding_dim
-
-        # Activation function
-        if activation == 'relu':
-            self.activation = nn.ReLU()
-        elif activation == 'tanh':
-            self.activation = nn.Tanh()
-        elif activation == 'elu':
-            self.activation = nn.ELU()
-        else:
-            raise ValueError("activation must be 'relu', 'tanh', or 'elu'")
-
-        # Protein encoder (encodes across samples for each protein)
-        self.protein_encoder = nn.Sequential(
-            nn.Linear(n_samples, hidden_dims[0]),
-            self.activation,
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dims[0], hidden_dims[1]),
-            self.activation,
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dims[1], protein_embedding_dim)
-        )
-
-        # Sample encoder (encodes across proteins for each sample)
-        self.sample_encoder = nn.Sequential(
-            nn.Linear(n_proteins, hidden_dims[0]),
-            self.activation,
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dims[0], hidden_dims[1]),
-            self.activation,
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dims[1], sample_embedding_dim)
-        )
-
-        # Decoder that reconstructs from both embeddings
-        combined_dim = protein_embedding_dim + sample_embedding_dim
-        self.decoder = nn.Sequential(
-            nn.Linear(combined_dim, hidden_dims[0]),
-            self.activation,
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dims[0], hidden_dims[1]),
-            self.activation,
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dims[1], 1)  # Single output for reconstruction
-        )
-
-        # Alternative: Direct reconstruction layers
-        self.protein_decoder = nn.Sequential(
-            nn.Linear(protein_embedding_dim, hidden_dims[1]),
-            self.activation,
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dims[1], n_samples)
-        )
-
-        self.sample_decoder = nn.Sequential(
-            nn.Linear(sample_embedding_dim, hidden_dims[1]),
-            self.activation,
-            nn.Dropout(dropout_rate),
-            nn.Linear(hidden_dims[1], n_proteins)
-        )
-
-        # Learnable combination weights
-        self.combination_weight = nn.Parameter(torch.tensor(0.5))
-
-    def encode_proteins(self, x: torch.Tensor) -> torch.Tensor:
-        """Encode each protein (row) across samples"""
-        # x shape: [batch_size, n_proteins, n_samples]
-        batch_size = x.shape[0]
-        protein_embeddings = []
-
-        for i in range(self.n_proteins):
-            protein_data = x[:, i, :]  # [batch_size, n_samples]
-            embedding = self.protein_encoder(protein_data)  # [batch_size, protein_embedding_dim]
-            protein_embeddings.append(embedding)
-
-        return torch.stack(protein_embeddings, dim=1)  # [batch_size, n_proteins, protein_embedding_dim]
-
-    def encode_samples(self, x: torch.Tensor) -> torch.Tensor:
-        """Encode each sample (column) across proteins"""
-        # x shape: [batch_size, n_proteins, n_samples]
-        batch_size = x.shape[0]
-        sample_embeddings = []
-
-        for j in range(self.n_samples):
-            sample_data = x[:, :, j]  # [batch_size, n_proteins]
-            embedding = self.sample_encoder(sample_data)  # [batch_size, sample_embedding_dim]
-            sample_embeddings.append(embedding)
-
-        return torch.stack(sample_embeddings, dim=1)  # [batch_size, n_samples, sample_embedding_dim]
-
-    def forward(self, x: torch.Tensor, return_embeddings: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, Dict]]:
-        """
-        Forward pass through the autoencoder
-
-        Args:
-            x: Input tensor [batch_size, n_proteins, n_samples]
-            return_embeddings: Whether to return embeddings along with reconstruction
-
-        Returns:
-            reconstruction or (reconstruction, embeddings_dict)
-        """
-        batch_size = x.shape[0]
-
-        # Get embeddings
-        protein_embeddings = self.encode_proteins(x)  # [batch_size, n_proteins, protein_emb_dim]
-        sample_embeddings = self.encode_samples(x)    # [batch_size, n_samples, sample_emb_dim]
-
-        # Method 1: Direct reconstruction from embeddings
-        protein_reconstruction = self.protein_decoder(protein_embeddings)  # [batch_size, n_proteins, n_samples]
-
-        # For sample reconstruction, we need to transpose
-        sample_reconstruction = self.sample_decoder(sample_embeddings)  # [batch_size, n_samples, n_proteins]
-        sample_reconstruction = sample_reconstruction.transpose(1, 2)    # [batch_size, n_proteins, n_samples]
-
-        # Combine reconstructions
-        alpha = torch.sigmoid(self.combination_weight)
-        reconstruction = alpha * protein_reconstruction + (1 - alpha) * sample_reconstruction
-
-        if return_embeddings:
-            embeddings = {
-                'protein_embeddings': protein_embeddings,
-                'sample_embeddings': sample_embeddings,
-                'combination_weight': alpha.item()
-            }
-            return reconstruction, embeddings
-
-        return reconstruction
-
-    def get_protein_embeddings(self, x: torch.Tensor) -> torch.Tensor:
-        """Get protein embeddings for similarity analysis"""
-        with torch.no_grad():
-            return self.encode_proteins(x)
-
-    def get_sample_embeddings(self, x: torch.Tensor) -> torch.Tensor:
-        """Get sample embeddings for analysis"""
-        with torch.no_grad():
-            return self.encode_samples(x)
-
-class ProteomicsAutoencoderTrainer:
-    """Trainer class for the proteomics autoencoder"""
-
-    def __init__(
-        self,
-        model: BiDirectionalAutoencoder,
-        learning_rate: float = 1e-3,
-        weight_decay: float = 1e-5,
-        reconstruction_loss: str = 'mse'
-        #reconstruction_loss: str = 'mae'
-    ):
-        self.model = model
-        self.optimizer = torch.optim.Adam(
-            model.parameters(),
-            lr=learning_rate,
-            weight_decay=weight_decay
-        )
-
-        if reconstruction_loss == 'mse':
-            self.criterion = nn.MSELoss()
-        elif reconstruction_loss == 'mae':
-            self.criterion = nn.L1Loss()
-        elif reconstruction_loss == 'huber':
-            self.criterion = nn.SmoothL1Loss()
-        else:
-            raise ValueError("reconstruction_loss must be 'mse', 'mae', or 'huber'")
-
-    def train_epoch(self, dataset: ProteomicsDataset, device: torch.device, n_batches: int = 100) -> float:
-        """Train for one epoch using random masking"""
-        self.model.train()
-        total_loss = 0.0
-
-        for _ in range(n_batches):
-            # Get masked batch
-            masked_data, mask, target = dataset.create_masked_batch()
-            masked_data = masked_data.to(device)
-            mask = mask.to(device)
-            target = target.to(device)
-
-            self.optimizer.zero_grad()
-
-            # Forward pass
-            reconstruction = self.model(masked_data)
-
-            # Calculate loss only on masked positions
-            loss = self.criterion(reconstruction[mask], target[mask])
-
-            # Backward pass
-            loss.backward()
-            self.optimizer.step()
-
-            total_loss += loss.item()
-
-        return total_loss / n_batches
-
-    def validate(self, dataset: ProteomicsDataset, device: torch.device, n_batches: int = 20) -> float:
-        """Validate the model"""
-        self.model.eval()
-        total_loss = 0.0
-
-        with torch.no_grad():
-            for _ in range(n_batches):
-                masked_data, mask, target = dataset.create_masked_batch()
-                masked_data = masked_data.to(device)
-                mask = mask.to(device)
-                target = target.to(device)
-
-                reconstruction = self.model(masked_data)
-                loss = self.criterion(reconstruction[mask], target[mask])
-                total_loss += loss.item()
-
-        return total_loss / n_batches
-
-def train_proteomics_autoencoder(
-    data: pd.DataFrame,
-    protein_embedding_dim: int = 128,
-    sample_embedding_dim: int = 64,
-    hidden_dims: List[int] = [256, 128],
-    epochs: int = 200,
-    learning_rate: float = 1e-3,
-    mask_probability: float = 0.15,
-    scaling_method: str = 'robust',
-    device: Optional[torch.device] = None,
-    validation_split: float = 0.2,
-    **kwargs
-) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
-    """
-    Train the proteomics autoencoder
-
-    Args:
-        data: DataFrame with proteins as rows, samples as columns
-        protein_embedding_dim: Dimension of protein embeddings
-        sample_embedding_dim: Dimension of sample embeddings
-        hidden_dims: Hidden layer dimensions
-        epochs: Number of training epochs
-        learning_rate: Learning rate for optimizer
-        mask_probability: Probability of masking values during training
-        scaling_method: Method for scaling data
-        device: Device for training
-        validation_split: Fraction of data for validation
-
-    Returns:
-        Tuple of (trained_model, dataset, training_history)
-    """
-
-    if device is None:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # We can enable this but for smaller models mps is a lot slower than cpu
-        # <womp-womp>
-        #device = torch.device('mps' if torch.mps.is_available() else 'cpu')
-
-    print(f"Training on device: {device}")
-    print(f"Data shape: {data.shape}")
-
-    # Create dataset
-    dataset = ProteomicsDataset(
-        data,
-        mask_probability=mask_probability,
-        scaling_method=scaling_method
-    )
-
-    # Create model
-    model = BiDirectionalAutoencoder(
-        n_proteins=dataset.n_proteins,
-        n_samples=dataset.n_samples,
-        protein_embedding_dim=protein_embedding_dim,
-        sample_embedding_dim=sample_embedding_dim,
-        hidden_dims=hidden_dims
-    ).to(device)
-
-    # Create trainer
-    trainer = ProteomicsAutoencoderTrainer(model, learning_rate=learning_rate)
-
-    # Training loop
-    train_losses = []
-    val_losses = []
-
-    print("Starting training...")
-    for epoch in range(epochs):
-        # Train
-        train_loss = trainer.train_epoch(dataset, device)
-        train_losses.append(train_loss)
-
-        # Validate
-        if epoch % 10 == 0:
-            val_loss = trainer.validate(dataset, device)
-            val_losses.append(val_loss)
-
-            print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
-
-    # Final validation
-    final_val_loss = trainer.validate(dataset, device)
-    val_losses.append(final_val_loss)
-
-    training_history = {
-        'train_losses': train_losses,
-        'val_losses': val_losses,
-        'final_train_loss': train_losses[-1],
-        'final_val_loss': final_val_loss
-    }
-
-    print(f"Training completed. Final train loss: {train_losses[-1]:.6f}, Final val loss: {final_val_loss:.6f}")
-
-    analysis_results_dict = {
-        'model': {'type': 'BiDirectionalAutoencoder'},
-        'embeddings': sample_embeddings, ####
-        'similarity_matrix': sim_df,     ####
-        'training_history': training_history,
-        # 'relationship_analysis': {
-        #     'statistics': {
-        #         'n_similar_pairs': 45,
-        #         'mean_similarity': 0.72,
-        #         'threshold_used': 0.6
-        #     },
-        #     'top_similar_pairs': [
-        #         {'protein1': f'Protein_{i:03d}', 'protein2': f'Protein_{i+1:03d}', 'similarity': 0.9 - 0.1*i/10}
-        #         for i in range(15)
-        #     ]
-        # },
-        # 'reconstruction_results': {
-        #     'reconstruction_error': {
-        #         'mse': 0.045,
-        #         'mae': 0.012
-        #     }
-        # },
-        'config': {
-            'protein_embedding_dim': protein_embedding_dim,
-            'sample_embedding_dim': sample_embedding_dim,
-            'hidden_dims': hidden_dims,
-            'epochs': epochs,
-            'learning_rate': learning_rate,
-            'correlation_method': correlation_method
+        self.results = results_dict or {}
+        self.analysis_type = analysis_type
+        self.timestamp = timestamp or datetime.now()
+        self.metadata = metadata or {}
+
+    def get_result(self, key: str, default=None):
+        """Get a specific result by key"""
+        return self.results.get(key, default)
+
+    def set_result(self, key: str, value: Any):
+        """Set a specific result"""
+        self.results[key] = value
+
+    def get_summary_stats(self) -> Dict:
+        """Get summary statistics - to be overridden by subclasses"""
+        return {
+            'analysis_type': self.analysis_type,
+            'timestamp': self.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            'n_results': len(self.results),
+            'result_keys': list(self.results.keys())
         }
-    }
 
-    analysis_results = ProteomicsAutoencoderResults(
-                results_dict=sample_results,
-                original_data=sample_data
-                )
+    def to_text(self, include_details: bool = True) -> str:
+        """
+        Generate text representation of results
 
-    return model, analysis_results
+        Args:
+            include_details: Whether to include detailed results
 
-def calculate_protein_similarity_matrix(
-    model: BiDirectionalAutoencoder,
-    dataset: ProteomicsDataset,
-    device: torch.device,
-    similarity_metric: str = 'cosine'
-) -> pd.DataFrame:
+        Returns:
+            Formatted text string
+        """
+        text_parts = []
+
+        # Header
+        text_parts.append(f"{'='*60}")
+        text_parts.append(f"{self.analysis_type.upper()}")
+        text_parts.append(f"{'='*60}")
+        text_parts.append(f"Analysis Date: {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+        text_parts.append("")
+
+        # Summary statistics
+        summary = self.get_summary_stats()
+        text_parts.append("SUMMARY:")
+        for key, value in summary.items():
+            if key not in ['analysis_type', 'timestamp']:
+                text_parts.append(f"  {key}: {value}")
+        text_parts.append("")
+
+        # Metadata
+        if self.metadata:
+            text_parts.append("METADATA:")
+            for key, value in self.metadata.items():
+                text_parts.append(f"  {key}: {value}")
+            text_parts.append("")
+
+        if include_details:
+            text_parts.append("DETAILED RESULTS:")
+            text_parts.append("-" * 40)
+            text_parts.extend(self._generate_detailed_text())
+
+        return "\n".join(text_parts)
+
+    def to_html(self, standalone: bool = True, include_plots: bool = True,
+                plot_format: str = 'png', **plot_kwargs) -> str:
+        """
+        Generate HTML representation of results
+
+        Args:
+            standalone: Whether to generate complete HTML page or just content
+            include_plots: Whether to include plots in HTML
+            plot_format: Format for embedded plots ('png', 'svg')
+            **plot_kwargs: Additional arguments for plotting
+
+        Returns:
+            HTML string
+        """
+        html_parts = []
+
+        # HTML header (if standalone)
+        if standalone:
+            html_parts.extend([
+                "<!DOCTYPE html>",
+                "<html>",
+                "<head>",
+                f"<title>{self.analysis_type} Results</title>",
+                "<style>",
+                self._get_default_css(),
+                "</style>",
+                "</head>",
+                "<body>"
+            ])
+
+        # Main content
+        html_parts.append(f'<div class="analysis-results">')
+
+        # Header
+        html_parts.extend([
+            f'<h1 class="analysis-title">{self.analysis_type}</h1>',
+            f'<p class="analysis-date">Analysis Date: {self.timestamp.strftime("%Y-%m-%d %H:%M:%S")}</p>'
+        ])
+
+        # Summary
+        html_parts.append('<div class="summary-section">')
+        html_parts.append('<h2>Summary</h2>')
+        html_parts.append(self._generate_summary_html())
+        html_parts.append('</div>')
+
+        # Metadata
+        if self.metadata:
+            html_parts.append('<div class="metadata-section">')
+            html_parts.append('<h2>Metadata</h2>')
+            html_parts.append(self._generate_metadata_html())
+            html_parts.append('</div>')
+
+        # Detailed results
+        html_parts.append('<div class="details-section">')
+        html_parts.append('<h2>Detailed Results</h2>')
+        html_parts.append(self._generate_detailed_html())
+        html_parts.append('</div>')
+
+        # Plots
+        if include_plots:
+            html_parts.append('<div class="plots-section">')
+            html_parts.append('<h2>Visualizations</h2>')
+            html_parts.append(self._generate_plots_html(plot_format, **plot_kwargs))
+            html_parts.append('</div>')
+
+        html_parts.append('</div>')
+
+        # HTML footer (if standalone)
+        if standalone:
+            html_parts.extend([
+                "</body>",
+                "</html>"
+            ])
+
+        return "\n".join(html_parts)
+
+    def save_results(self, filepath: str, format: str = 'json'):
+        """
+        Save results to file
+
+        Args:
+            filepath: Path to save file
+            format: Format to save ('json', 'pickle', 'text', 'html')
+        """
+        if format == 'json':
+            # Convert numpy arrays and other non-serializable objects
+            serializable_results = self._make_json_serializable(self.results)
+            with open(filepath, 'w') as f:
+                json.dump({
+                    'analysis_type': self.analysis_type,
+                    'timestamp': self.timestamp.isoformat(),
+                    'metadata': self.metadata,
+                    'results': serializable_results
+                }, f, indent=2)
+
+        elif format == 'pickle':
+            import pickle
+            with open(filepath, 'wb') as f:
+                pickle.dump(self, f)
+
+        elif format == 'text':
+            with open(filepath, 'w') as f:
+                f.write(self.to_text())
+
+        elif format == 'html':
+            with open(filepath, 'w') as f:
+                f.write(self.to_html())
+
+        else:
+            raise ValueError(f"Unsupported format: {format}")
+
+    def _generate_detailed_text(self) -> List[str]:
+        """Generate detailed text representation - to be overridden"""
+        return [f"{key}: {value}" for key, value in self.results.items()]
+
+    def _generate_summary_html(self) -> str:
+        """Generate summary HTML"""
+        summary = self.get_summary_stats()
+        html = '<table class="summary-table">'
+        for key, value in summary.items():
+            if key not in ['analysis_type', 'timestamp']:
+                html += f'<tr><td><strong>{key.replace("_", " ").title()}:</strong></td><td>{value}</td></tr>'
+        html += '</table>'
+        return html
+
+    def _generate_metadata_html(self) -> str:
+        """Generate metadata HTML"""
+        html = '<table class="metadata-table">'
+        for key, value in self.metadata.items():
+            html += f'<tr><td><strong>{key.replace("_", " ").title()}:</strong></td><td>{value}</td></tr>'
+        html += '</table>'
+        return html
+
+    def _generate_detailed_html(self) -> str:
+        """Generate detailed results HTML - to be overridden"""
+        return '<p>Detailed results not implemented for base class</p>'
+
+    def _generate_plots_html(self, plot_format: str = 'png', **plot_kwargs) -> str:
+        """Generate plots HTML - to be overridden"""
+        return '<p>Plots not implemented for base class</p>'
+
+    def _get_default_css(self) -> str:
+        """Get default CSS for HTML output"""
+        return """
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .analysis-results { max-width: 1200px; margin: 0 auto; }
+        .analysis-title { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        .analysis-date { color: #7f8c8d; font-style: italic; }
+        .summary-section, .metadata-section, .details-section, .plots-section {
+            margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 5px;
+        }
+        .summary-table, .metadata-table, .results-table {
+            width: 100%; border-collapse: collapse; margin: 10px 0;
+        }
+        .summary-table td, .metadata-table td, .results-table td, .results-table th {
+            padding: 8px 12px; border: 1px solid #dee2e6;
+        }
+        .results-table th { background-color: #e9ecef; font-weight: bold; }
+        .plot-container { margin: 20px 0; text-align: center; }
+        .plot-title { font-weight: bold; margin: 10px 0; color: #2c3e50; }
+        .metric-good { color: #27ae60; font-weight: bold; }
+        .metric-warning { color: #f39c12; font-weight: bold; }
+        .metric-poor { color: #e74c3c; font-weight: bold; }
+        .config-section { background-color: #f1f2f6; padding: 15px; border-radius: 5px; }
+        .config-section h3 { margin-top: 0; color: #2c3e50; }
+        """
+
+    def _make_json_serializable(self, obj):
+        """Convert numpy arrays and other objects to JSON-serializable format"""
+        if isinstance(obj, dict):
+            return {key: self._make_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._make_json_serializable(item) for item in obj]
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, (np.integer, np.floating)):
+            return obj.item()
+        elif isinstance(obj, pd.DataFrame):
+            return obj.to_dict()
+        elif hasattr(obj, '__dict__'):
+            return str(obj)  # For complex objects, convert to string
+        else:
+            return obj
+
+class WeightedCorrelationAnalysisResults(AnalysisResults):
     """
-    Calculate protein-protein similarity matrix using learned embeddings
-
-    Args:
-        model: Trained autoencoder model
-        dataset: Dataset used for training
-        device: Device for computation
-        similarity_metric: 'cosine', 'euclidean', or 'correlation'
-
-    Returns:
-        DataFrame with protein similarity matrix
+    Specialized class for weighted correlation analysis results
     """
 
-    model.eval()
+    def __init__(self, results_dict: Dict, original_data: pd.DataFrame = None,
+                 interactions: List[Tuple[str, str]] = None):
+        """
+        Initialize weighted correlation analysis results
 
-    with torch.no_grad():
-        # Get full data
-        full_data = dataset.data_tensor.unsqueeze(0).to(device)
+        Args:
+            results_dict: Results from learn_correlation_weights function
+            original_data: Original proteomics data used in analysis
+            interactions: Original interaction list used in analysis
+        """
+        super().__init__(
+            results_dict=results_dict,
+            analysis_type="Weighted Correlation Analysis",
+            metadata=results_dict.get('config', {})
+        )
 
-        # Get protein embeddings
-        protein_embeddings = model.get_protein_embeddings(full_data)
-        protein_embeddings = protein_embeddings.squeeze(0).cpu().numpy()  # [n_proteins, embedding_dim]
+        self.original_data = original_data
+        self.interactions = interactions
 
-    # Calculate similarity matrix
-    if similarity_metric == 'cosine':
-        similarity_matrix = cosine_similarity(protein_embeddings)
-    elif similarity_metric == 'euclidean':
-        from sklearn.metrics.pairwise import euclidean_distances
-        distances = euclidean_distances(protein_embeddings)
-        # Convert to similarity (higher = more similar)
-        similarity_matrix = 1 / (1 + distances)
-    elif similarity_metric == 'correlation':
-        similarity_matrix = np.corrcoef(protein_embeddings)
-    else:
-        raise ValueError("similarity_metric must be 'cosine', 'euclidean', or 'correlation'")
+        # Extract key components for easy access
+        self.model = results_dict.get('model')
+        self.learned_weights = results_dict.get('learned_weights')
+        self.weights_dataframe = results_dict.get('weights_dataframe')
+        self.correlation_matrix = results_dict.get('weighted_correlation_matrix')
+        self.training_metrics = results_dict.get('training_metrics', {})
+        self.validation_metrics = results_dict.get('validation_metrics', {})
+        self.training_history = results_dict.get('training_history', {})
+        self.config = results_dict.get('config', {})
 
-    # Create DataFrame
-    similarity_df = pd.DataFrame(
-        similarity_matrix,
-        index=dataset.protein_names,
-        columns=dataset.protein_names
-    )
+    def get_summary_stats(self) -> Dict:
+        """Get comprehensive summary statistics"""
+        base_stats = super().get_summary_stats()
 
-    return similarity_df
+        # Performance metrics
+        train_auc = self.training_metrics.get('auc', 0)
+        val_auc = self.validation_metrics.get('auc', 0)
+        train_ap = self.training_metrics.get('average_precision', 0)
+        val_ap = self.validation_metrics.get('average_precision', 0)
 
-def save_autoencoder_results(model, dataset, training_history,
-                            similarity_matrix, output_dir="proteomics_analysis",):
-    # Compile results
-    results = {
-        'model': model,
-        'dataset': dataset,
-        'training_history': training_history,
-        'similarity_matrix': similarity_matrix,
-    }
+        # Weight statistics
+        if self.weights_dataframe is not None:
+            weight_stats = {
+                'max_weight': self.weights_dataframe['weight'].max(),
+                'min_weight': self.weights_dataframe['weight'].min(),
+                'weight_std': self.weights_dataframe['weight'].std(),
+                'weight_entropy': self._calculate_weight_entropy(),
+                'top_condition': self.weights_dataframe.iloc[0]['condition']
+            }
+        else:
+            weight_stats = {}
 
-    os.makedirs(output_dir, exist_ok=True)
+        # Data information
+        data_info = {}
+        if 'original_data_shape' in self.results:
+            data_info['original_proteins'] = self.results['original_data_shape'][0]
+            data_info['original_conditions'] = self.results['original_data_shape'][1]
+        if 'processed_data_shape' in self.results:
+            data_info['processed_proteins'] = self.results['processed_data_shape'][0]
+            data_info['processed_conditions'] = self.results['processed_data_shape'][1]
 
-    # Save similarity matrix
-    similarity_matrix.to_csv(os.path.join(output_dir, 'protein_similarity_matrix.csv'))
+        return {
+            **base_stats,
+            'learning_method': self.config.get('learning_method', 'unknown'),
+            'training_auc': train_auc,
+            'validation_auc': val_auc,
+            'training_ap': train_ap,
+            'validation_ap': val_ap,
+            'performance_gap': abs(train_auc - val_auc),
+            'n_interactions_train': len(self.results.get('train_interactions', [])),
+            'n_interactions_val': len(self.results.get('val_interactions', [])),
+            **weight_stats,
+            **data_info
+        }
 
-    # Save model
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'model_config': {
-            'n_proteins': dataset.n_proteins,
-            'n_samples': dataset.n_samples,
-            'protein_embedding_dim': model.protein_embedding_dim,
-            'sample_embedding_dim': model.sample_embedding_dim
-        },
-        'scaler': dataset.scaler
-    }, os.path.join(output_dir, 'autoencoder_model.pth'))
+    def get_performance_assessment(self) -> str:
+        """Assess model performance quality"""
+        val_auc = self.validation_metrics.get('auc', 0)
 
-    print(f"Results saved to {output_dir}/")
+        if val_auc >= 0.9:
+            return "Excellent"
+        elif val_auc >= 0.8:
+            return "Good"
+        elif val_auc >= 0.7:
+            return "Fair"
+        elif val_auc >= 0.6:
+            return "Poor"
+        else:
+            return "Very Poor"
 
-def load_proteomics_autoencoder(
-    model_path: str,
-    device: Optional[torch.device] = None
-) -> Dict:
-    """
-    Load a saved proteomics autoencoder model and associated artifacts
+    def get_top_conditions(self, n: int = 10) -> pd.DataFrame:
+        """Get top N weighted conditions"""
+        if self.weights_dataframe is None:
+            return pd.DataFrame()
+        return self.weights_dataframe.head(n)
 
-    Args:
-        model_path: Path to the saved model file (.pth)
-        device: Device to load model on (if None, auto-detects)
+    def get_weight_concentration_stats(self) -> Dict:
+        """Calculate weight concentration statistics"""
+        if self.weights_dataframe is None:
+            return {}
 
-    Returns:
-        Dictionary containing loaded model, config, and scaler
-    """
+        weights = self.weights_dataframe['weight'].values
+        n_conditions = len(weights)
 
-    if device is None:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        return {
+            'top_10_percent_weight': weights[:n_conditions//10].sum(),
+            'top_25_percent_weight': weights[:n_conditions//4].sum(),
+            'gini_coefficient': self._calculate_gini_coefficient(weights),
+            'effective_conditions': 1 / np.sum(weights**2)  # Inverse Simpson diversity
+        }
 
-    print(f"Loading model from: {model_path}")
-    print(f"Loading on device: {device}")
+    def _calculate_weight_entropy(self) -> float:
+        """Calculate entropy of weight distribution"""
+        if self.weights_dataframe is None:
+            return 0
 
-    # Load the saved checkpoint
-    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+        weights = self.weights_dataframe['weight'].values
+        weights = weights / np.sum(weights)  # Normalize
+        return -np.sum(weights * np.log(weights + 1e-10))
 
-    # Extract configuration
-    config = checkpoint['model_config']
-    print(f"Model configuration: {config}")
+    def _calculate_gini_coefficient(self, weights: np.ndarray) -> float:
+        """Calculate Gini coefficient for weight inequality"""
+        sorted_weights = np.sort(weights)
+        n = len(weights)
+        cumsum = np.cumsum(sorted_weights)
+        return (n + 1 - 2 * np.sum(cumsum) / cumsum[-1]) / n
 
-    # Recreate the model with the same architecture
-    model = BiDirectionalAutoencoder(
-        n_proteins=config['n_proteins'],
-        n_samples=config['n_samples'],
-        protein_embedding_dim=config['protein_embedding_dim'],
-        sample_embedding_dim=config['sample_embedding_dim']
-    ).to(device)
+    def _generate_detailed_text(self) -> List[str]:
+        """Generate detailed text representation"""
+        lines = []
 
-    # Load the trained weights
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.eval()  # Set to evaluation mode
+        # Performance Section
+        lines.append("PERFORMANCE METRICS:")
+        lines.append(f"  Training AUC: {self.training_metrics.get('auc', 0):.4f}")
+        lines.append(f"  Validation AUC: {self.validation_metrics.get('auc', 0):.4f}")
+        lines.append(f"  Training AP: {self.training_metrics.get('average_precision', 0):.4f}")
+        lines.append(f"  Validation AP: {self.validation_metrics.get('average_precision', 0):.4f}")
+        lines.append(f"  Performance Assessment: {self.get_performance_assessment()}")
+        lines.append("")
 
-    # Load the scaler
-    scaler = checkpoint['scaler']
+        # Weight Analysis
+        if self.weights_dataframe is not None:
+            lines.append("WEIGHT ANALYSIS:")
+            concentration_stats = self.get_weight_concentration_stats()
+            lines.append(f"  Entropy: {self._calculate_weight_entropy():.4f}")
+            lines.append(f"  Gini Coefficient: {concentration_stats.get('gini_coefficient', 0):.4f}")
+            lines.append(f"  Effective Conditions: {concentration_stats.get('effective_conditions', 0):.1f}")
+            lines.append(f"  Top 10% Conditions Weight: {concentration_stats.get('top_10_percent_weight', 0):.2%}")
+            lines.append("")
 
-    loaded_artifacts = {
-        'model': model,
-        'config': config,
-        'scaler': scaler,
-        'device': device
-    }
+            lines.append("TOP 10 WEIGHTED CONDITIONS:")
+            top_conditions = self.get_top_conditions(10)
+            for idx, row in top_conditions.iterrows():
+                lines.append(f"  {row['condition']}: {row['weight']:.6f}")
+            lines.append("")
 
-    print("Model loaded successfully!")
-    return loaded_artifacts
+        # Configuration
+        lines.append("CONFIGURATION:")
+        for key, value in self.config.items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")
 
+        # Data Information
+        if 'missing_data_info' in self.results:
+            missing_info = self.results['missing_data_info']
+            lines.append("MISSING DATA HANDLING:")
+            lines.append(f"  Strategy: {missing_info.get('strategy_used', 'N/A')}")
+            lines.append(f"  Original Missing: {missing_info.get('missing_percentage', 0):.2f}%")
+            if 'after_processing' in missing_info:
+                lines.append(f"  After Processing: {missing_info['after_processing'].get('missing_percentage', 0):.2f}%")
+            lines.append("")
+
+        return lines
+
+    def _generate_detailed_html(self) -> str:
+        """Generate detailed HTML representation"""
+        html_parts = []
+
+        # Performance metrics table
+        html_parts.append('<h3>Performance Metrics</h3>')
+        html_parts.append('<table class="results-table">')
+        html_parts.append('<tr><th>Metric</th><th>Training</th><th>Validation</th><th>Assessment</th></tr>')
+
+        train_auc = self.training_metrics.get('auc', 0)
+        val_auc = self.validation_metrics.get('auc', 0)
+        train_ap = self.training_metrics.get('average_precision', 0)
+        val_ap = self.validation_metrics.get('average_precision', 0)
+
+        auc_class = self._get_metric_class(val_auc, 0.8, 0.7)
+        ap_class = self._get_metric_class(val_ap, 0.8, 0.7)
+
+        html_parts.append(f'<tr><td>AUC</td><td>{train_auc:.4f}</td><td class="{auc_class}">{val_auc:.4f}</td><td>{self.get_performance_assessment()}</td></tr>')
+        html_parts.append(f'<tr><td>Average Precision</td><td>{train_ap:.4f}</td><td class="{ap_class}">{val_ap:.4f}</td><td>-</td></tr>')
+        html_parts.append('</table>')
+
+        # Weight analysis
+        if self.weights_dataframe is not None:
+            html_parts.append('<h3>Weight Analysis</h3>')
+            concentration_stats = self.get_weight_concentration_stats()
+
+            html_parts.append('<table class="results-table">')
+            html_parts.append('<tr><th>Statistic</th><th>Value</th><th>Interpretation</th></tr>')
+
+            entropy = self._calculate_weight_entropy()
+            gini = concentration_stats.get('gini_coefficient', 0)
+            effective_cond = concentration_stats.get('effective_conditions', 0)
+
+            html_parts.append(f'<tr><td>Weight Entropy</td><td>{entropy:.4f}</td><td>{"High diversity" if entropy > 2.5 else "Moderate diversity" if entropy > 1.5 else "Low diversity"}</td></tr>')
+            html_parts.append(f'<tr><td>Gini Coefficient</td><td>{gini:.4f}</td><td>{"High inequality" if gini > 0.7 else "Moderate inequality" if gini > 0.4 else "Low inequality"}</td></tr>')
+            html_parts.append(f'<tr><td>Effective Conditions</td><td>{effective_cond:.1f}</td><td>Equivalent to {effective_cond:.1f} equally-weighted conditions</td></tr>')
+            html_parts.append('</table>')
+
+            # Top conditions table
+            html_parts.append('<h3>Top Weighted Conditions</h3>')
+            top_conditions = self.get_top_conditions(15)
+
+            html_parts.append('<table class="results-table">')
+            html_parts.append('<tr><th>Rank</th><th>Condition</th><th>Weight</th><th>Percentage</th></tr>')
+
+            for idx, (_, row) in enumerate(top_conditions.iterrows(), 1):
+                percentage = row['weight'] * 100
+                html_parts.append(f'<tr><td>{idx}</td><td>{row["condition"]}</td><td>{row["weight"]:.6f}</td><td>{percentage:.3f}%</td></tr>')
+
+            html_parts.append('</table>')
+
+        # Configuration section
+        html_parts.append('<div class="config-section">')
+        html_parts.append('<h3>Analysis Configuration</h3>')
+        html_parts.append('<table class="results-table">')
+        html_parts.append('<tr><th>Parameter</th><th>Value</th></tr>')
+
+        for key, value in self.config.items():
+            display_key = key.replace('_', ' ').title()
+            html_parts.append(f'<tr><td>{display_key}</td><td>{value}</td></tr>')
+
+        html_parts.append('</table>')
+        html_parts.append('</div>')
+
+        return '\n'.join(html_parts)
+
+    def _generate_plots_html(self, plot_format: str = 'png', **plot_kwargs) -> str:
+        """Generate plots HTML with embedded images"""
+        html_parts = []
+
+        try:
+            # Create plots
+            plots = self.create_plots(**plot_kwargs)
+
+            for plot_name, fig in plots.items():
+                if fig is not None:
+                    # Convert plot to base64 string
+                    img_str = self._fig_to_base64(fig, format=plot_format)
+
+                    html_parts.append(f'<div class="plot-container">')
+                    html_parts.append(f'<div class="plot-title">{plot_name.replace("_", " ").title()}</div>')
+                    html_parts.append(f'<img src="data:image/{plot_format};base64,{img_str}" alt="{plot_name}" style="max-width: 100%; height: auto;">')
+                    html_parts.append('</div>')
+
+                    plt.close(fig)  # Clean up
+
+        except Exception as e:
+            html_parts.append(f'<p class="error">Error generating plots: {str(e)}</p>')
+
+        return '\n'.join(html_parts)
+
+    def _get_metric_class(self, value: float, good_threshold: float, fair_threshold: float) -> str:
+        """Get CSS class for metric value"""
+        if value >= good_threshold:
+            return "metric-good"
+        elif value >= fair_threshold:
+            return "metric-warning"
+        else:
+            return "metric-poor"
+
+    def _fig_to_base64(self, fig, format: str = 'png') -> str:
+        """Convert matplotlib figure to base64 string"""
+        buffer = BytesIO()
+        fig.savefig(buffer, format=format, bbox_inches='tight', dpi=150)
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.getvalue()).decode()
+        buffer.close()
+        return img_str
+
+    def create_plots(self, figsize: Tuple[int, int] = (15, 12), **kwargs) -> Dict:
+        """
+        Create visualization plots
+
+        Args:
+            figsize: Figure size for plots
+            **kwargs: Additional plotting parameters
+
+        Returns:
+            Dictionary of plot names to figure objects
+        """
+        plots = {}
+
+        try:
+            # 1. Weight distribution plot
+            if self.weights_dataframe is not None:
+                fig1 = plt.figure(figsize=(12, 8))
+
+                # Weight bar plot
+                ax1 = plt.subplot(2, 2, 1)
+                top_weights = self.weights_dataframe.head(20)
+                bars = ax1.bar(range(len(top_weights)), top_weights['weight'])
+                ax1.set_xlabel('Condition Rank')
+                ax1.set_ylabel('Weight')
+                ax1.set_title('Top 20 Condition Weights')
+                ax1.grid(True, alpha=0.3)
+
+                # Weight histogram
+                ax2 = plt.subplot(2, 2, 2)
+                ax2.hist(self.weights_dataframe['weight'], bins=30, alpha=0.7, edgecolor='black')
+                ax2.axvline(self.weights_dataframe['weight'].mean(), color='red', linestyle='--',
+                           label=f'Mean: {self.weights_dataframe["weight"].mean():.4f}')
+                ax2.set_xlabel('Weight Value')
+                ax2.set_ylabel('Frequency')
+                ax2.set_title('Weight Distribution')
+                ax2.legend()
+                ax2.grid(True, alpha=0.3)
+
+                # Training progress (if available)
+                ax3 = plt.subplot(2, 2, 3)
+                if len(self.training_history.get('iteration', [])) > 1:
+                    ax3.plot(self.training_history['iteration'], self.training_history['train_objective'], 'b-', linewidth=2)
+                    ax3.set_xlabel('Iteration')
+                    ax3.set_ylabel('Objective (AUC)')
+                    ax3.set_title('Training Progress')
+                    ax3.grid(True, alpha=0.3)
+                else:
+                    ax3.text(0.5, 0.5, 'Single iteration training\n(e.g., Ridge Regression)',
+                            ha='center', va='center', transform=ax3.transAxes)
+                    ax3.set_title('Training Progress')
+
+                # Performance comparison
+                ax4 = plt.subplot(2, 2, 4)
+                metrics = ['AUC', 'Average Precision']
+                train_vals = [self.training_metrics.get('auc', 0), self.training_metrics.get('average_precision', 0)]
+                val_vals = [self.validation_metrics.get('auc', 0), self.validation_metrics.get('average_precision', 0)]
+
+                x = np.arange(len(metrics))
+                width = 0.35
+
+                bars1 = ax4.bar(x - width/2, train_vals, width, label='Training', alpha=0.7)
+                bars2 = ax4.bar(x + width/2, val_vals, width, label='Validation', alpha=0.7)
+
+                ax4.set_ylabel('Score')
+                ax4.set_title('Performance Comparison')
+                ax4.set_xticks(x)
+                ax4.set_xticklabels(metrics)
+                ax4.legend()
+                ax4.grid(True, alpha=0.3)
+
+                # Add value labels
+                for bars in [bars1, bars2]:
+                    for bar in bars:
+                        height = bar.get_height()
+                        ax4.text(bar.get_x() + bar.get_width()/2., height + 0.01,
+                                f'{height:.3f}', ha='center', va='bottom', fontsize=8)
+
+                plt.tight_layout()
+                plots['weight_analysis'] = fig1
+
+            # 2. Correlation matrix heatmap (if available and not too large)
+            if self.correlation_matrix is not None and len(self.correlation_matrix) <= 100:
+                fig2 = plt.figure(figsize=(10, 8))
+
+                # Sample subset if still too large for visualization
+                if len(self.correlation_matrix) > 50:
+                    sample_indices = np.random.choice(len(self.correlation_matrix), 50, replace=False)
+                    plot_matrix = self.correlation_matrix.iloc[sample_indices, sample_indices]
+                    title_suffix = " (50 random proteins)"
+                else:
+                    plot_matrix = self.correlation_matrix
+                    title_suffix = ""
+
+                sns.heatmap(plot_matrix, cmap='RdBu_r', center=0, square=True,
+                           cbar_kws={'label': 'Weighted Correlation'})
+                plt.title(f'Weighted Correlation Matrix{title_suffix}')
+                plt.tight_layout()
+                plots['correlation_matrix'] = fig2
+
+            # 3. ROC curves (if available)
+            if ('fpr' in self.training_metrics and 'tpr' in self.training_metrics and
+                'fpr' in self.validation_metrics and 'tpr' in self.validation_metrics):
+
+                fig3 = plt.figure(figsize=(10, 6))
+
+                # ROC curve
+                ax1 =plt.subplot(1, 2, 1)
+                ax1.plot(self.training_metrics['fpr'], self.training_metrics['tpr'],
+                        label=f'Training (AUC = {self.training_metrics["auc"]:.3f})', linewidth=2)
+                ax1.plot(self.validation_metrics['fpr'], self.validation_metrics['tpr'],
+                        label=f'Validation (AUC = {self.validation_metrics["auc"]:.3f})', linewidth=2)
+                ax1.plot([0, 1], [0, 1], 'k--', alpha=0.5, label='Random')
+                ax1.set_xlabel('False Positive Rate')
+                ax1.set_ylabel('True Positive Rate')
+                ax1.set_title('ROC Curves')
+                ax1.legend()
+                ax1.grid(True, alpha=0.3)
+
+                # Precision-Recall curve (if available)
+                if ('precision' in self.training_metrics and 'recall' in self.training_metrics and
+                    'precision' in self.validation_metrics and 'recall' in self.validation_metrics):
+
+                    ax2 = plt.subplot(1, 2, 2)
+                    ax2.plot(self.training_metrics['recall'], self.training_metrics['precision'],
+                            label=f'Training (AP = {self.training_metrics["average_precision"]:.3f})', linewidth=2)
+                    ax2.plot(self.validation_metrics['recall'], self.validation_metrics['precision'],
+                            label=f'Validation (AP = {self.validation_metrics["average_precision"]:.3f})', linewidth=2)
+                    ax2.set_xlabel('Recall')
+                    ax2.set_ylabel('Precision')
+                    ax2.set_title('Precision-Recall Curves')
+                    ax2.legend()
+                    ax2.grid(True, alpha=0.3)
+
+                plt.tight_layout()
+                plots['performance_curves'] = fig3
+
+        except Exception as e:
+            print(f"Warning: Error creating plots: {e}")
+
+        return plots
+
+    def compare_with_baseline(self, baseline_results: 'WeightedCorrelationAnalysisResults') -> Dict:
+        """
+        Compare this analysis with baseline results
+
+        Args:
+            baseline_results: Another WeightedCorrelationAnalysisResults to compare against
+
+        Returns:
+            Dictionary with comparison metrics
+        """
+        comparison = {}
+
+        # Performance comparison
+        comparison['performance'] = {
+            'auc_improvement': self.validation_metrics.get('auc', 0) - baseline_results.validation_metrics.get('auc', 0),
+            'ap_improvement': self.validation_metrics.get('average_precision', 0) - baseline_results.validation_metrics.get('average_precision', 0)
+        }
+
+        # Weight analysis comparison
+        if self.weights_dataframe is not None and baseline_results.weights_dataframe is not None:
+            # Weight correlation
+            common_conditions = set(self.weights_dataframe['condition']) & set(baseline_results.weights_dataframe['condition'])
+            if common_conditions:
+                self_weights = self.weights_dataframe.set_index('condition').loc[list(common_conditions), 'weight']
+                baseline_weights = baseline_results.weights_dataframe.set_index('condition').loc[list(common_conditions), 'weight']
+                weight_correlation = np.corrcoef(self_weights, baseline_weights)[0, 1]
+                comparison['weight_correlation'] = weight_correlation
+
+            # Entropy comparison
+            comparison['entropy_difference'] = self._calculate_weight_entropy() - baseline_results._calculate_weight_entropy()
+
+        return comparison
 
 class ProteomicsAutoencoderResults(AnalysisResults):
     """
@@ -1433,3 +1573,135 @@ Quality Assessment: {self._assess_embedding_quality()}
 
         else:
             raise ValueError(f"Unsupported format: {format}")
+
+# Example usage and testing
+if __name__ == "__main__":
+    # Create sample autoencoder results (mimicking output from analyze_proteomics_data)
+    np.random.seed(42)
+
+    # Sample embeddings
+    n_proteins, embedding_dim = 150, 64
+    sample_embeddings = np.random.randn(n_proteins, embedding_dim)
+
+    # Sample similarity matrix
+    similarity_matrix = np.random.rand(n_proteins, n_proteins)
+    similarity_matrix = (similarity_matrix + similarity_matrix.T) / 2
+    np.fill_diagonal(similarity_matrix, 1.0)
+
+    protein_names = [f'Protein_{i:03d}' for i in range(n_proteins)]
+    sim_df = pd.DataFrame(similarity_matrix, index=protein_names, columns=protein_names)
+
+    # Create sample autoencoder results
+    sample_results = {
+        'model': {'type': 'BiDirectionalAutoencoder'},
+        'embeddings': sample_embeddings,
+        'similarity_matrix': sim_df,
+        'training_history': {
+            'train_losses': [1.5 * np.exp(-i/50) + 0.1 + 0.02*np.random.randn() for i in range(200)],
+            'val_losses': [1.6 * np.exp(-i/45) + 0.12 + 0.02*np.random.randn() for i in range(0, 200, 10)]
+        },
+        'relationship_analysis': {
+            'statistics': {
+                'n_similar_pairs': 45,
+                'mean_similarity': 0.72,
+                'threshold_used': 0.6
+            },
+            'top_similar_pairs': [
+                {'protein1': f'Protein_{i:03d}', 'protein2': f'Protein_{i+1:03d}', 'similarity': 0.9 - 0.1*i/10}
+                for i in range(15)
+            ]
+        },
+        'reconstruction_results': {
+            'reconstruction_error': {
+                'mse': 0.045,
+                'mae': 0.012
+            }
+        },
+        'config': {
+            'protein_embedding_dim': embedding_dim,
+            'sample_embedding_dim': 32,
+            'hidden_dims': [256, 128],
+            'epochs': 200,
+            'learning_rate': 0.001,
+            'correlation_method': 'pearson'
+        }
+    }
+
+    # Sample original data
+    sample_data = pd.DataFrame(
+        np.random.randn(n_proteins, 30),
+        index=protein_names,
+        columns=[f'Condition_{i}' for i in range(30)]
+    )
+
+    print("Testing ProteomicsAutoencoderResults class...")
+
+    # Create results object
+    results = ProteomicsAutoencoderResults(
+        results_dict=sample_results,
+        original_data=sample_data
+    )
+
+    # Test summary stats
+    print("\n" + "="*60)
+    print("SUMMARY STATS:")
+    print("="*60)
+    summary = results.get_summary_stats()
+    for key, value in summary.items():
+        print(f"{key}: {value}")
+
+    # Test text output
+    print("\n" + "="*60)
+    print("TEXT OUTPUT (first 1000 chars):")
+    print("="*60)
+    text_output = results.to_text()
+    print(text_output[:1000] + "..." if len(text_output) > 1000 else text_output)
+
+    # Test specific analysis methods
+    print("\n" + "="*60)
+    print("SPECIFIC ANALYSES:")
+    print("="*60)
+
+    convergence = results.get_training_convergence_analysis()
+    print(f"Convergence analysis: {convergence}")
+
+    emb_stats = results.get_embedding_statistics()
+    print(f"Embedding stats keys: {list(emb_stats.keys())}")
+
+    top_pairs = results.get_top_similar_proteins(5)
+    print(f"Top similar pairs:\n{top_pairs}")
+
+    # Test HTML output
+    print("\n" + "="*60)
+    print("HTML OUTPUT (first 500 chars):")
+    print("="*60)
+    html_output = results.to_html()
+    print(html_output[:500] + "...")
+
+    # Test plots
+    print("\n" + "="*60)
+    print("CREATING PLOTS:")
+    print("="*60)
+    plots = results.create_plots()
+    print(f"Created {len(plots)} plots: {list(plots.keys())}")
+
+    # Clean up
+    for fig in plots.values():
+        plt.close(fig)
+
+    # Test export
+    print("\n" + "="*60)
+    print("TESTING EXPORT:")
+    print("="*60)
+    results.export_embeddings('test_embeddings.csv', format='csv')
+    results.save_results('test_autoencoder_results.html', format='html')
+
+    print("Exported embeddings and results")
+
+    # Clean up test files
+    import os
+    for filename in ['test_embeddings.csv', 'test_autoencoder_results.html']:
+        if os.path.exists(filename):
+            os.remove(filename)
+
+    print("\nTest completed successfully!")

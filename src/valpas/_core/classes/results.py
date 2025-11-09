@@ -14,6 +14,7 @@ import pandas as pd
 
 
 from .omics import Omic
+from .analysisresults import AnalysisResults
 
 
 class AssociationResult():
@@ -24,12 +25,14 @@ class AssociationResult():
             counts: pd.DataFrame,
             omic_x: Omic,
             omic_y: Omic,
+            analysisresults: AnalysisResults = None
             ) -> None:
 
         self.values = values
         self.counts = counts
         self.omic_x = omic_x
         self.omic_y = omic_y
+        self.analysis_results = analysisresults
 
     # ---------------------------
     # getters, setters & deleters

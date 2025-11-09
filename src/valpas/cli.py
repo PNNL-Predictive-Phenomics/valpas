@@ -328,7 +328,8 @@ def main():
         sys.exit(e)
     args.func(args)
 
-
+# TODO: make this call the valpas_core function for associate to keep things
+#       neat and tidy. Currently the CLI and API have different behavior.
 def associate(args):
 
     if args.csv:
