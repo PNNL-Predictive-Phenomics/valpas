@@ -444,23 +444,6 @@ def train_proteomics_autoencoder(
         'sample_embeddings': sample_embeddings,
         'similarity_matrix': sim_df,     ####
         'training_history': training_history,
-        # 'relationship_analysis': {
-        #     'statistics': {
-        #         'n_similar_pairs': 45,
-        #         'mean_similarity': 0.72,
-        #         'threshold_used': 0.6
-        #     },
-        #     'top_similar_pairs': [
-        #         {'protein1': f'Protein_{i:03d}', 'protein2': f'Protein_{i+1:03d}', 'similarity': 0.9 - 0.1*i/10}
-        #         for i in range(15)
-        #     ]
-        # },
-        # 'reconstruction_results': {
-        #     'reconstruction_error': {
-        #         'mse': 0.045,
-        #         'mae': 0.012
-        #     }
-        # },
         'config': {
             'protein_embedding_dim': protein_embedding_dim,
             'sample_embedding_dim': sample_embedding_dim,
