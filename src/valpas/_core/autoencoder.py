@@ -422,9 +422,26 @@ def train_proteomics_autoencoder(
 
     print(f"Training completed. Final train loss: {train_losses[-1]:.6f}, Final val loss: {final_val_loss:.6f}")
 
+    # Calculate similarity matrix
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    sim_df = calculate_protein_similarity_matrix(model, dataset, device)
+
+    with torch.no_grad():
+        # Get full data
+        full_data = dataset.data_tensor.unsqueeze(0).to(device)
+
+        # Get protein embeddings
+        protein_embeddings = model.get_protein_embeddings(full_data)
+        protein_embeddings = protein_embeddings.squeeze(0).cpu().numpy()  # [n_protein
+
+        sample_embeddings = model.get_sample_embeddings(full_data)
+        sample_embeddings = sample_embeddings.squeeze(0).cpu().numpy()
+
     analysis_results_dict = {
-        'model': {'type': 'BiDirectionalAutoencoder'},
-        'embeddings': sample_embeddings, ####
+        'model': model,
+        'embeddings': protein_embeddings,
+        'protein_embeddings': protein_embeddings,
+        'sample_embeddings': sample_embeddings,
         'similarity_matrix': sim_df,     ####
         'training_history': training_history,
         # 'relationship_analysis': {
@@ -449,17 +466,17 @@ def train_proteomics_autoencoder(
             'sample_embedding_dim': sample_embedding_dim,
             'hidden_dims': hidden_dims,
             'epochs': epochs,
-            'learning_rate': learning_rate,
-            'correlation_method': correlation_method
+            'learning_rate': learning_rate
         }
     }
 
     analysis_results = ProteomicsAutoencoderResults(
-                results_dict=sample_results,
-                original_data=sample_data
+                results_dict=analysis_results_dict,
+                original_data=data,
+                dataset=dataset
                 )
 
-    return model, analysis_results
+    return analysis_results
 
 def calculate_protein_similarity_matrix(
     model: BiDirectionalAutoencoder,

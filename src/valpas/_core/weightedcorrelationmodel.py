@@ -650,7 +650,7 @@ class CorrelationWeightLearner:
                     best_objective = objective
                     best_weights = weights_np.copy()
 
-                print(best_weights)
+                #print(best_weights)
 
                 if iteration % 50 == 0 or iteration == max_iterations - 1:
                     training_history['iteration'].append(iteration)
@@ -661,7 +661,7 @@ class CorrelationWeightLearner:
                         print(f"Iteration {iteration}: Objective = {objective:.4f}")
 
             learned_weights = best_weights
-            print(best_weights)
+            #print(best_weights)
             model = {'neural_model': model_nn, 'type': 'neural'}
 
         elif learning_method == 'empirical':
@@ -761,11 +761,13 @@ class CorrelationWeightLearner:
                 'empirical_method': empirical_method if learning_method == 'empirical' else None
             }}
 
+        # weighted_corr_df
         # Create analysis results object
         analysisresults = WeightedCorrelationAnalysisResults(
                 results_dict=analysis_results_dict,
                 original_data=data
             )
+            
         return analysisresults
 
 # Main function wrapper for easy use
@@ -787,7 +789,6 @@ def learn_correlation_weights(data: pd.DataFrame, interactions: List[Tuple[str, 
         correlation_method=kwargs.get('correlation_method', 'pearson'),
         correlation_missing_handling=kwargs.get('correlation_missing_handling', 'pairwise')
     )
-
     return learner.learn_weights(
         data=data,
         interactions=interactions,
