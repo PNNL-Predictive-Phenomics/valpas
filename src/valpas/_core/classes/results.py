@@ -25,7 +25,8 @@ class AssociationResult():
             counts: pd.DataFrame,
             omic_x: Omic,
             omic_y: Omic,
-            analysis_results: AnalysisResults = None
+            analysis_results: AnalysisResults = None,
+            annotations: pd.DataFrame = None
             ) -> None:
 
         self.values = values
@@ -33,6 +34,7 @@ class AssociationResult():
         self.omic_x = omic_x
         self.omic_y = omic_y
         self.analysis_results = analysis_results
+        self.annotations = annotations
 
     # ---------------------------
     # getters, setters & deleters
@@ -104,9 +106,13 @@ class AssociationResult():
         self.counts.index.name = self.omic_x.type
         self.counts.columns.name = self.omic_y.type
 
-        return result_to_list([self.values, self.counts],
+        edgelist = result_to_list([self.values, self.counts],
                               idx=(self.omic_x.type, self.omic_y.type),
                               association_type=association_type)
+        if self.annotations:
+            edgelist = self.merge_edge_annotations(edgelist)
+
+        return edgelist
 
     def save(
             self,
@@ -151,6 +157,28 @@ class AssociationResult():
             association_type=assocation_metric
         )
 
+    # function to add annotations to the edgelist
+    # FIXME: currently won't handle multiple omics types gracefully
+    #        (requires merged annotations)
+    def merge_edge_annotations(self, edgelist):
+        edgelist = pd.merge(
+            left=edgelist,
+            right=self.annotations,
+            left_on=self.omic_x.features,
+            right_on='id',
+            how='left',
+            validate="m:1",
+            )
+
+        edgelist = pd.merge(
+            left=edgelist,
+            right=self.annotations,
+            left_on=self.omic_y.features,
+            right_on='id',
+            how='left',
+            validate='m:1'
+        )
+        reuturn edgelist
 
 def _rm_duplicates(
         df: pd.DataFrame, idx1: pd.Index, idx2: pd.Index=None

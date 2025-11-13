@@ -11,12 +11,12 @@ from pathlib import Path
 from valpas import CrossExperiment
 from valpas.utils.checker import check_infile, check_outfile, check_cutoff_range
 from valpas.io import import_asssociation_matrix, import_experiments
+from valpas.annotations import read_annotation_file
 from valpas._core.processing import combine_results
 from valpas.visualization.heatmap import create_fig
 from valpas.utils.validator import validate_input
 from valpas.confidence_evaluation import calculate_edge_confidence_default
 from ._core.processing import beautify_series
-
 
 def associate(
     association_type="pearson",
@@ -33,6 +33,18 @@ def associate(
     training_interactions=None,
     calculate_confidence=False,
     transform_clr=False,
+    annotation_file=None,
+    annotation_args: dict={
+        'primary_id_column': 'id',
+        'primary_annotation_column': 'annotation',
+        'sheet_name': 0,
+        'validate_ids': True,
+        'remove_duplicates': 'warn',
+        'handle_missing_annotations': 'keep',
+        'strip_whitespace': True,
+        'case_sensitive': True,
+        'verbose': True
+    },
     learncorr_args: dict={
         'learning_method':'empirical',
         'missing_strategy':'median'
@@ -177,8 +189,15 @@ def associate(
     else:
         raise NotImplementedError("Cross-experiment associations for more than 2 experiments not supported.")
 
+    # handle incorporation of annotations
+    if annotation_file:
+        result.annotations = read_annotation_file(annotation_file, **annotation_args)
+
     if calculate_confidence and training_interactions:
         # for now confidence evaluation operates on a list of edges
+        # make an edgelist so we can do things with it
+        # FIXME: this should really be integrated in to the result class so that
+        #        we can add confidence and annotations there - instead of doing it here
         edgelist = result.as_list()
 
         # filter out self edges that seem to creep in somehow
