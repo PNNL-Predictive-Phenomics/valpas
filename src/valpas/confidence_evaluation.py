@@ -273,6 +273,7 @@ def calculate_edge_confidence(
     protein_col2: str = 'protein2',
     weight_col: str = 'weight',
     calculate_limit: int = 10000,
+    return_all: bool = False,
     confidence_metric: str = 'ppv',
     additional_metrics: List[str] = None,
     min_threshold_samples: int = 1,
@@ -294,6 +295,8 @@ def calculate_edge_confidence(
         protein_col1: Column name for first protein
         protein_col2: Column name for second protein
         weight_col: Column name for edge weights
+        calculate_limit: Only calculate confidence for the top N scoring edges
+        return_all: For calculate_limit if True will return all edges (w and w/o confidence)
         confidence_metric: Primary metric ('ppv', 'precision', 'recall', 'f1', 'accuracy', 'enrichment')
         additional_metrics: List of additional metrics to calculate
         min_threshold_samples: Minimum samples needed above threshold for reliable confidence
@@ -558,7 +561,7 @@ def calculate_edge_confidence(
 
     # this leaves all the extra columns in the second part as Nan-s,
     #      which might muck things up
-    if calculate_limit and merge_after:
+    if calculate_limit and merge_after and return_all:
         result_df = pd.concat([result_df, leave_part_df], ignore_index=True)
 
     return result_df
