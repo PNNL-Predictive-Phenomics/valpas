@@ -73,6 +73,7 @@ def associate(
         'protein_col2': 'protein2',
         'weight_col': 'weight',
         'calculate_limit': 10000,
+        'return_all': False,
         'confidence_metric': 'ppv',
         'additional_metrics': None,
         'min_threshold_samples': 1,
