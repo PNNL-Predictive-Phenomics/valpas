@@ -11,7 +11,7 @@ from pathlib import Path
 from valpas import CrossExperiment
 from valpas.utils.checker import check_infile, check_outfile, check_cutoff_range
 from valpas.io import import_asssociation_matrix, import_experiments
-from valpas.annotations import read_annotation_file
+from valpas.annotations import AnnotationList
 from valpas._core.processing import combine_results
 from valpas.visualization.heatmap import create_fig
 from valpas.utils.validator import validate_input
@@ -191,7 +191,7 @@ def associate(
 
     # handle incorporation of annotations
     if annotation_file:
-        result.annotations = read_annotation_file(annotation_file, **annotation_args)
+        result.annotations = AnnotationList(annotation_file, **annotation_args)
 
     if calculate_confidence and training_interactions:
         # for now confidence evaluation operates on a list of edges

@@ -15,6 +15,7 @@ import pandas as pd
 
 from .omics import Omic
 from .analysisresults import AnalysisResults
+from .annotations import AnnotationList
 
 
 class AssociationResult():
@@ -26,7 +27,7 @@ class AssociationResult():
             omic_x: Omic,
             omic_y: Omic,
             analysis_results: AnalysisResults = None,
-            annotations: pd.DataFrame = None
+            annotationlist: AnnotationList = None
             ) -> None:
 
         self.values = values
@@ -34,7 +35,7 @@ class AssociationResult():
         self.omic_x = omic_x
         self.omic_y = omic_y
         self.analysis_results = analysis_results
-        self.annotations = annotations
+        self.annotationlist = annotationlist
 
     # ---------------------------
     # getters, setters & deleters
@@ -109,7 +110,8 @@ class AssociationResult():
         edgelist = result_to_list([self.values, self.counts],
                               idx=(self.omic_x.type, self.omic_y.type),
                               association_type=association_type)
-        if self.annotations:
+
+        if not self.annotationlist == None:
             edgelist = self.merge_edge_annotations(edgelist)
 
         return edgelist
@@ -163,22 +165,22 @@ class AssociationResult():
     def merge_edge_annotations(self, edgelist):
         edgelist = pd.merge(
             left=edgelist,
-            right=self.annotations,
+            right=self.annotationlist.annotations,
             left_on=self.omic_x.features,
-            right_on='id',
+            right_on=self.annotations.primary_id_column,
             how='left',
             validate="m:1",
             )
 
         edgelist = pd.merge(
             left=edgelist,
-            right=self.annotations,
+            right=self.annotationlist.annotations,
             left_on=self.omic_y.features,
-            right_on='id',
+            right_on=self.annotations.primary_id_column,
             how='left',
             validate='m:1'
         )
-        reuturn edgelist
+        return edgelist
 
 def _rm_duplicates(
         df: pd.DataFrame, idx1: pd.Index, idx2: pd.Index=None
