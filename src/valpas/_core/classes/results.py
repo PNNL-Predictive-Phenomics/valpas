@@ -193,17 +193,19 @@ class AssociationResult():
     def generate_report(self,
         weight_col: str = 'weight',
         confidence_col: str = 'confidence',
+        count_col: str = 'counts',
         top_n: int = 50,
         output_format: str = 'html',
         output_file: str = None,
         title: str = "Association Analysis Report",
-        include_statistics: bool = True,
+        include_statistics: bool = False,
         include_plots: bool = True,
         percentile_analysis: List[int] = [10, 20, 30, 40],
         annotation_filter_categories: List[str] = None,
         sort_by: str = None,
         ascending: bool = False,
         interactive_html: bool = True,
+        include_analysis_report: bool = True,
         plot_format: str = 'png',
         custom_css: str = None
     ) -> Union[str, Tuple[str, Dict]]:
@@ -212,7 +214,8 @@ class AssociationResult():
 
         Args:
             weight_col: Column name for interaction weight/score
-            confidence_col: Column name for confidence score (optional)
+            confidence_col: Column name for confidence score
+            count_col: Column name for the counts
             top_n: Number of top results to display
             output_format: 'html' or 'text'
             output_file: Path to save output file (optional)
@@ -224,6 +227,7 @@ class AssociationResult():
             sort_by: Column to sort by (default: weight_col)
             ascending: Sort order
             interactive_html: Whether to include interactive elements (HTML only)
+            include_analysis_report: Whether to include a detailed output of analysis.
             plot_format: Format for embedded plots ('png', 'svg')
             custom_css: Custom CSS styles for HTML report
 
@@ -247,7 +251,7 @@ class AssociationResult():
         # Prepare data
         analysis_data = self._prepare_analysis_data(
             df, protein1_col, protein2_col, weight_col,
-            annotation1_col, annotation2_col, confidence_col,
+            annotation1_col, annotation2_col, confidence_col, count_col,
             top_n, sort_by, ascending, annotation_filter_categories
         )
 
@@ -260,10 +264,11 @@ class AssociationResult():
         if output_format.lower() == 'html':
             report = self._generate_html_report(
                 analysis_data, title, include_plots, interactive_html,
-                plot_format, custom_css
+                plot_format, custom_css, include_analysis_report
             )
         else:
-            report = self._generate_text_report(analysis_data, title)
+            report = self._generate_text_report(analysis_data, title,
+                                            include_analysis_report)
 
         # Save to file if specified
         if output_file:
@@ -306,7 +311,7 @@ class AssociationResult():
 
     def _prepare_analysis_data(self, df: pd.DataFrame, protein1_col: str, protein2_col: str,
                               weight_col: str, annotation1_col: str, annotation2_col: str,
-                              confidence_col: str, top_n: int, sort_by: str,
+                              confidence_col: str, count_column: str, top_n: int, sort_by: str,
                               ascending: bool, annotation_filter_categories: List[str]) -> Dict:
         """Prepare data for analysis"""
 
@@ -348,6 +353,7 @@ class AssociationResult():
                 'protein1': protein1_col,
                 'protein2': protein2_col,
                 'weight': weight_col,
+                'count': count_column,
                 'annotation1': annotation1_col,
                 'annotation2': annotation2_col,
                 'confidence': confidence_col
@@ -484,7 +490,8 @@ class AssociationResult():
         return stats
 
     def _generate_html_report(self, analysis_data: Dict, title: str, include_plots: bool,
-                             interactive_html: bool, plot_format: str, custom_css: str) -> str:
+                             interactive_html: bool, plot_format: str, custom_css: str,
+                             include_analysis_report: bool) -> str:
         """Generate HTML report"""
 
         html_parts = []
@@ -530,6 +537,9 @@ class AssociationResult():
         # Annotation analysis
         if analysis_data['annotation_analysis']:
             html_parts.append(self._generate_annotation_analysis_html(analysis_data))
+
+        if include_analysis_report:
+            html_parts.extend(self.analysis_results.to_html(standalone=False, return_lines=True))
 
         # Footer
         html_parts.extend([
@@ -701,7 +711,8 @@ class AssociationResult():
             ('Rank', 'rank'),
             ('Protein 1', cols['protein1']),
             ('Protein 2', cols['protein2']),
-            ('Weight', cols['weight'])
+            ('Weight', cols['weight']),
+            ('Count', cols['count'])
         ]
 
         if cols['confidence']:
@@ -736,6 +747,9 @@ class AssociationResult():
             # Weight
             weight_val = row[cols['weight']]
             html_parts.append(f'<td class="numeric">{weight_val:.6f}</td>')
+
+            count_val = row[cols['count']]
+            html_parts.append(f'<td class="numeric">{count_val}</td>')
 
             # Confidence (if available)
             if cols['confidence']:
@@ -927,7 +941,7 @@ class AssociationResult():
 
         return '\n'.join(html_parts)
 
-    def _generate_text_report(self, analysis_data: Dict, title: str) -> str:
+    def _generate_text_report(self, analysis_data: Dict, title: str, include_analysis_report: bool) -> str:
         """Generate text format report"""
 
         lines = []
@@ -1030,6 +1044,9 @@ class AssociationResult():
                     f"  Total matches: {data['total_matches']}",
                     ""
                 ])
+
+        if include_analysis_report:
+            lines.extend(self.analysis_results.to_text(return_lines=True))
 
         return "\n".join(lines)
 

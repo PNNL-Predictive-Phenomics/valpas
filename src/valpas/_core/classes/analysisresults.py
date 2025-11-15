@@ -49,7 +49,7 @@ class AnalysisResults:
             'result_keys': list(self.results.keys())
         }
 
-    def to_text(self, include_details: bool = True) -> str:
+    def to_text(self, include_details: bool = True, return_lines: bool = False) -> str:
         """
         Generate text representation of results
 
@@ -88,10 +88,13 @@ class AnalysisResults:
             text_parts.append("-" * 40)
             text_parts.extend(self._generate_detailed_text())
 
+        if return_lines:
+            return text_parts
+
         return "\n".join(text_parts)
 
     def to_html(self, standalone: bool = True, include_plots: bool = True,
-                plot_format: str = 'png', **plot_kwargs) -> str:
+                plot_format: str = 'png', return_lines: bool = True, **plot_kwargs) -> str:
         """
         Generate HTML representation of results
 
@@ -99,6 +102,7 @@ class AnalysisResults:
             standalone: Whether to generate complete HTML page or just content
             include_plots: Whether to include plots in HTML
             plot_format: Format for embedded plots ('png', 'svg')
+            return_lines: For not standalone if true return a list of lines rather than text
             **plot_kwargs: Additional arguments for plotting
 
         Returns:
@@ -164,6 +168,8 @@ class AnalysisResults:
                 "</html>"
             ])
 
+        if not standalone and return_lines:
+            return html_parts
         return "\n".join(html_parts)
 
     def save_results(self, filepath: str, format: str = 'json'):
