@@ -659,7 +659,7 @@ def _import_csv(filepath_or_buffer: str | PathLike | TextIO) -> pd.DataFrame:
         try:
             df = pd.read_csv(
                 filepath_or_buffer=filepath_or_buffer_,
-                index_col=0,
+                index_col=0, dtype={0:str}
             )
         except FileNotFoundError as err:
             raise FileNotFoundError(err)
@@ -705,7 +705,7 @@ def _import_xls(
             df = pd.read_excel(
                 io=filepath_or_buffer_,
                 sheet_name=sheet,
-                index_col=0,
+                index_col=0, dtype={0:str}
             )
         except FileNotFoundError as err:
             raise FileNotFoundError(err)

@@ -12,7 +12,7 @@ class AnnotationList:
                 primary_id_column: str = "id",
                 primary_annotation_column: str = "annotation",
                 extra_columns: List[str] = None,
-                **kwargs)
+                **kwargs):
         self.primary_id_column = primary_id_column
         self.primary_annotation_column = primary_annotation_column
         self.validation_report = {}
@@ -107,16 +107,16 @@ class AnnotationList:
 
             # Read the file based on extension
             if file_ext in ['.xlsx', '.xls']:
-                df = _read_excel_file(filepath, sheet_name, header, skiprows, na_values,
+                df = self._read_excel_file(filepath, sheet_name, header, skiprows, na_values,
                                     encoding, read_kwargs, verbose)
             elif file_ext in ['.csv', '.tsv', '.txt']:
-                df = _read_text_file(filepath, delimiter, file_ext, header, skiprows,
+                df = self._read_text_file(filepath, delimiter, file_ext, header, skiprows,
                                    na_values, encoding, read_kwargs, verbose)
             else:
                 # Try to auto-detect format
                 if verbose:
                     print(f"Unknown file extension '{file_ext}', attempting auto-detection...")
-                df = _read_text_file(filepath, delimiter, file_ext, header, skiprows,
+                df = self._read_text_file(filepath, delimiter, file_ext, header, skiprows,
                                    na_values, encoding, read_kwargs, verbose)
 
             validation_report['read_successfully'] = True
@@ -131,10 +131,7 @@ class AnnotationList:
             raise pd.errors.EmptyDataError(f"Could not read annotation file: {str(e)}")
 
         # Validate and process the dataframe
-        df, validation_report = _validate_and_process_dataframe(
-            df=df,
-            primary_id_column=primary_id_column,
-            primary_annotation_column=primary_annotation_column,
+        df, validation_report = self._validate_and_process_dataframe(df,
             required_columns=required_columns,
             optional_columns=optional_columns,
             validation_report=validation_report,
@@ -158,7 +155,7 @@ class AnnotationList:
         }
 
         if verbose:
-            _print_validation_summary(validation_report)
+            self._print_validation_summary(validation_report)
 
         # Raise error if critical issues found
         if validation_report['errors']:
@@ -196,6 +193,7 @@ class AnnotationList:
                 header=header,
                 skiprows=skiprows,
                 na_values=na_values,
+                dtype={self.primary_id_column:str},
                 **read_kwargs
             )
 
@@ -211,7 +209,7 @@ class AnnotationList:
 
         # Auto-detect delimiter if not specified
         if delimiter is None:
-            delimiter = _detect_delimiter(filepath, file_ext, verbose)
+            delimiter = self._detect_delimiter(filepath, file_ext, verbose)
 
         try:
             df = pd.read_csv(
@@ -221,6 +219,7 @@ class AnnotationList:
                 skiprows=skiprows,
                 na_values=na_values,
                 encoding=encoding,
+                dtype={self.primary_id_column:str},
                 **read_kwargs
             )
 
@@ -268,6 +267,7 @@ class AnnotationList:
             return default_delimiter
 
     def _validate_and_process_dataframe(self,
+        df: pd.DataFrame,
         required_columns: List[str],
         optional_columns: List[str],
         validation_report: Dict,
@@ -280,7 +280,6 @@ class AnnotationList:
         verbose: bool
     ) -> Tuple[pd.DataFrame, Dict]:
         """Validate and process the loaded dataframe"""
-        df = self.annotations
         primary_id_column = self.primary_id_column
         primary_annotation_column = self.primary_annotation_column
 
@@ -388,8 +387,8 @@ class AnnotationList:
 
         # Validate primary IDs
         if validate_ids:
-            validation_report['data_issues']['primary_id'] = _validate_primary_ids(
-                df, primary_id_column, remove_duplicates, verbose
+            validation_report['data_issues']['primary_id'] = self._validate_primary_ids(
+                df, remove_duplicates, verbose
             )
 
             # Handle duplicates based on remove_duplicates parameter
@@ -435,14 +434,12 @@ class AnnotationList:
                 validation_report['warnings'].append(f"Found {missing_annotations} missing annotations")
 
         # Additional data quality checks
-        validation_report['data_issues'].update(_perform_data_quality_checks(df, primary_id_column, primary_annotation_column))
+        validation_report['data_issues'].update(self._perform_data_quality_checks(df))
 
         return df, validation_report
 
-    def _validate_primary_ids(self, remove_duplicates: str, verbose: bool) -> Dict:
+    def _validate_primary_ids(self, df: pd.DataFrame, remove_duplicates: str, verbose: bool) -> Dict:
         """Validate primary ID column"""
-        df = self.annotations
-
         id_validation = {
             'total_ids': len(df),
             'unique_ids': df[self.primary_id_column].nunique(),
@@ -467,7 +464,7 @@ class AnnotationList:
 
         return id_validation
 
-    def _perform_data_quality_checks(self) -> Dict:
+    def _perform_data_quality_checks(self, df: pd.DataFrame) -> Dict:
         """Perform additional data quality checks"""
 
         quality_checks = {}

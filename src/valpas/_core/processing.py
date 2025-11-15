@@ -279,13 +279,25 @@ def beautify_series(df: pd.Series, value: str="Correlation") -> pd.DataFrame:
             id_2 = df.index.names[1]
     except TypeError:
         print(df.index[0])
+
+    # Remove self-loops
+    #df = df[df[id_1] != df[id_2]]
+
     df_return = pd.DataFrame({
         id_1: df.index.get_level_values(0),
         id_2: df.index.get_level_values(1),
         value: df.values
         })
-    return df_return
 
+    # Remove duplicate edges (e.g., (A,B) and (B,A))
+    # Sort the nodes in each pair to ensure uniqueness
+    df_return['sorted_nodes'] = df_return.apply(lambda row: tuple(sorted([row[id_1], row[id_2]])),
+                                        axis=1)
+
+    df_return = df_return.drop_duplicates(subset='sorted_nodes')
+    df_return = df_return.drop(columns='sorted_nodes')
+
+    return df_return
 
 def idx_name(
         df: pd.DataFrame, idx1: pd.Index, idx2: pd.Index=None

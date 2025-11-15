@@ -11,7 +11,7 @@ from pathlib import Path
 from valpas import CrossExperiment
 from valpas.utils.checker import check_infile, check_outfile, check_cutoff_range
 from valpas.io import import_asssociation_matrix, import_experiments
-from valpas.annotations import AnnotationList
+from valpas._core.classes.annotations import AnnotationList
 from valpas._core.processing import combine_results
 from valpas.visualization.heatmap import create_fig
 from valpas.utils.validator import validate_input
@@ -28,12 +28,14 @@ def associate(
     sheet2=None,
     output_type="sorted_list",
     filter_cutoff=0.9,
-    min_counts=3,
     normalization="none",
     training_interactions=None,
     calculate_confidence=False,
     transform_clr=False,
     annotation_file=None,
+    overwrite_output=False,
+    outfile=sys.stdout,
+    report_file=None,
     annotation_args: dict={
         'primary_id_column': 'id',
         'primary_annotation_column': 'annotation',
@@ -81,8 +83,6 @@ def associate(
         'normalize_pairs': False,
         'extrapolate_confidence': False,
     },
-    overwrite_output=False,
-    outfile=sys.stdout,
 ):
     """
     Establishes association values between items (e.g., proteins, lipids, or metabolites).
@@ -192,7 +192,7 @@ def associate(
 
     # handle incorporation of annotations
     if annotation_file:
-        result.annotations = AnnotationList(annotation_file, **annotation_args)
+        result.annotationlist = AnnotationList(annotation_file, **annotation_args)
 
     if calculate_confidence and training_interactions:
         # for now confidence evaluation operates on a list of edges
@@ -206,20 +206,27 @@ def associate(
 
         confidencelist = calculate_edge_confidence_default(edgelist,
                         positive_interactions=training_interactions,
-                        min_counts=min_counts,
                         **confidence_args)
 
         # this will overwrite output no problems/no check
         # add support for overwrite checking
         confidencelist.to_csv(outfile, index=False)
-        return result
+        result.edgelist = confidencelist
 
-    result.save(
-        file_handle=outfile,
-        type=output_type,
-        overwrite=overwrite_output,
-        assocation_metric=association_type,
-    )
+    else:
+        result.save(
+            file_handle=outfile,
+            type=output_type,
+            overwrite=overwrite_output,
+            assocation_metric=association_type,
+        )
+
+    # produce report probably only for when annotations are provided
+    # though we may change this in the future to include non-annotated as well
+    #if annotation_file and report_file:
+    #    report = result.generate_report(format="html")
+    #    print(report)
+
     return result
 
 
