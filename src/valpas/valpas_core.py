@@ -194,12 +194,15 @@ def associate(
     if annotation_file:
         result.annotationlist = AnnotationList(annotation_file, **annotation_args)
 
+    # make an edgelist so we can do things with it
+    edgelist = result.as_list()
+    result.edgelist = edgelist
+
+
     if calculate_confidence and training_interactions:
         # for now confidence evaluation operates on a list of edges
-        # make an edgelist so we can do things with it
         # FIXME: this should really be integrated in to the result class so that
         #        we can add confidence and annotations there - instead of doing it here
-        edgelist = result.as_list()
 
         # filter out self edges that seem to creep in somehow
         edgelist = edgelist[edgelist.iloc[:,0] != edgelist.iloc[:,1]]
