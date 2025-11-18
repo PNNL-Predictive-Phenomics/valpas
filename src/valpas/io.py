@@ -413,6 +413,14 @@ def write_outfile(
     if isinstance(file_handle, (str, PathLike, Path)):
         filepath_or_buffer = Path(file_handle).absolute()
         f_suffix = filepath_or_buffer.suffix
+        if f_suffix == '.gz':
+            # remove gz to get at the next suffix
+            fpath = filepath_or_buffer.with_suffix("")
+            f_suffix = fpath.suffix
+            
+            if f_suffix == ".xlsx":
+                raise ValueError("Gzipped xlsx format not supported")
+
         if f_suffix == '.xlsx':
             f_type = 'xlsx'
         elif f_suffix == '.csv':
