@@ -99,6 +99,7 @@ def associate(
         output_type (str): Output format ('sorted_list', 'correlation_matrix').
         filter_cutoff (float): Cutoff for filtering missing values.
         normalization (str): Normalization mode ('pre', 'post', 'none').
+        min_counts (int): Filter out edges with fewer comparisons.
         transform_clr
         training_interactions
         calculate_confidence (bool): if True and training_interactions are
@@ -198,7 +199,6 @@ def associate(
     # make an edgelist so we can do things with it
     edgelist = result.as_list(min_counts=min_counts)
     result.edgelist = edgelist
-
 
     if calculate_confidence and training_interactions:
         # for now confidence evaluation operates on a list of edges
