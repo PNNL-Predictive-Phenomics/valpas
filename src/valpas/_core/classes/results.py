@@ -101,7 +101,7 @@ class AssociationResult():
     def omic_y(self):
         del self._omic_y
 
-    def as_list(self, association_type='correlation'):
+    def as_list(self, association_type='correlation', min_counts=None):
         from ...io import result_to_list
 
         if self.omic_y is None:
@@ -118,6 +118,9 @@ class AssociationResult():
         edgelist = result_to_list([self.values, self.counts],
                               idx=(self.omic_x.type, self.omic_y.type),
                               association_type=association_type)
+
+        if min_counts:
+            edgelist = edgelist[edgelist['counts']>min_counts]
 
         if not self.annotationlist == None:
             edgelist = self.merge_edge_annotations(edgelist)

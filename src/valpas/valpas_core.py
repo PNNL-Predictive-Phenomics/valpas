@@ -29,6 +29,7 @@ def associate(
     output_type="sorted_list",
     filter_cutoff=0.9,
     normalization="none",
+    min_counts=3,
     training_interactions=None,
     calculate_confidence=False,
     transform_clr=False,
@@ -195,7 +196,7 @@ def associate(
         result.annotationlist = AnnotationList(annotation_file, **annotation_args)
 
     # make an edgelist so we can do things with it
-    edgelist = result.as_list()
+    edgelist = result.as_list(min_counts=min_counts)
     result.edgelist = edgelist
 
 
@@ -209,7 +210,7 @@ def associate(
 
         confidencelist = calculate_edge_confidence_default(edgelist,
                         positive_interactions=training_interactions,
-                        **confidence_args)
+                        min_counts=min_counts, **confidence_args)
 
         # this will overwrite output no problems/no check
         # add support for overwrite checking
