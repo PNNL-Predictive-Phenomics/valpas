@@ -7,8 +7,8 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'VaLPAS'
-copyright = '2024, Yannick Mahlich, Logan Lewis, Jason McDermott'
-author = 'Yannick Mahlich, Logan Lewis, Jason McDermott'
+copyright = '2024, Yannick Mahlich, Jason McDermott'
+author = 'Yannick Mahlich, Jason McDermott'
 release = '0.1'
 
 # -- Pathsetup ------
@@ -49,5 +49,3 @@ autodoc_typehints = "description"
 
 # Don't show class signature with the class' name.
 autodoc_class_signature = "separated"
-
-
