@@ -9,7 +9,7 @@ build-backend = "hatchling.build"
 name = "valpas"
 description = ''
 
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [
   { name = "Yannick Mahlich", email = "yannick.mahlich@pnnl.gov" },
 ]
@@ -17,8 +17,6 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
@@ -30,9 +28,12 @@ dependencies = [
   "networkx",
   "numpy",
   "pandas",
+  "plotly",
   "openpyxl",
   "scikit-learn",
   "scipy",
+  "seaborn",
+  "torch"
 ]
 dynamic = [
   "version",
