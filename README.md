@@ -5,11 +5,12 @@
 ### Creating the conda environment.
 Valpas Environment Setup
 
-This project requires Python and several data science libraries. Follow the instructions below to set up your development environment.
+This project requires Python and several data science libraries.
+Follow the instructions below to set up your development environment.
 
 ## Prerequisites
 
-- Python 3.7 or higher
+- Python 3.12 or higher
 - pip (Python package installer)
 
 ## Installation
@@ -21,6 +22,10 @@ cd <repository-name>
 ```
 
 ### 2. Create Virtual Environment
+Steps 2. & 3. are only necessary if an encapuslated virtual python environment is desired.
+An alternative to `venv` is to use `conda`.
+For more information on anaconda / conda refer to [https://anaconda.org/](https://anaconda.org/).
+If no virtual environment is desired or already exists skip to Step 4.
 ```bash
 python -m venv valpas-env
 ```
@@ -37,9 +42,15 @@ valpas-env\Scripts\activate
 source valpas-env/bin/activate
 ```
 
-### 4. Install Dependencies
+### 4. Install `valpas`
+
+```sh
+pip install .
+```
+
+### 5. Install Additional Dependencies for Demonstration Notebook
+These dependencies are only necessary if the included [demonstration notebook](https://github.com/PNNL-Predictive-Phenomics/valpas/blob/main/notebooks/valpas_demonstration.ipynb) is being run locally.
 ```bash
-pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
@@ -47,12 +58,12 @@ pip install -r requirements.txt
 
 **macOS/Linux:**
 ```bash
-python -m venv valpas-env && source valpas-env/bin/activate && pip install --upgrade pip && pip install -r requirements.txt
+python -m venv valpas-env && source valpas-env/bin/activate && pip install . && pip install -r requirements.txt
 ```
 
 **Windows:**
 ```bash
-python -m venv valpas-env && valpas-env\Scripts\activate && pip install --upgrade pip && pip install -r requirements.txt
+python -m venv valpas-env && valpas-env\Scripts\activate && pip install . && pip install -r requirements.txt
 ```
 
 ## Usage
@@ -100,15 +111,19 @@ The project uses the following main libraries:
 ### Python Version Issues
 If you need a specific Python version, create the environment with:
 ```bash
-python3.8 -m venv valpas-env  # Replace 3.8 with your desired version
+python3.13 -m venv valpas-env  # Replace 3.13 with your desired version
 ```
 
 ### PyTorch GPU Support
-For CUDA-enabled PyTorch installation, visit [pytorch.org](https://pytorch.org/get-started/locally/) and replace the `torch` line in `requirements.txt` with the appropriate command for your system.
+For CUDA-enabled PyTorch installation, visit [pytorch.org](https://pytorch.org/get-started/locally/) update `torch` with the appropriate command for your system.
+```sh
+pip install --force-reinstall torch torchvision --index-url <specified url>
+```
 
 ### Permission Issues
 If you encounter permission errors, try:
 ```bash
+pip install --user .
 pip install --user -r requirements.txt
 ```
 
@@ -118,15 +133,20 @@ Remember to activate your virtual environment (`source valpas-env/bin/activate`)
 
 ## Running the notebook
 ### Within a browser
-To start the jupyter server and initialize the notebook the virtual environment has to be activated first. This can be done by invoking from within the root of the git-repository via:
+To start the jupyter server and initialize the notebook the virtual environment has to be activated first.
+This can be done by invoking from within the root of the git-repository via:
 ```sh
 source valpas-env/bin/activate
 ```
-Next the jupyter server has to be booted up. This is done via the command:
+Next the jupyter server has to be booted up.
+This is done via the command:
 ```sh
 jupyter notebook
 ```
 The command will also automatically open a browser window and redirect to `http://localhost:8888/` from where the actual jupyter notebook can be opened.
 
 ### Within VSCode
-Running the notebook from within VSCode requires the installation of the [Jupyter extension]((https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter)). For more on VSCodes notebook functionality also see [here](https://code.visualstudio.com/docs/datascience/jupyter-notebooks). After opening the git repository as folder in VSCode and opening the jupyter notebook, the previously installed virtual environment should be a selectable kernel option. If it is not available a restart of VSCode might help.
+Running the notebook from within VSCode requires the installation of the [Jupyter extension]((https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter)).
+For more on VSCodes notebook functionality also see [here](https://code.visualstudio.com/docs/datascience/jupyter-notebooks).
+After opening the git repository as folder in VSCode and opening the jupyter notebook, the previously installed virtual environment should be a selectable kernel option.
+If it is not available a restart of VSCode might help.
