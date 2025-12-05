@@ -25,15 +25,16 @@ classifiers = [
 dependencies = [
   "bspline-mutual-information",
   "matplotlib",
+  "matplotlib-venn",
   "networkx",
   "numpy",
+  "openpyxl",
   "pandas",
   "plotly",
-  "openpyxl",
   "scikit-learn",
   "scipy",
   "seaborn",
-  "torch"
+  "torch",
 ]
 dynamic = [
   "version",
