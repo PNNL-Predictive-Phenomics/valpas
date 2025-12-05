@@ -6,16 +6,18 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'VaLPAS'
-copyright = '2024, Yannick Mahlich, Jason McDermott'
-author = 'Yannick Mahlich, Jason McDermott'
-release = '0.1'
-
 # -- Pathsetup ------
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../../src/'))
-# sys.path.insert(0, os.path.abspath('../../src/valpas'))
+from valpas import __version__ as release_version
+
+
+project = 'VaLPAS'
+copyright = '2025 Battelle Memorial Institute'
+author = 'Yannick Mahlich, Jason McDermott'
+release = release_version
+
 
 
 # -- General configuration ---------------------------------------------------
@@ -28,14 +30,12 @@ extensions = [
     'sphinx.ext.autodoc',
     # 'sphinx.ext.viewcode',
     'sphinx.ext.autosummary',
-    # 'autoapi.extension'
 ]
-# autoapi_dirs = ['../../src']
-# autosummary_generate = True
+autosummary_generate = True
 templates_path = ['_templates']
 exclude_patterns = []
 
-
+autodoc_mock_imports = ["numpy"]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
