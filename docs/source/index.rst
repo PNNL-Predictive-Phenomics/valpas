@@ -6,14 +6,21 @@
 VaLPAS documentation
 ====================
 
+============
+Installation
+============
+Lorem ipsum
+
+=====
+Usage
+=====
+dolor
+
 .. toctree::
-   :maxdepth: 4
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: API reference:
+
+   api
 
 
-.. autosummary::
-   :toctree: _autosummary
-   :recursive:
-
-   valpas
 
