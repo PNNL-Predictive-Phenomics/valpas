@@ -24,7 +24,7 @@ from sklearn.preprocessing import KBinsDiscretizer
 from scipy import stats
 import matplotlib.pyplot as plt
 
-from valpas.utils.b_spline import mutual_information
+from bspline_mutual_information import mutual_information
 
 from valpas import AssociationResult
 from valpas._core import autoencoder
