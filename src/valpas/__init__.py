@@ -10,6 +10,36 @@ datatypes that then can be leveraged to postulate hypothesis of protein
 functionality for proteins of previously unknown function.
 """
 
+__all__ = [
+    'autoencoder',
+    'confidence_evaluation',
+    'valpas_core',
+    'io',
+    'AssociationResult',
+    'Omic',
+    'OmicMeasurement',
+    'SingleExperiment',
+    'CrossExperiment'
+    ]
+
+
+from . import (
+    confidence_evaluation,
+    io,
+    valpas_core,
+    )
+
+
+from ._core import autoencoder
+
+from ._core.classes.analysisresults import(
+    AnalysisResults
+)
+
+from ._core.classes.annotations import(
+    AnnotationList
+)
+
 from ._core.classes.omics import (
     Omic,
     OmicMeasurement,
@@ -21,18 +51,6 @@ from ._core.classes.experiments import (
     SingleExperiment,
     CrossExperiment,
 )
-from ._core import autoencoder
 
-__all__ = [
-    'utils',
-    'visualization',
-    'io',
-    'annotations',
-    'confidence_evaluation'
-    'autoencoder',
-    'AssociationResult',
-    'Omic',
-    'OmicMeasurement',
-    'SingleExperiment',
-    'CrossExperiment',
-    ]
+from ._version import __version__
+from ._version import __version_tuple__
