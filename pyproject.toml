@@ -12,6 +12,7 @@ description = ''
 requires-python = ">=3.12"
 authors = [
   { name = "Yannick Mahlich", email = "yannick.mahlich@pnnl.gov" },
+  { name = "Jason McDermott", email = "jason.mcdermott@pnnl.gov" },
 ]
 classifiers = [
     "License :: OSI Approved :: BSD License",
