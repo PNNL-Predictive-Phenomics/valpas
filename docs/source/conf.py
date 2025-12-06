@@ -10,14 +10,14 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../../src/'))
-from valpas import __version__ as release_version
+# from valpas import __version__ as release_version
 
 
 project = 'VaLPAS'
 copyright = '2025 Battelle Memorial Institute'
 author = 'Yannick Mahlich, Jason McDermott'
-release = release_version
-
+# release = release_version
+release = '0.1.2'
 
 
 # -- General configuration ---------------------------------------------------
