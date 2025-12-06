@@ -45,6 +45,7 @@ autodoc_mock_imports = [
     "pandas",
     "plotly",
     "scikit-learn",
+    "sklearn",
     "scipy",
     "seaborn",
     "torch",
