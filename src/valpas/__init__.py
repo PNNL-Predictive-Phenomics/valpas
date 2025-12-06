@@ -13,8 +13,10 @@ functionality for proteins of previously unknown function.
 __all__ = [
     'autoencoder',
     'confidence_evaluation',
-    'valpas_core',
-    'io',
+    # 'valpas_core',
+    # 'io',
+    'AnnotationList',
+    'AnalysisResults',
     'AssociationResult',
     'Omic',
     'OmicMeasurement',
@@ -25,16 +27,12 @@ __all__ = [
 
 from . import (
     confidence_evaluation,
-    io,
-    valpas_core,
+    # io,
+    # valpas_core,
     )
 
 
 from ._core import autoencoder
-
-from ._core.classes.analysisresults import(
-    AnalysisResults
-)
 
 from ._core.classes.annotations import(
     AnnotationList
@@ -45,6 +43,7 @@ from ._core.classes.omics import (
     OmicMeasurement,
     )
 from ._core.classes.results import (
+    AnalysisResults,
     AssociationResult,
 )
 from ._core.classes.experiments import (

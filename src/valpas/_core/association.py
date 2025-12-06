@@ -27,10 +27,10 @@ import matplotlib.pyplot as plt
 from bspline_mutual_information import mutual_information
 
 from valpas import AssociationResult
+from valpas import AnalysisResults
 from valpas._core import autoencoder
 from valpas._core import weightedcorrelationmodel
 from valpas._core import clr_transform
-from .classes.analysisresults import AnalysisResults
 
 if TYPE_CHECKING:
     from valpas._typing import(

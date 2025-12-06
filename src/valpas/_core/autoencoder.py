@@ -17,7 +17,7 @@ from io import BytesIO
 import json
 from datetime import datetime
 
-from .classes.analysisresults import AnalysisResults
+from .classes.results import AnalysisResults
 
 warnings.filterwarnings('ignore')
 

@@ -20,7 +20,7 @@ from io import BytesIO
 import json
 from datetime import datetime
 
-from .classes.analysisresults import AnalysisResults
+from valpas import AnalysisResults
 
 warnings.filterwarnings('ignore')
 
