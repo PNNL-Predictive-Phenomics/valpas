@@ -37,8 +37,10 @@ exclude_patterns = []
 
 autodoc_mock_imports = [
     "bspline-mutual-information",
+    "bspline_mutual_information",
     "matplotlib",
     "matplotlib-venn",
+    "matplotlib_venn",
     "networkx",
     "numpy",
     "openpyxl",
