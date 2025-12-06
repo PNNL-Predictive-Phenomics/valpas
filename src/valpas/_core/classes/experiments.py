@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 
 from ..association import calculate_association
-from ..processing import normalize as normalize_
 from .omics import Omic
 
 if TYPE_CHECKING:
@@ -292,6 +291,8 @@ class SingleExperiment(Experiment):
             depending on the value of `inplace`.
         """
 
+        from ..processing import normalize as normalize_
+        
         if inplace:
             experiment_ = self
         else:
