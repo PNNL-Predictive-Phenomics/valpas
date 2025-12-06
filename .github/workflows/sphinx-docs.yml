@@ -16,8 +16,11 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
 
-      - name: Install dependencies
+      - name: Install sphinx dependencies
         run: pip install -r docs/requirements.txt
+
+      - name: Install valpas for autodoc
+        run: pip install .
 
       - name: Build docs
         run: sphinx-build -M html docs/source docs/build
