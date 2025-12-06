@@ -35,7 +35,20 @@ autosummary_generate = True
 templates_path = ['_templates']
 exclude_patterns = []
 
-autodoc_mock_imports = ["numpy"]
+autodoc_mock_imports = [
+    "bspline-mutual-information",
+    "matplotlib",
+    "matplotlib-venn",
+    "networkx",
+    "numpy",
+    "openpyxl",
+    "pandas",
+    "plotly",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "torch",
+    ]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output

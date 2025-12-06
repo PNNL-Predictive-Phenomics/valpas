@@ -19,8 +19,8 @@ jobs:
       - name: Install sphinx dependencies
         run: pip install -r docs/requirements.txt
 
-      - name: Install valpas for autodoc
-        run: pip install .
+      # - name: Install valpas for autodoc
+      #   run: pip install .
 
       - name: Build docs
         run: sphinx-build -M html docs/source docs/build
