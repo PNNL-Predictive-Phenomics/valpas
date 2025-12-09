@@ -17,7 +17,7 @@ project = 'VaLPAS'
 copyright = '2025 Battelle Memorial Institute'
 author = 'Yannick Mahlich, Jason McDermott'
 # release = release_version
-release = '0.1.2'
+release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,23 +35,9 @@ autosummary_generate = True
 templates_path = ['_templates']
 exclude_patterns = []
 
-autodoc_mock_imports = [
-    "bspline-mutual-information",
-    "bspline_mutual_information",
-    "matplotlib",
-    "matplotlib-venn",
-    "matplotlib_venn",
-    "networkx",
-    "numpy",
-    "openpyxl",
-    "pandas",
-    "plotly",
-    "scikit-learn",
-    "sklearn",
-    "scipy",
-    "seaborn",
-    "torch",
-    ]
+# autodoc_mock_imports = [
+#     "numpy",
+#     ]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
