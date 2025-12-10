@@ -1,12 +1,6 @@
-## ValPAS
+# ValPAS
 
-## Dependencies
-
-### Creating the conda environment.
-Valpas Environment Setup
-
-This project requires Python and several data science libraries.
-Follow the instructions below to set up your development environment.
+For API reference visit [https://pnnl-predictive-phenomics.github.io/valpas/](https://pnnl-predictive-phenomics.github.io/valpas/).
 
 ## Prerequisites
 
