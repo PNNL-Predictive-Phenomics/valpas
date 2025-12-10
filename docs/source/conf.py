@@ -10,14 +10,14 @@
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../../src/'))
-from valpas import __version__ as release_version
+# from valpas import __version__ as release_version
 
 
 project = 'VaLPAS'
 copyright = '2025 Battelle Memorial Institute'
 author = 'Yannick Mahlich, Jason McDermott'
-release = release_version
-
+# release = release_version
+release = '1.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -35,20 +35,9 @@ autosummary_generate = True
 templates_path = ['_templates']
 exclude_patterns = []
 
-autodoc_mock_imports = [
-    "bspline-mutual-information",
-    "matplotlib",
-    "matplotlib-venn",
-    "networkx",
-    "numpy",
-    "openpyxl",
-    "pandas",
-    "plotly",
-    "scikit-learn",
-    "scipy",
-    "seaborn",
-    "torch",
-    ]
+# autodoc_mock_imports = [
+#     "numpy",
+#     ]
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
