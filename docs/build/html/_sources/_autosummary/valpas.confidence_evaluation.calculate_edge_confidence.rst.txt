@@ -1,0 +1,6 @@
+valpas.confidence\_evaluation.calculate\_edge\_confidence
+=========================================================
+
+.. currentmodule:: valpas.confidence_evaluation
+
+.. autofunction:: calculate_edge_confidence

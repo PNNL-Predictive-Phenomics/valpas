@@ -1,0 +1,6 @@
+valpas.io.export\_xlsx
+======================
+
+.. currentmodule:: valpas.io
+
+.. autofunction:: export_xlsx

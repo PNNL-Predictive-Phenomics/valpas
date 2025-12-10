@@ -1,0 +1,15 @@
+valpas.utils.checker
+====================
+
+.. automodule:: valpas.utils.checker
+
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      check_cutoff_range
+      check_infile
+      check_outfile
+   

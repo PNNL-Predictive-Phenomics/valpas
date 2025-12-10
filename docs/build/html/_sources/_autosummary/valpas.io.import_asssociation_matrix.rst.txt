@@ -1,0 +1,6 @@
+valpas.io.import\_asssociation\_matrix
+======================================
+
+.. currentmodule:: valpas.io
+
+.. autofunction:: import_asssociation_matrix

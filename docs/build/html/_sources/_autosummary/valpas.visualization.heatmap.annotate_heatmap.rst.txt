@@ -1,0 +1,6 @@
+valpas.visualization.heatmap.annotate\_heatmap
+==============================================
+
+.. currentmodule:: valpas.visualization.heatmap
+
+.. autofunction:: annotate_heatmap

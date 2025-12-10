@@ -1,0 +1,6 @@
+valpas.visualization.edge\_venn\_diagram\_plot.plot\_network\_venn\_diagrams
+============================================================================
+
+.. currentmodule:: valpas.visualization.edge_venn_diagram_plot
+
+.. autofunction:: plot_network_venn_diagrams

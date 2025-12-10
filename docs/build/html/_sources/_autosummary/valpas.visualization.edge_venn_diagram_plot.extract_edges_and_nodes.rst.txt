@@ -1,0 +1,6 @@
+valpas.visualization.edge\_venn\_diagram\_plot.extract\_edges\_and\_nodes
+=========================================================================
+
+.. currentmodule:: valpas.visualization.edge_venn_diagram_plot
+
+.. autofunction:: extract_edges_and_nodes

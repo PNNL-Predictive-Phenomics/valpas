@@ -1,0 +1,6 @@
+valpas.utils.checker.check\_outfile
+===================================
+
+.. currentmodule:: valpas.utils.checker
+
+.. autofunction:: check_outfile

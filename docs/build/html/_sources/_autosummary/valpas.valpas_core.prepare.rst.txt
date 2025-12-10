@@ -1,0 +1,6 @@
+valpas.valpas\_core.prepare
+===========================
+
+.. currentmodule:: valpas.valpas_core
+
+.. autofunction:: prepare

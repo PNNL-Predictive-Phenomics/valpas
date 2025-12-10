@@ -1,0 +1,21 @@
+﻿valpas.confidence\_evaluation
+=============================
+
+.. automodule:: valpas.confidence_evaluation
+
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      calculate_edge_confidence
+      calculate_edge_confidence_default
+      generate_negative_interactions
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      ConfidenceModel
+   

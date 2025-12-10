@@ -1,0 +1,15 @@
+﻿valpas.valpas\_core
+===================
+
+.. automodule:: valpas.valpas_core
+
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      associate
+      prepare
+      visualize
+   

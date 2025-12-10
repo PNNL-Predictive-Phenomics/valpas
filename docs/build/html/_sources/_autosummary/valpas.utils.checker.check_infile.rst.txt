@@ -1,0 +1,6 @@
+valpas.utils.checker.check\_infile
+==================================
+
+.. currentmodule:: valpas.utils.checker
+
+.. autofunction:: check_infile

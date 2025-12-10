@@ -1,0 +1,6 @@
+valpas.io.export\_csv
+=====================
+
+.. currentmodule:: valpas.io
+
+.. autofunction:: export_csv

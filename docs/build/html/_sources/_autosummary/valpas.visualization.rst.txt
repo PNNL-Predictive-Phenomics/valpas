@@ -1,0 +1,16 @@
+﻿valpas.visualization
+====================
+
+.. automodule:: valpas.visualization
+
+   
+.. rubric:: Modules
+
+.. autosummary::
+   :toctree:
+   :recursive:
+
+   edge_venn_diagram_plot
+   graph_visualization
+   heatmap
+   ppv_comparison_heatmap

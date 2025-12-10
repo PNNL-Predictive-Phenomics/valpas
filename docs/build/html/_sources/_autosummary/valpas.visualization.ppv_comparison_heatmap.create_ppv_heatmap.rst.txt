@@ -1,0 +1,6 @@
+valpas.visualization.ppv\_comparison\_heatmap.create\_ppv\_heatmap
+==================================================================
+
+.. currentmodule:: valpas.visualization.ppv_comparison_heatmap
+
+.. autofunction:: create_ppv_heatmap

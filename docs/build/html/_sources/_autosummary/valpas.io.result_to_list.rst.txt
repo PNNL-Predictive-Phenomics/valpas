@@ -1,0 +1,6 @@
+valpas.io.result\_to\_list
+==========================
+
+.. currentmodule:: valpas.io
+
+.. autofunction:: result_to_list

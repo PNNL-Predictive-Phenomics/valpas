@@ -1,0 +1,6 @@
+valpas.visualization.heatmap.create\_fig
+========================================
+
+.. currentmodule:: valpas.visualization.heatmap
+
+.. autofunction:: create_fig

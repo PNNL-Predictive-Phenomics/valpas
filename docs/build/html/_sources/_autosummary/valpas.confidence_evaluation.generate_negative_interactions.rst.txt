@@ -1,0 +1,6 @@
+valpas.confidence\_evaluation.generate\_negative\_interactions
+==============================================================
+
+.. currentmodule:: valpas.confidence_evaluation
+
+.. autofunction:: generate_negative_interactions

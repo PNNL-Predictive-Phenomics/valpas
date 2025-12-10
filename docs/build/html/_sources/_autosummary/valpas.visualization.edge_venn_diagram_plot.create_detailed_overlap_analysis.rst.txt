@@ -1,0 +1,6 @@
+valpas.visualization.edge\_venn\_diagram\_plot.create\_detailed\_overlap\_analysis
+==================================================================================
+
+.. currentmodule:: valpas.visualization.edge_venn_diagram_plot
+
+.. autofunction:: create_detailed_overlap_analysis

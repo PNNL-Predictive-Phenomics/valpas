@@ -1,0 +1,6 @@
+valpas.io.write\_outfile
+========================
+
+.. currentmodule:: valpas.io
+
+.. autofunction:: write_outfile

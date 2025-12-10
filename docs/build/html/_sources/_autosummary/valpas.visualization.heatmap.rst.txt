@@ -1,0 +1,15 @@
+valpas.visualization.heatmap
+============================
+
+.. automodule:: valpas.visualization.heatmap
+
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+   
+      annotate_heatmap
+      create_fig
+      heatmap
+   

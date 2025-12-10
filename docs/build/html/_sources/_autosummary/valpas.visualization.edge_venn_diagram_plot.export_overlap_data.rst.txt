@@ -1,0 +1,6 @@
+valpas.visualization.edge\_venn\_diagram\_plot.export\_overlap\_data
+====================================================================
+
+.. currentmodule:: valpas.visualization.edge_venn_diagram_plot
+
+.. autofunction:: export_overlap_data

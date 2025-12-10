@@ -1,0 +1,6 @@
+valpas.visualization.heatmap.heatmap
+====================================
+
+.. currentmodule:: valpas.visualization.heatmap
+
+.. autofunction:: heatmap

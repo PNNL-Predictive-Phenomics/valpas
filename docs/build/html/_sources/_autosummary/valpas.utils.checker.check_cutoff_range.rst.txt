@@ -1,0 +1,6 @@
+valpas.utils.checker.check\_cutoff\_range
+=========================================
+
+.. currentmodule:: valpas.utils.checker
+
+.. autofunction:: check_cutoff_range

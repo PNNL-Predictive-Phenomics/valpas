@@ -1,0 +1,6 @@
+valpas.visualization.edge\_venn\_diagram\_plot.calculate\_venn\_overlaps
+========================================================================
+
+.. currentmodule:: valpas.visualization.edge_venn_diagram_plot
+
+.. autofunction:: calculate_venn_overlaps
