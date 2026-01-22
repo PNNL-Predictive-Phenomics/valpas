@@ -21,3 +21,5 @@ docs/source/_autosummary/
 
 # hatch-vsc version file
 src/valpas/_version.py
+
+*assoc_mat*
