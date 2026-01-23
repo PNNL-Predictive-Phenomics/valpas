@@ -32,6 +32,9 @@ def associate(
     min_counts=3,
     training_interactions=None,
     calculate_confidence=False,
+    confidence_model_path=None,  # Path to load pre-trained model
+    save_confidence_model=None,  # Path to save trained model
+    confidence_model_type='logistic',  # 'logistic' or 'random_forest'
     transform_clr=False,
     annotation_file=None,
     overwrite_output=False,
@@ -200,30 +203,46 @@ def associate(
     edgelist = result.as_list(min_counts=min_counts)
     result.edgelist = edgelist
 
-    if calculate_confidence and training_interactions:
-        # for now confidence evaluation operates on a list of edges
-        # FIXME: this should really be integrated in to the result class so that
-        #        we can add confidence and annotations there - instead of doing it here
-
-        # filter out self edges that seem to creep in somehow
-        edgelist = edgelist[edgelist.iloc[:,0] != edgelist.iloc[:,1]]
-
-        confidencelist = calculate_edge_confidence_default(edgelist,
-                        positive_interactions=training_interactions,
-                        min_counts=min_counts, **confidence_args)
-
-        # this will overwrite output no problems/no check
-        # add support for overwrite checking
-        confidencelist.to_csv(outfile, index=False)
-        result.edgelist = confidencelist
-
-    else:
-        result.save(
-            file_handle=outfile,
-            type=output_type,
-            overwrite=overwrite_output,
-            assocation_metric=association_type,
+   if calculate_confidence:
+        from valpas.confidence_evaluation import (
+            calculate_edge_confidence_default,
+            ConfidenceModel
         )
+
+        # Option 1: Load existing model
+        if confidence_model_path is not None:
+            model = ConfidenceModel.load(confidence_model_path)
+            confidencelist = model.add_confidence_to_edges(
+                edgelist,
+                weight_col='weight'
+            )
+
+        # Option 2: Train new model (requires training_interactions)
+        elif training_interactions is not None:
+            model = ConfidenceModel(model_type=confidence_model_type)
+            model.fit(
+                edgelist,
+                positive_interactions=training_interactions,
+                verbose=True
+            )
+
+            # Optionally save the model
+            if save_confidence_model:
+                model.save(save_confidence_model)
+
+            confidencelist = model.add_confidence_to_edges(
+                edgelist,
+                weight_col='weight'
+            )
+
+        # Option 3: Fall back to default method
+        else:
+            confidencelist = calculate_edge_confidence_default(
+                edgelist,
+                positive_interactions=training_interactions,
+                min_counts=min_counts,
+                **confidence_args
+            )
 
     # produce report probably only for when annotations are provided
     # though we may change this in the future to include non-annotated as well

@@ -72,6 +72,34 @@ def main():
             ''',
         add_help=True
     )
+    p_associate.add_argument(
+        "--confidence-model",
+        dest="CONFIDENCE_MODEL",
+        type=str,
+        default=None,
+        help="Path to a pre-trained confidence model (.pkl) to use for "
+             "confidence scoring instead of training a new one."
+    )
+
+    p_associate.add_argument(
+        "--save-confidence-model",
+        dest="SAVE_CONFIDENCE_MODEL",
+        type=str,
+        default=None,
+        help="Path to save the trained confidence model (.pkl) for reuse "
+             "in future analyses."
+    )
+
+    p_associate.add_argument(
+        "--confidence-model-type",
+        dest="CONFIDENCE_MODEL_TYPE",
+        type=str,
+        choices=("logistic", "random_forest"),
+        default="logistic",
+        help="Type of model to use for confidence prediction. "
+             "Default is 'logistic'."
+    )
+
     # by default the function "associate" is executed with the arguments
     # that are passed to the tool on the command line (see also
     # args.func(args) further down)
@@ -331,7 +359,6 @@ def main():
 # TODO: make this call the valpas_core function for associate to keep things
 #       neat and tidy. Currently the CLI and API have different behavior.
 def associate(args):
-
     if args.csv:
         file_type = 'csv'
     elif args.xlsx:
