@@ -76,6 +76,10 @@ class ProteomicsDataset(Dataset):
         self.data_tensor = torch.FloatTensor(self.scaled_data)
         self.n_proteins, self.n_samples = self.data_tensor.shape
 
+        # Pre-allocate buffers for mask generation (P3: buffer reuse)
+        self._mask_buffer = torch.empty(self.n_proteins, self.n_samples)
+        self._masked_data_buffer = torch.empty_like(self.data_tensor)
+
     def __len__(self):
         return 1  # We treat the entire matrix as one sample
 
@@ -84,21 +88,22 @@ class ProteomicsDataset(Dataset):
 
     def create_masked_batch(self, batch_size: int = 1) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
-        Create masked version of data for training
+        Create masked version of data for training using pre-allocated buffers.
 
         Returns:
             masked_data: Data with some values masked (set to 0)
             mask: Boolean mask indicating which values were masked
             target: Original unmasked data
         """
-        # Create random mask
-        mask = torch.rand(self.n_proteins, self.n_samples) < self.mask_probability
+        # Use pre-allocated buffer for mask generation (avoids allocation each call)
+        self._mask_buffer.uniform_()
+        mask = self._mask_buffer < self.mask_probability
 
-        # Create masked data
-        masked_data = self.data_tensor.clone()
-        masked_data[mask] = 0  # Set masked values to 0
+        # Reuse buffer for masked data
+        self._masked_data_buffer.copy_(self.data_tensor)
+        self._masked_data_buffer[mask] = 0
 
-        return masked_data.unsqueeze(0), mask.unsqueeze(0), self.data_tensor.unsqueeze(0)
+        return self._masked_data_buffer.unsqueeze(0), mask.unsqueeze(0), self.data_tensor.unsqueeze(0)
 
 class BiDirectionalAutoencoder(nn.Module):
     """
@@ -186,30 +191,36 @@ class BiDirectionalAutoencoder(nn.Module):
         self.combination_weight = nn.Parameter(torch.tensor(0.5))
 
     def encode_proteins(self, x: torch.Tensor) -> torch.Tensor:
-        """Encode each protein (row) across samples"""
+        """
+        Encode each protein (row) across samples using batched matrix ops.
+
+        Instead of looping over n_proteins sequentially, reshapes to process
+        all proteins in a single forward pass through the shared encoder.
+        """
         # x shape: [batch_size, n_proteins, n_samples]
         batch_size = x.shape[0]
-        protein_embeddings = []
-
-        for i in range(self.n_proteins):
-            protein_data = x[:, i, :]  # [batch_size, n_samples]
-            embedding = self.protein_encoder(protein_data)  # [batch_size, protein_embedding_dim]
-            protein_embeddings.append(embedding)
-
-        return torch.stack(protein_embeddings, dim=1)  # [batch_size, n_proteins, protein_embedding_dim]
+        # Reshape: [batch_size, n_proteins, n_samples] → [batch_size * n_proteins, n_samples]
+        x_flat = x.reshape(-1, self.n_samples)
+        # Single forward pass through encoder for all proteins at once
+        embeddings = self.protein_encoder(x_flat)  # [batch_size * n_proteins, protein_embedding_dim]
+        # Reshape back: [batch_size, n_proteins, protein_embedding_dim]
+        return embeddings.reshape(batch_size, self.n_proteins, -1)
 
     def encode_samples(self, x: torch.Tensor) -> torch.Tensor:
-        """Encode each sample (column) across proteins"""
+        """
+        Encode each sample (column) across proteins using batched matrix ops.
+
+        Instead of looping over n_samples sequentially, transposes and reshapes
+        to process all samples in a single forward pass through the shared encoder.
+        """
         # x shape: [batch_size, n_proteins, n_samples]
         batch_size = x.shape[0]
-        sample_embeddings = []
-
-        for j in range(self.n_samples):
-            sample_data = x[:, :, j]  # [batch_size, n_proteins]
-            embedding = self.sample_encoder(sample_data)  # [batch_size, sample_embedding_dim]
-            sample_embeddings.append(embedding)
-
-        return torch.stack(sample_embeddings, dim=1)  # [batch_size, n_samples, sample_embedding_dim]
+        # Transpose to [batch_size, n_samples, n_proteins], then flatten
+        x_t = x.transpose(1, 2).reshape(-1, self.n_proteins)  # [batch_size * n_samples, n_proteins]
+        # Single forward pass through encoder for all samples at once
+        embeddings = self.sample_encoder(x_t)  # [batch_size * n_samples, sample_embedding_dim]
+        # Reshape back: [batch_size, n_samples, sample_embedding_dim]
+        return embeddings.reshape(batch_size, self.n_samples, -1)
 
     def forward(self, x: torch.Tensor, return_embeddings: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, Dict]]:
         """
@@ -267,8 +278,8 @@ class ProteomicsAutoencoderTrainer:
         model: BiDirectionalAutoencoder,
         learning_rate: float = 1e-3,
         weight_decay: float = 1e-5,
-        reconstruction_loss: str = 'mse'
-        #reconstruction_loss: str = 'mae'
+        reconstruction_loss: str = 'mse',
+        device: Optional[torch.device] = None
     ):
         self.model = model
         self.optimizer = torch.optim.Adam(
@@ -286,33 +297,65 @@ class ProteomicsAutoencoderTrainer:
         else:
             raise ValueError("reconstruction_loss must be 'mse', 'mae', or 'huber'")
 
-    def train_epoch(self, dataset: ProteomicsDataset, device: torch.device, n_batches: int = 100) -> float:
-        """Train for one epoch using random masking"""
+        # Mixed precision training support (P3: CUDA AMP)
+        self.use_amp = (device is not None and device.type == 'cuda')
+        if self.use_amp:
+            self.scaler = torch.amp.GradScaler('cuda')
+
+    def train_epoch(
+        self,
+        dataset: ProteomicsDataset,
+        device: torch.device,
+        n_batches: int = 100,
+        mini_batch_size: int = 10
+    ) -> float:
+        """
+        Train for one epoch using random masking with batched mask generation.
+
+        Args:
+            dataset: The proteomics dataset
+            device: Device for computation
+            n_batches: Total number of mask patterns to train on per epoch
+            mini_batch_size: Number of masks to process simultaneously per gradient step
+        """
         self.model.train()
         total_loss = 0.0
+        n_steps = 0
 
-        for _ in range(n_batches):
-            # Get masked batch
-            masked_data, mask, target = dataset.create_masked_batch()
+        for i in range(0, n_batches, mini_batch_size):
+            B = min(mini_batch_size, n_batches - i)
+
+            # Generate multiple masks at once (P3: batch mask generation)
+            masks = torch.rand(B, dataset.n_proteins, dataset.n_samples) < dataset.mask_probability
+            data_expanded = dataset.data_tensor.unsqueeze(0).expand(B, -1, -1)
+            masked_data = data_expanded.clone()
+            masked_data[masks] = 0
+
+            # Move to device once per mini-batch (reduces transfers)
             masked_data = masked_data.to(device)
-            mask = mask.to(device)
-            target = target.to(device)
+            masks = masks.to(device)
+            target = data_expanded.to(device)
 
             self.optimizer.zero_grad()
 
-            # Forward pass
-            reconstruction = self.model(masked_data)
-
-            # Calculate loss only on masked positions
-            loss = self.criterion(reconstruction[mask], target[mask])
-
-            # Backward pass
-            loss.backward()
-            self.optimizer.step()
+            # Forward pass with optional mixed precision
+            if self.use_amp:
+                with torch.amp.autocast('cuda'):
+                    reconstruction = self.model(masked_data)
+                    loss = self.criterion(reconstruction[masks], target[masks])
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                reconstruction = self.model(masked_data)
+                loss = self.criterion(reconstruction[masks], target[masks])
+                loss.backward()
+                self.optimizer.step()
 
             total_loss += loss.item()
+            n_steps += 1
 
-        return total_loss / n_batches
+        return total_loss / n_steps
 
     def validate(self, dataset: ProteomicsDataset, device: torch.device, n_batches: int = 20) -> float:
         """Validate the model"""
@@ -332,6 +375,28 @@ class ProteomicsAutoencoderTrainer:
 
         return total_loss / n_batches
 
+def get_optimal_device() -> torch.device:
+    """
+    Select best available compute device with preference cascade.
+
+    Returns CUDA if available, then Apple Metal (MPS), then CPU with
+    optimized thread count. With batched encoding (no sequential loops),
+    GPU acceleration is now beneficial even for smaller models.
+    """
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        print(f"Using CUDA: {torch.cuda.get_device_name(0)}")
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        device = torch.device('mps')
+        print("Using Apple Metal (MPS)")
+    else:
+        device = torch.device('cpu')
+        n_threads = min(os.cpu_count() or 4, 8)
+        torch.set_num_threads(n_threads)
+        print(f"Using CPU with {n_threads} threads")
+    return device
+
+
 def train_proteomics_autoencoder(
     data: pd.DataFrame,
     protein_embedding_dim: int = 128,
@@ -343,6 +408,8 @@ def train_proteomics_autoencoder(
     scaling_method: str = 'robust',
     device: Optional[torch.device] = None,
     validation_split: float = 0.2,
+    early_stopping_patience: int = 20,
+    min_delta: float = 1e-5,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -359,16 +426,16 @@ def train_proteomics_autoencoder(
         scaling_method: Method for scaling data
         device: Device for training
         validation_split: Fraction of data for validation
+        early_stopping_patience: Number of validation checks without improvement
+            before stopping. Set to 0 to disable early stopping.
+        min_delta: Minimum improvement in validation loss to reset patience counter.
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
     """
 
     if device is None:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # We can enable this but for smaller models mps is a lot slower than cpu
-        # <womp-womp>
-        #device = torch.device('mps' if torch.mps.is_available() else 'cpu')
+        device = get_optimal_device()
 
     print(f"Training on device: {device}")
     print(f"Data shape: {data.shape}")
@@ -389,12 +456,23 @@ def train_proteomics_autoencoder(
         hidden_dims=hidden_dims
     ).to(device)
 
-    # Create trainer
-    trainer = ProteomicsAutoencoderTrainer(model, learning_rate=learning_rate)
+    # Apply torch.compile() for PyTorch 2.0+ (P2: kernel fusion optimization)
+    if hasattr(torch, 'compile'):
+        try:
+            model = torch.compile(model)
+            print("Model compiled with torch.compile()")
+        except Exception as e:
+            print(f"torch.compile() unavailable, using eager mode: {e}")
 
-    # Training loop
+    # Create trainer with device info for AMP support
+    trainer = ProteomicsAutoencoderTrainer(model, learning_rate=learning_rate, device=device)
+
+    # Training loop with early stopping (P2)
     train_losses = []
     val_losses = []
+    best_val_loss = float('inf')
+    patience_counter = 0
+    best_model_state = None
 
     print("Starting training...")
     for epoch in range(epochs):
@@ -402,12 +480,25 @@ def train_proteomics_autoencoder(
         train_loss = trainer.train_epoch(dataset, device)
         train_losses.append(train_loss)
 
-        # Validate
+        # Validate every 10 epochs
         if epoch % 10 == 0:
             val_loss = trainer.validate(dataset, device)
             val_losses.append(val_loss)
 
             print(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}")
+
+            # Early stopping check
+            if val_loss < best_val_loss - min_delta:
+                best_val_loss = val_loss
+                patience_counter = 0
+                best_model_state = {k: v.clone() for k, v in model.state_dict().items()}
+            else:
+                patience_counter += 1
+                if early_stopping_patience > 0 and patience_counter >= early_stopping_patience:
+                    print(f"Early stopping at epoch {epoch+1} (no improvement for {patience_counter} checks)")
+                    if best_model_state:
+                        model.load_state_dict(best_model_state)
+                    break
 
     # Final validation
     final_val_loss = trainer.validate(dataset, device)
@@ -417,13 +508,16 @@ def train_proteomics_autoencoder(
         'train_losses': train_losses,
         'val_losses': val_losses,
         'final_train_loss': train_losses[-1],
-        'final_val_loss': final_val_loss
+        'final_val_loss': final_val_loss,
+        'epochs_trained': len(train_losses),
+        'early_stopped': len(train_losses) < epochs
     }
 
     print(f"Training completed. Final train loss: {train_losses[-1]:.6f}, Final val loss: {final_val_loss:.6f}")
+    if training_history['early_stopped']:
+        print(f"  (early stopped after {len(train_losses)} of {epochs} epochs)")
 
     # Calculate similarity matrix
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     sim_df = calculate_protein_similarity_matrix(model, dataset, device)
 
     with torch.no_grad():
@@ -557,7 +651,7 @@ def load_proteomics_autoencoder(
     """
 
     if device is None:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = get_optimal_device()
 
     print(f"Loading model from: {model_path}")
     print(f"Loading on device: {device}")
