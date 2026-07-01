@@ -270,6 +270,176 @@ class BiDirectionalAutoencoder(nn.Module):
         with torch.no_grad():
             return self.encode_samples(x)
 
+class DecoyGenerator:
+    """
+    Generates decoy inputs from real data using configurable strategies.
+
+    Decoys are randomized versions of real data that destroy biological signal
+    while preserving statistical properties. Used for negative contrastive learning.
+    """
+
+    STRATEGIES = ('row_shuffle', 'col_shuffle', 'full_shuffle', 'gaussian', 'block_shuffle')
+
+    def __init__(self, strategy: str = 'row_shuffle', n_decoys: int = 1):
+        """
+        Args:
+            strategy: One of 'row_shuffle', 'col_shuffle', 'full_shuffle',
+                      'gaussian', 'block_shuffle'
+            n_decoys: Number of decoy variants to generate per real batch
+        """
+        if strategy not in self.STRATEGIES:
+            raise ValueError(f"strategy must be one of {self.STRATEGIES}, got '{strategy}'")
+        self.strategy = strategy
+        self.n_decoys = n_decoys
+
+    def generate(self, real_data: torch.Tensor) -> torch.Tensor:
+        """
+        Generate decoy batch from real data.
+
+        Args:
+            real_data: [B, n_proteins, n_samples]
+
+        Returns:
+            decoys: [B * n_decoys, n_proteins, n_samples]
+        """
+        decoys = []
+        for _ in range(self.n_decoys):
+            if self.strategy == 'row_shuffle':
+                decoys.append(self._row_shuffle(real_data))
+            elif self.strategy == 'col_shuffle':
+                decoys.append(self._col_shuffle(real_data))
+            elif self.strategy == 'full_shuffle':
+                decoys.append(self._full_shuffle(real_data))
+            elif self.strategy == 'gaussian':
+                decoys.append(self._gaussian(real_data))
+            elif self.strategy == 'block_shuffle':
+                decoys.append(self._block_shuffle(real_data))
+        return torch.cat(decoys, dim=0)
+
+    def _row_shuffle(self, x: torch.Tensor) -> torch.Tensor:
+        """Independently shuffle each row (protein) across samples."""
+        B, P, S = x.shape
+        decoy = x.clone()
+        for b in range(B):
+            for p in range(P):
+                idx = torch.randperm(S)
+                decoy[b, p, :] = decoy[b, p, idx]
+        return decoy
+
+    def _col_shuffle(self, x: torch.Tensor) -> torch.Tensor:
+        """Independently shuffle each column (sample) across proteins."""
+        B, P, S = x.shape
+        decoy = x.clone()
+        for b in range(B):
+            for s in range(S):
+                idx = torch.randperm(P)
+                decoy[b, :, s] = decoy[b, idx, s]
+        return decoy
+
+    def _full_shuffle(self, x: torch.Tensor) -> torch.Tensor:
+        """Shuffle entire matrix flat — destroys all structure."""
+        B, P, S = x.shape
+        decoy = x.clone()
+        for b in range(B):
+            flat = decoy[b].reshape(-1)
+            idx = torch.randperm(flat.shape[0])
+            decoy[b] = flat[idx].reshape(P, S)
+        return decoy
+
+    def _gaussian(self, x: torch.Tensor) -> torch.Tensor:
+        """Replace with Gaussian noise matching per-row mean and std."""
+        B, P, S = x.shape
+        mean = x.mean(dim=2, keepdim=True)  # [B, P, 1]
+        std = x.std(dim=2, keepdim=True).clamp(min=1e-6)   # [B, P, 1]
+        return torch.randn_like(x) * std + mean
+
+    def _block_shuffle(self, x: torch.Tensor) -> torch.Tensor:
+        """Shuffle contiguous blocks of rows (proteins) together."""
+        B, P, S = x.shape
+        block_size = max(1, P // 10)  # ~10 blocks
+        decoy = x.clone()
+        for b in range(B):
+            n_blocks = (P + block_size - 1) // block_size
+            block_order = torch.randperm(n_blocks)
+            rows = []
+            for bi in block_order:
+                start = bi * block_size
+                end = min(start + block_size, P)
+                rows.append(decoy[b, start:end, :])
+            decoy[b] = torch.cat(rows, dim=0)[:P]
+        return decoy
+
+
+class NegativeContrastiveLoss(nn.Module):
+    """
+    Computes negative contrastive loss on decoy reconstructions.
+
+    The model should reconstruct decoys poorly — this loss encourages
+    high reconstruction error on decoy inputs.
+    """
+
+    LOSS_TYPES = ('margin', 'negative_mse', 'log_ratio')
+
+    def __init__(
+        self,
+        loss_type: str = 'margin',
+        margin: float = 1.0,
+        clip_value: float = 10.0
+    ):
+        """
+        Args:
+            loss_type: One of 'margin', 'negative_mse', 'log_ratio'
+            margin: Margin threshold for margin-based loss
+            clip_value: Maximum value to clip negative loss (stability)
+        """
+        super().__init__()
+        if loss_type not in self.LOSS_TYPES:
+            raise ValueError(f"loss_type must be one of {self.LOSS_TYPES}, got '{loss_type}'")
+        self.loss_type = loss_type
+        self.margin = margin
+        self.clip_value = clip_value
+
+    def forward(
+        self,
+        decoy_input: torch.Tensor,
+        decoy_reconstruction: torch.Tensor,
+        real_loss: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """
+        Compute negative contrastive loss.
+
+        Args:
+            decoy_input: Original decoy tensor
+            decoy_reconstruction: Model output for decoy input
+            real_loss: Reconstruction loss on real data (needed for log_ratio)
+
+        Returns:
+            Scalar loss tensor (to be minimized — negative values push decoy error up)
+        """
+        # Reconstruction error on decoys (we want this to be HIGH)
+        decoy_error = F.mse_loss(decoy_reconstruction, decoy_input)
+
+        if self.loss_type == 'margin':
+            # Loss = max(0, margin - decoy_error)
+            # Zero gradient once decoy error exceeds margin
+            loss = torch.clamp(self.margin - decoy_error, min=0.0)
+
+        elif self.loss_type == 'negative_mse':
+            # Directly minimize negative of decoy error (maximize error)
+            loss = -decoy_error
+
+        elif self.loss_type == 'log_ratio':
+            # Encourage high ratio of decoy error to real error
+            if real_loss is None:
+                raise ValueError("real_loss is required for log_ratio loss type")
+            eps = 1e-8
+            loss = -torch.log(decoy_error / (real_loss + eps) + eps)
+
+        # Clip for stability
+        loss = torch.clamp(loss, min=-self.clip_value, max=self.clip_value)
+        return loss
+
+
 class ProteomicsAutoencoderTrainer:
     """Trainer class for the proteomics autoencoder"""
 
@@ -279,7 +449,8 @@ class ProteomicsAutoencoderTrainer:
         learning_rate: float = 1e-3,
         weight_decay: float = 1e-5,
         reconstruction_loss: str = 'mse',
-        device: Optional[torch.device] = None
+        device: Optional[torch.device] = None,
+        contrastive_args: Optional[Dict] = None
     ):
         self.model = model
         self.optimizer = torch.optim.Adam(
@@ -302,12 +473,48 @@ class ProteomicsAutoencoderTrainer:
         if self.use_amp:
             self.scaler = torch.amp.GradScaler('cuda')
 
+        # Negative contrastive loss setup
+        self._setup_contrastive(contrastive_args)
+
+    def _setup_contrastive(self, contrastive_args: Optional[Dict]):
+        """Initialize contrastive loss components from config dict."""
+        if contrastive_args is None:
+            contrastive_args = {}
+
+        self.use_contrastive = contrastive_args.get('enabled', False)
+
+        if self.use_contrastive:
+            self.decoy_generator = DecoyGenerator(
+                strategy=contrastive_args.get('decoy_strategy', 'row_shuffle'),
+                n_decoys=contrastive_args.get('n_decoys', 1),
+            )
+            self.negative_loss_fn = NegativeContrastiveLoss(
+                loss_type=contrastive_args.get('loss_type', 'margin'),
+                margin=contrastive_args.get('margin', 1.0),
+                clip_value=contrastive_args.get('clip_negative_loss', 10.0),
+            )
+            self.contrastive_lambda = contrastive_args.get('lambda_negative', 0.1)
+            self.contrastive_max_lambda = contrastive_args.get('max_lambda', 0.5)
+            self.contrastive_warmup = contrastive_args.get('warmup_epochs', 10)
+            # Track for logging
+            self.negative_losses: List[float] = []
+
+    def _get_current_lambda(self, epoch: int) -> float:
+        """Compute lambda for negative loss with linear ramp-up after warmup."""
+        if epoch < self.contrastive_warmup:
+            return 0.0
+        # Linear ramp from lambda_negative to max_lambda over same number of epochs as warmup
+        ramp_epochs = max(self.contrastive_warmup, 1)
+        progress = min((epoch - self.contrastive_warmup) / ramp_epochs, 1.0)
+        return self.contrastive_lambda + (self.contrastive_max_lambda - self.contrastive_lambda) * progress
+
     def train_epoch(
         self,
         dataset: ProteomicsDataset,
         device: torch.device,
         n_batches: int = 100,
-        mini_batch_size: int = 10
+        mini_batch_size: int = 10,
+        epoch: int = 0
     ) -> float:
         """
         Train for one epoch using random masking with batched mask generation.
@@ -317,10 +524,16 @@ class ProteomicsAutoencoderTrainer:
             device: Device for computation
             n_batches: Total number of mask patterns to train on per epoch
             mini_batch_size: Number of masks to process simultaneously per gradient step
+            epoch: Current epoch number (for contrastive lambda scheduling)
         """
         self.model.train()
         total_loss = 0.0
+        total_neg_loss = 0.0
         n_steps = 0
+
+        # Determine contrastive lambda for this epoch
+        use_neg = self.use_contrastive and epoch >= self.contrastive_warmup
+        current_lambda = self._get_current_lambda(epoch) if use_neg else 0.0
 
         for i in range(0, n_batches, mini_batch_size):
             B = min(mini_batch_size, n_batches - i)
@@ -342,18 +555,44 @@ class ProteomicsAutoencoderTrainer:
             if self.use_amp:
                 with torch.amp.autocast('cuda'):
                     reconstruction = self.model(masked_data)
-                    loss = self.criterion(reconstruction[masks], target[masks])
+                    recon_loss = self.criterion(reconstruction[masks], target[masks])
+
+                    # Negative contrastive loss
+                    if use_neg and current_lambda > 0:
+                        decoys = self.decoy_generator.generate(data_expanded).to(device)
+                        decoy_reconstruction = self.model(decoys)
+                        neg_loss = self.negative_loss_fn(decoys, decoy_reconstruction, recon_loss)
+                        loss = recon_loss + current_lambda * neg_loss
+                        total_neg_loss += neg_loss.item()
+                    else:
+                        loss = recon_loss
+
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
                 reconstruction = self.model(masked_data)
-                loss = self.criterion(reconstruction[masks], target[masks])
+                recon_loss = self.criterion(reconstruction[masks], target[masks])
+
+                # Negative contrastive loss
+                if use_neg and current_lambda > 0:
+                    decoys = self.decoy_generator.generate(data_expanded).to(device)
+                    decoy_reconstruction = self.model(decoys)
+                    neg_loss = self.negative_loss_fn(decoys, decoy_reconstruction, recon_loss)
+                    loss = recon_loss + current_lambda * neg_loss
+                    total_neg_loss += neg_loss.item()
+                else:
+                    loss = recon_loss
+
                 loss.backward()
                 self.optimizer.step()
 
             total_loss += loss.item()
             n_steps += 1
+
+        # Track negative loss history
+        if self.use_contrastive:
+            self.negative_losses.append(total_neg_loss / max(n_steps, 1))
 
         return total_loss / n_steps
 
@@ -410,6 +649,7 @@ def train_proteomics_autoencoder(
     validation_split: float = 0.2,
     early_stopping_patience: int = 20,
     min_delta: float = 1e-5,
+    contrastive_args: Optional[Dict] = None,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -429,6 +669,10 @@ def train_proteomics_autoencoder(
         early_stopping_patience: Number of validation checks without improvement
             before stopping. Set to 0 to disable early stopping.
         min_delta: Minimum improvement in validation loss to reset patience counter.
+        contrastive_args: Optional dict configuring negative contrastive loss.
+            Keys: strategy (str), n_decoys (int), loss_type (str), margin (float),
+            lambda_weight (float), warmup_epochs (int), ramp_epochs (int).
+            If None, contrastive loss is disabled.
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
@@ -466,7 +710,10 @@ def train_proteomics_autoencoder(
             print(f"torch.compile() failed, using eager mode: {e}")
 
     # Create trainer with device info for AMP support
-    trainer = ProteomicsAutoencoderTrainer(model, learning_rate=learning_rate, device=device)
+    trainer = ProteomicsAutoencoderTrainer(
+        model, learning_rate=learning_rate, device=device,
+        contrastive_args=contrastive_args
+    )
 
     # Training loop with early stopping (P2)
     train_losses = []
@@ -478,7 +725,7 @@ def train_proteomics_autoencoder(
     print("Starting training...")
     for epoch in range(epochs):
         # Train
-        train_loss = trainer.train_epoch(dataset, device)
+        train_loss = trainer.train_epoch(dataset, device, epoch=epoch)
         train_losses.append(train_loss)
 
         # Validate every 10 epochs
@@ -513,6 +760,10 @@ def train_proteomics_autoencoder(
         'epochs_trained': len(train_losses),
         'early_stopped': len(train_losses) < epochs
     }
+
+    # Include negative contrastive loss history if enabled
+    if trainer.use_contrastive and trainer.negative_losses:
+        training_history['negative_losses'] = trainer.negative_losses
 
     print(f"Training completed. Final train loss: {train_losses[-1]:.6f}, Final val loss: {final_val_loss:.6f}")
     if training_history['early_stopped']:

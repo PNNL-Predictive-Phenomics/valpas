@@ -60,7 +60,8 @@ def associate(
         'learning_rate':1e-3,
         'mask_probability':0.15,
         'scaling_method':'robust',
-        'validation_split':0.2
+        'validation_split':0.2,
+        'contrastive_args': None
     },
     subset_args: dict={
         'nconds':None,
