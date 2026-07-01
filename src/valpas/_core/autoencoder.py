@@ -457,12 +457,13 @@ def train_proteomics_autoencoder(
     ).to(device)
 
     # Apply torch.compile() for PyTorch 2.0+ (P2: kernel fusion optimization)
-    if hasattr(torch, 'compile'):
+    # Only use on CUDA — MPS Metal shader compilation is experimental and buggy
+    if hasattr(torch, 'compile') and device.type == 'cuda':
         try:
             model = torch.compile(model)
             print("Model compiled with torch.compile()")
         except Exception as e:
-            print(f"torch.compile() unavailable, using eager mode: {e}")
+            print(f"torch.compile() failed, using eager mode: {e}")
 
     # Create trainer with device info for AMP support
     trainer = ProteomicsAutoencoderTrainer(model, learning_rate=learning_rate, device=device)

@@ -195,6 +195,7 @@ class TestEarlyStopping:
         )
 
         # Use very aggressive early stopping (patience=2) to ensure it triggers
+        # Force CPU to avoid MPS torch.compile issues
         result = train_proteomics_autoencoder(
             data,
             protein_embedding_dim=8,
@@ -205,6 +206,7 @@ class TestEarlyStopping:
             early_stopping_patience=2,
             min_delta=0.0,  # any non-improvement triggers counter
             scaling_method='standard',
+            device=torch.device('cpu'),
         )
 
         # Should have stopped before 500 epochs
@@ -223,6 +225,7 @@ class TestEarlyStopping:
             columns=[f"s_{j}" for j in range(10)],
         )
 
+        # Force CPU to avoid MPS torch.compile issues
         result = train_proteomics_autoencoder(
             data,
             protein_embedding_dim=8,
@@ -232,6 +235,7 @@ class TestEarlyStopping:
             learning_rate=1e-3,
             early_stopping_patience=0,
             scaling_method='standard',
+            device=torch.device('cpu'),
         )
 
         history = result.training_history
