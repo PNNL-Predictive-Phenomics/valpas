@@ -61,7 +61,9 @@ def associate(
         'mask_probability':0.15,
         'scaling_method':'robust',
         'validation_split':0.2,
-        'contrastive_args': None
+        'contrastive_args': None,
+        'modality_split': None,
+        'use_vae': False
     },
     subset_args: dict={
         'nconds':None,

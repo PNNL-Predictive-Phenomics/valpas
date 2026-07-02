@@ -270,6 +270,269 @@ class BiDirectionalAutoencoder(nn.Module):
         with torch.no_grad():
             return self.encode_samples(x)
 
+
+class ModalityAwareAutoencoder(nn.Module):
+    """
+    Autoencoder with modality-specific encoders, optional VAE bottleneck,
+    and embedding norm regularization.
+
+    When modality_split is provided, separate encoders are used for each
+    modality (e.g., proteins vs metabolites). Otherwise falls back to a
+    single shared encoder (equivalent to BiDirectionalAutoencoder behavior).
+
+    Supports:
+        - Modality-specific feature encoders
+        - Variational (VAE) bottleneck with KL divergence
+        - Embedding norm regularization
+        - Cosine auxiliary loss (positive pair mining)
+    """
+
+    def __init__(
+        self,
+        n_proteins: int,
+        n_samples: int,
+        protein_embedding_dim: int = 128,
+        sample_embedding_dim: int = 64,
+        hidden_dims: List[int] = [256, 128],
+        dropout_rate: float = 0.1,
+        activation: str = 'relu',
+        modality_split: Optional[int] = None,
+        use_vae: bool = False,
+        embedding_norm_target: float = 1.0,
+    ):
+        """
+        Args:
+            n_proteins: Total number of features (rows) — proteins + metabolites
+            n_samples: Number of samples (columns)
+            protein_embedding_dim: Dimension of feature embeddings
+            sample_embedding_dim: Dimension of sample embeddings
+            hidden_dims: Hidden layer dimensions [first_hidden, second_hidden]
+            dropout_rate: Dropout rate for regularization
+            activation: Activation function ('relu', 'tanh', 'elu')
+            modality_split: Row index where first modality ends. If None,
+                uses single shared encoder (backward compatible).
+            use_vae: If True, adds variational bottleneck (mu/logvar)
+            embedding_norm_target: Target L2 norm for embedding regularization
+        """
+        super().__init__()
+
+        self.n_proteins = n_proteins
+        self.n_samples = n_samples
+        self.protein_embedding_dim = protein_embedding_dim
+        self.sample_embedding_dim = sample_embedding_dim
+        self.modality_split = modality_split
+        self.use_vae = use_vae
+        self.embedding_norm_target = embedding_norm_target
+
+        # Activation function
+        if activation == 'relu':
+            act_fn = nn.ReLU()
+        elif activation == 'tanh':
+            act_fn = nn.Tanh()
+        elif activation == 'elu':
+            act_fn = nn.ELU()
+        else:
+            raise ValueError("activation must be 'relu', 'tanh', or 'elu'")
+        self.activation = act_fn
+
+        # --- Feature Encoders ---
+        if modality_split is not None and 0 < modality_split < n_proteins:
+            # Modality-specific encoders
+            self.modality_a_encoder = self._make_encoder(
+                n_samples, hidden_dims, protein_embedding_dim, dropout_rate, act_fn
+            )
+            self.modality_b_encoder = self._make_encoder(
+                n_samples, hidden_dims, protein_embedding_dim, dropout_rate, act_fn
+            )
+            self.has_dual_encoders = True
+        else:
+            # Shared encoder (same as BiDirectionalAutoencoder)
+            self.protein_encoder = self._make_encoder(
+                n_samples, hidden_dims, protein_embedding_dim, dropout_rate, act_fn
+            )
+            self.has_dual_encoders = False
+
+        # --- Sample Encoder ---
+        self.sample_encoder = self._make_encoder(
+            n_proteins, hidden_dims, sample_embedding_dim, dropout_rate, act_fn
+        )
+
+        # --- VAE Bottleneck ---
+        if use_vae:
+            # Separate mu/logvar projections for feature and sample embeddings
+            self.protein_mu = nn.Linear(protein_embedding_dim, protein_embedding_dim)
+            self.protein_logvar = nn.Linear(protein_embedding_dim, protein_embedding_dim)
+            self.sample_mu = nn.Linear(sample_embedding_dim, sample_embedding_dim)
+            self.sample_logvar = nn.Linear(sample_embedding_dim, sample_embedding_dim)
+
+        # --- Decoders ---
+        self.protein_decoder = nn.Sequential(
+            nn.Linear(protein_embedding_dim, hidden_dims[1]),
+            act_fn,
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dims[1], n_samples)
+        )
+
+        self.sample_decoder = nn.Sequential(
+            nn.Linear(sample_embedding_dim, hidden_dims[1]),
+            act_fn,
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dims[1], n_proteins)
+        )
+
+        # Learnable combination weight
+        self.combination_weight = nn.Parameter(torch.tensor(0.5))
+
+        # Store last KL for loss computation
+        self._last_kl_loss = torch.tensor(0.0)
+
+    @staticmethod
+    def _make_encoder(input_dim, hidden_dims, output_dim, dropout_rate, act_fn):
+        """Build a standard encoder block."""
+        return nn.Sequential(
+            nn.Linear(input_dim, hidden_dims[0]),
+            act_fn,
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dims[0], hidden_dims[1]),
+            act_fn,
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dims[1], output_dim)
+        )
+
+    def _reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+        """VAE reparameterization trick."""
+        if self.training:
+            std = (0.5 * logvar).exp()
+            eps = torch.randn_like(std)
+            return mu + eps * std
+        return mu
+
+    def encode_proteins(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode features (rows) with optional modality-specific encoders.
+
+        Args:
+            x: [batch_size, n_proteins, n_samples]
+
+        Returns:
+            embeddings: [batch_size, n_proteins, protein_embedding_dim]
+        """
+        batch_size = x.shape[0]
+
+        if self.has_dual_encoders:
+            # Split by modality
+            x_a = x[:, :self.modality_split, :]  # [B, split, S]
+            x_b = x[:, self.modality_split:, :]  # [B, n_proteins-split, S]
+
+            # Encode each modality with its own encoder
+            emb_a = self.modality_a_encoder(
+                x_a.reshape(-1, self.n_samples)
+            ).reshape(batch_size, self.modality_split, -1)
+
+            n_b = self.n_proteins - self.modality_split
+            emb_b = self.modality_b_encoder(
+                x_b.reshape(-1, self.n_samples)
+            ).reshape(batch_size, n_b, -1)
+
+            embeddings = torch.cat([emb_a, emb_b], dim=1)
+        else:
+            x_flat = x.reshape(-1, self.n_samples)
+            embeddings = self.protein_encoder(x_flat).reshape(batch_size, self.n_proteins, -1)
+
+        # VAE bottleneck
+        if self.use_vae:
+            mu = self.protein_mu(embeddings)
+            logvar = self.protein_logvar(embeddings)
+            embeddings = self._reparameterize(mu, logvar)
+            # Store KL for loss (summed across embedding dims, averaged across batch & features)
+            kl = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=-1).mean()
+            self._last_kl_loss = kl
+        else:
+            self._last_kl_loss = torch.tensor(0.0, device=x.device)
+
+        return embeddings
+
+    def encode_samples(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode samples (columns) across all features.
+
+        Args:
+            x: [batch_size, n_proteins, n_samples]
+
+        Returns:
+            embeddings: [batch_size, n_samples, sample_embedding_dim]
+        """
+        batch_size = x.shape[0]
+        x_t = x.transpose(1, 2).reshape(-1, self.n_proteins)
+        embeddings = self.sample_encoder(x_t).reshape(batch_size, self.n_samples, -1)
+
+        # VAE bottleneck for samples
+        if self.use_vae:
+            mu = self.sample_mu(embeddings)
+            logvar = self.sample_logvar(embeddings)
+            embeddings = self._reparameterize(mu, logvar)
+            kl = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=-1).mean()
+            self._last_kl_loss = self._last_kl_loss + kl
+
+        return embeddings
+
+    def forward(self, x: torch.Tensor, return_embeddings: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, Dict]]:
+        """
+        Forward pass through the autoencoder.
+
+        Args:
+            x: Input tensor [batch_size, n_proteins, n_samples]
+            return_embeddings: Whether to return embeddings along with reconstruction
+
+        Returns:
+            reconstruction or (reconstruction, embeddings_dict)
+        """
+        # Encode
+        protein_embeddings = self.encode_proteins(x)
+        sample_embeddings = self.encode_samples(x)
+
+        # Decode
+        protein_reconstruction = self.protein_decoder(protein_embeddings)
+        sample_reconstruction = self.sample_decoder(sample_embeddings).transpose(1, 2)
+
+        # Combine
+        alpha = torch.sigmoid(self.combination_weight)
+        reconstruction = alpha * protein_reconstruction + (1 - alpha) * sample_reconstruction
+
+        if return_embeddings:
+            embeddings = {
+                'protein_embeddings': protein_embeddings,
+                'sample_embeddings': sample_embeddings,
+                'combination_weight': alpha.item()
+            }
+            return reconstruction, embeddings
+
+        return reconstruction
+
+    def get_protein_embeddings(self, x: torch.Tensor) -> torch.Tensor:
+        """Get protein embeddings for similarity analysis"""
+        with torch.no_grad():
+            return self.encode_proteins(x)
+
+    def get_sample_embeddings(self, x: torch.Tensor) -> torch.Tensor:
+        """Get sample embeddings for analysis"""
+        with torch.no_grad():
+            return self.encode_samples(x)
+
+    def get_kl_loss(self) -> torch.Tensor:
+        """Return KL divergence loss from last forward pass."""
+        return self._last_kl_loss
+
+    def get_embedding_norm_loss(self, protein_embeddings: torch.Tensor) -> torch.Tensor:
+        """
+        Compute embedding norm regularization loss.
+
+        Penalizes deviation of embedding L2 norms from target.
+        """
+        norms = protein_embeddings.norm(dim=-1)  # [B, n_proteins]
+        return (norms - self.embedding_norm_target).pow(2).mean()
+
+
 class DecoyGenerator:
     """
     Generates decoy inputs from real data using configurable strategies.
@@ -650,6 +913,8 @@ def train_proteomics_autoencoder(
     early_stopping_patience: int = 20,
     min_delta: float = 1e-5,
     contrastive_args: Optional[Dict] = None,
+    modality_split: Optional[int] = None,
+    use_vae: bool = False,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -673,6 +938,11 @@ def train_proteomics_autoencoder(
             Keys: strategy (str), n_decoys (int), loss_type (str), margin (float),
             lambda_weight (float), warmup_epochs (int), ramp_epochs (int).
             If None, contrastive loss is disabled.
+        modality_split: Row index where first modality ends. When provided,
+            ModalityAwareAutoencoder is used with separate encoders per modality.
+            If None (default), uses BiDirectionalAutoencoder (backward compatible).
+        use_vae: If True, enables variational bottleneck (requires modality_split
+            to use ModalityAwareAutoencoder). Default False.
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
@@ -691,14 +961,29 @@ def train_proteomics_autoencoder(
         scaling_method=scaling_method
     )
 
-    # Create model
-    model = BiDirectionalAutoencoder(
-        n_proteins=dataset.n_proteins,
-        n_samples=dataset.n_samples,
-        protein_embedding_dim=protein_embedding_dim,
-        sample_embedding_dim=sample_embedding_dim,
-        hidden_dims=hidden_dims
-    ).to(device)
+    # Create model — use ModalityAwareAutoencoder when modality_split is specified
+    if modality_split is not None or use_vae:
+        model = ModalityAwareAutoencoder(
+            n_proteins=dataset.n_proteins,
+            n_samples=dataset.n_samples,
+            protein_embedding_dim=protein_embedding_dim,
+            sample_embedding_dim=sample_embedding_dim,
+            hidden_dims=hidden_dims,
+            modality_split=modality_split,
+            use_vae=use_vae,
+        ).to(device)
+        if modality_split is not None:
+            print(f"Using ModalityAwareAutoencoder (split at row {modality_split})")
+        if use_vae:
+            print("VAE bottleneck enabled")
+    else:
+        model = BiDirectionalAutoencoder(
+            n_proteins=dataset.n_proteins,
+            n_samples=dataset.n_samples,
+            protein_embedding_dim=protein_embedding_dim,
+            sample_embedding_dim=sample_embedding_dim,
+            hidden_dims=hidden_dims
+        ).to(device)
 
     # Apply torch.compile() for PyTorch 2.0+ (P2: kernel fusion optimization)
     # Only use on CUDA — MPS Metal shader compilation is experimental and buggy
