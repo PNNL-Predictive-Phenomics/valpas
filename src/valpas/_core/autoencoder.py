@@ -271,10 +271,126 @@ class BiDirectionalAutoencoder(nn.Module):
             return self.encode_samples(x)
 
 
+class CrossAttentionBlock(nn.Module):
+    """
+    Bidirectional cross-attention between two embedding sequences.
+
+    Given two sequences (e.g., protein embeddings and sample embeddings),
+    applies multi-head cross-attention in both directions:
+      - Sequence A attends to Sequence B (A as queries, B as keys/values)
+      - Sequence B attends to Sequence A (B as queries, A as keys/values)
+
+    Each direction uses residual connections and layer normalization.
+
+    Args:
+        dim_a: Embedding dimension of sequence A (protein embeddings)
+        dim_b: Embedding dimension of sequence B (sample embeddings)
+        n_heads: Number of attention heads. Must divide both dim_a and dim_b.
+        dropout: Dropout rate for attention weights. Default 0.1.
+        n_layers: Number of stacked cross-attention layers. Default 1.
+    """
+
+    def __init__(
+        self,
+        dim_a: int,
+        dim_b: int,
+        n_heads: int = 4,
+        dropout: float = 0.1,
+        n_layers: int = 1,
+    ):
+        super().__init__()
+        self.n_layers = n_layers
+
+        # Projection layers to align dimensions for cross-attention
+        # We project both to a common dimension (max of the two)
+        self.common_dim = max(dim_a, dim_b)
+
+        # Make sure common_dim is divisible by n_heads
+        if self.common_dim % n_heads != 0:
+            self.common_dim = ((self.common_dim // n_heads) + 1) * n_heads
+
+        self.proj_a = nn.Linear(dim_a, self.common_dim) if dim_a != self.common_dim else nn.Identity()
+        self.proj_b = nn.Linear(dim_b, self.common_dim) if dim_b != self.common_dim else nn.Identity()
+        self.unproj_a = nn.Linear(self.common_dim, dim_a) if dim_a != self.common_dim else nn.Identity()
+        self.unproj_b = nn.Linear(self.common_dim, dim_b) if dim_b != self.common_dim else nn.Identity()
+
+        # Cross-attention layers (A attends to B, B attends to A)
+        self.attn_a_to_b = nn.ModuleList([
+            nn.MultiheadAttention(self.common_dim, n_heads, dropout=dropout, batch_first=True)
+            for _ in range(n_layers)
+        ])
+        self.attn_b_to_a = nn.ModuleList([
+            nn.MultiheadAttention(self.common_dim, n_heads, dropout=dropout, batch_first=True)
+            for _ in range(n_layers)
+        ])
+
+        # Layer norms
+        self.norm_a = nn.ModuleList([nn.LayerNorm(self.common_dim) for _ in range(n_layers)])
+        self.norm_b = nn.ModuleList([nn.LayerNorm(self.common_dim) for _ in range(n_layers)])
+
+        # Feed-forward networks after attention
+        self.ff_a = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(self.common_dim, self.common_dim * 2),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(self.common_dim * 2, self.common_dim),
+                nn.Dropout(dropout),
+            ) for _ in range(n_layers)
+        ])
+        self.ff_b = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(self.common_dim, self.common_dim * 2),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(self.common_dim * 2, self.common_dim),
+                nn.Dropout(dropout),
+            ) for _ in range(n_layers)
+        ])
+        self.ff_norm_a = nn.ModuleList([nn.LayerNorm(self.common_dim) for _ in range(n_layers)])
+        self.ff_norm_b = nn.ModuleList([nn.LayerNorm(self.common_dim) for _ in range(n_layers)])
+
+    def forward(
+        self,
+        seq_a: torch.Tensor,
+        seq_b: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Apply bidirectional cross-attention.
+
+        Args:
+            seq_a: [batch_size, n_a, dim_a] (e.g., protein embeddings)
+            seq_b: [batch_size, n_b, dim_b] (e.g., sample embeddings)
+
+        Returns:
+            Tuple of (updated_seq_a, updated_seq_b) with same shapes as inputs
+        """
+        # Project to common dimension
+        a = self.proj_a(seq_a)  # [B, n_a, common_dim]
+        b = self.proj_b(seq_b)  # [B, n_b, common_dim]
+
+        for i in range(self.n_layers):
+            # A attends to B (A = queries, B = keys/values)
+            attn_out_a, _ = self.attn_a_to_b[i](a, b, b)
+            a = self.norm_a[i](a + attn_out_a)
+            a = self.ff_norm_a[i](a + self.ff_a[i](a))
+
+            # B attends to A (B = queries, A = keys/values)
+            attn_out_b, _ = self.attn_b_to_a[i](b, a, a)
+            b = self.norm_b[i](b + attn_out_b)
+            b = self.ff_norm_b[i](b + self.ff_b[i](b))
+
+        # Project back to original dimensions
+        out_a = self.unproj_a(a)
+        out_b = self.unproj_b(b)
+
+        return out_a, out_b
+
+
 class ModalityAwareAutoencoder(nn.Module):
     """
     Autoencoder with modality-specific encoders, optional VAE bottleneck,
-    and embedding norm regularization.
+    cross-attention layers, and embedding norm regularization.
 
     When modality_split is provided, separate encoders are used for each
     modality (e.g., proteins vs metabolites). Otherwise falls back to a
@@ -283,6 +399,7 @@ class ModalityAwareAutoencoder(nn.Module):
     Supports:
         - Modality-specific feature encoders
         - Variational (VAE) bottleneck with KL divergence
+        - Cross-attention between protein and sample embeddings
         - Embedding norm regularization
         - Cosine auxiliary loss (positive pair mining)
     """
@@ -299,6 +416,7 @@ class ModalityAwareAutoencoder(nn.Module):
         modality_split: Optional[int] = None,
         use_vae: bool = False,
         embedding_norm_target: float = 1.0,
+        cross_attention_args: Optional[Dict] = None,
     ):
         """
         Args:
@@ -379,6 +497,21 @@ class ModalityAwareAutoencoder(nn.Module):
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dims[1], n_proteins)
         )
+
+        # --- Cross-Attention ---
+        if cross_attention_args is not None:
+            ca_args = cross_attention_args
+            self.cross_attention = CrossAttentionBlock(
+                dim_a=protein_embedding_dim,
+                dim_b=sample_embedding_dim,
+                n_heads=ca_args.get('n_heads', 4),
+                dropout=ca_args.get('dropout', 0.1),
+                n_layers=ca_args.get('n_layers', 1),
+            )
+            self.use_cross_attention = True
+        else:
+            self.cross_attention = None
+            self.use_cross_attention = False
 
         # Learnable combination weight
         self.combination_weight = nn.Parameter(torch.tensor(0.5))
@@ -490,6 +623,12 @@ class ModalityAwareAutoencoder(nn.Module):
         # Encode
         protein_embeddings = self.encode_proteins(x)
         sample_embeddings = self.encode_samples(x)
+
+        # Cross-attention: let protein and sample embeddings attend to each other
+        if self.use_cross_attention:
+            protein_embeddings, sample_embeddings = self.cross_attention(
+                protein_embeddings, sample_embeddings
+            )
 
         # Decode
         protein_reconstruction = self.protein_decoder(protein_embeddings)
@@ -1172,6 +1311,7 @@ def train_proteomics_autoencoder(
     row_mask_ratio: float = 0.0,
     cosine_aux_weight: float = 0.0,
     cosine_aux_args: Optional[Dict] = None,
+    cross_attention_args: Optional[Dict] = None,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -1224,6 +1364,10 @@ def train_proteomics_autoencoder(
         cosine_aux_args: Optional dict configuring cosine aux loss parameters.
             Keys: n_pairs (int, default 64), temperature (float, default 1.0),
             detach_targets (bool, default True). If None, uses defaults.
+        cross_attention_args: Optional dict configuring cross-attention layers
+            between protein and sample embeddings. Enables ModalityAwareAutoencoder.
+            Keys: n_heads (int, default 4), dropout (float, default 0.1),
+            n_layers (int, default 1). If None (default), no cross-attention.
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
@@ -1243,7 +1387,7 @@ def train_proteomics_autoencoder(
     )
 
     # Create model — use ModalityAwareAutoencoder when modality_split is specified
-    if modality_split is not None or use_vae:
+    if modality_split is not None or use_vae or cross_attention_args is not None:
         model = ModalityAwareAutoencoder(
             n_proteins=dataset.n_proteins,
             n_samples=dataset.n_samples,
@@ -1252,11 +1396,14 @@ def train_proteomics_autoencoder(
             hidden_dims=hidden_dims,
             modality_split=modality_split,
             use_vae=use_vae,
+            cross_attention_args=cross_attention_args,
         ).to(device)
         if modality_split is not None:
             print(f"Using ModalityAwareAutoencoder (split at row {modality_split})")
         if use_vae:
             print("VAE bottleneck enabled")
+        if cross_attention_args is not None:
+            print(f"Cross-attention enabled ({cross_attention_args.get('n_layers', 1)} layers, {cross_attention_args.get('n_heads', 4)} heads)")
     else:
         model = BiDirectionalAutoencoder(
             n_proteins=dataset.n_proteins,

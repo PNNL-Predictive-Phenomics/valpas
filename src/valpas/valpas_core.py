@@ -70,7 +70,8 @@ def associate(
         'curriculum_masking': None,
         'row_mask_ratio': 0.0,
         'cosine_aux_weight': 0.0,
-        'cosine_aux_args': None
+        'cosine_aux_args': None,
+        'cross_attention_args': None
     },
     subset_args: dict={
         'nconds':None,
