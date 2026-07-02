@@ -713,7 +713,9 @@ class ProteomicsAutoencoderTrainer:
         weight_decay: float = 1e-5,
         reconstruction_loss: str = 'mse',
         device: Optional[torch.device] = None,
-        contrastive_args: Optional[Dict] = None
+        contrastive_args: Optional[Dict] = None,
+        modality_split: Optional[int] = None,
+        cross_modal_mask_ratio: float = 0.0
     ):
         self.model = model
         self.optimizer = torch.optim.Adam(
@@ -721,6 +723,10 @@ class ProteomicsAutoencoderTrainer:
             lr=learning_rate,
             weight_decay=weight_decay
         )
+
+        # Cross-modal masking bias
+        self.modality_split = modality_split
+        self.cross_modal_mask_ratio = cross_modal_mask_ratio
 
         if reconstruction_loss == 'mse':
             self.criterion = nn.MSELoss()
@@ -771,6 +777,50 @@ class ProteomicsAutoencoderTrainer:
         progress = min((epoch - self.contrastive_warmup) / ramp_epochs, 1.0)
         return self.contrastive_lambda + (self.contrastive_max_lambda - self.contrastive_lambda) * progress
 
+    def _generate_cross_modal_masks(
+        self, B: int, n_proteins: int, n_samples: int, base_prob: float
+    ) -> torch.Tensor:
+        """
+        Generate masks with cross-modal bias.
+
+        For each batch element, randomly choose one modality as the "source" and
+        the other as the "target". The target modality receives a higher mask
+        probability (base_prob + cross_modal_mask_ratio), forcing the model to
+        reconstruct target-modality features primarily from source-modality context.
+
+        Args:
+            B: Batch size (number of mask patterns)
+            n_proteins: Total number of features (rows)
+            n_samples: Number of samples (columns)
+            base_prob: Base mask probability
+
+        Returns:
+            Boolean mask tensor of shape (B, n_proteins, n_samples)
+        """
+        split = self.modality_split
+        target_prob = min(base_prob + self.cross_modal_mask_ratio, 1.0)
+
+        # Random uniform for threshold comparison
+        rand_vals = torch.rand(B, n_proteins, n_samples)
+
+        # Build per-row probability tensor
+        probs = torch.full((B, n_proteins, n_samples), base_prob)
+
+        # For each batch element, randomly pick which modality is the "target"
+        # (gets higher mask probability). 50/50 split per batch element.
+        target_is_b = torch.rand(B) < 0.5  # True => modality B is target
+
+        for i in range(B):
+            if target_is_b[i]:
+                # Modality B (rows >= split) gets higher mask prob
+                probs[i, split:, :] = target_prob
+            else:
+                # Modality A (rows < split) gets higher mask prob
+                probs[i, :split, :] = target_prob
+
+        masks = rand_vals < probs
+        return masks
+
     def train_epoch(
         self,
         dataset: ProteomicsDataset,
@@ -802,7 +852,15 @@ class ProteomicsAutoencoderTrainer:
             B = min(mini_batch_size, n_batches - i)
 
             # Generate multiple masks at once (P3: batch mask generation)
-            masks = torch.rand(B, dataset.n_proteins, dataset.n_samples) < dataset.mask_probability
+            # Cross-modal masking bias: when modality_split is set, increase mask
+            # probability for the "other" modality to force cross-modal prediction
+            if self.modality_split is not None and self.cross_modal_mask_ratio > 0:
+                masks = self._generate_cross_modal_masks(
+                    B, dataset.n_proteins, dataset.n_samples,
+                    dataset.mask_probability
+                )
+            else:
+                masks = torch.rand(B, dataset.n_proteins, dataset.n_samples) < dataset.mask_probability
             data_expanded = dataset.data_tensor.unsqueeze(0).expand(B, -1, -1)
             masked_data = data_expanded.clone()
             masked_data[masks] = 0
@@ -915,6 +973,7 @@ def train_proteomics_autoencoder(
     contrastive_args: Optional[Dict] = None,
     modality_split: Optional[int] = None,
     use_vae: bool = False,
+    cross_modal_mask_ratio: float = 0.0,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -943,6 +1002,11 @@ def train_proteomics_autoencoder(
             If None (default), uses BiDirectionalAutoencoder (backward compatible).
         use_vae: If True, enables variational bottleneck (requires modality_split
             to use ModalityAwareAutoencoder). Default False.
+        cross_modal_mask_ratio: Additional mask probability applied to the "target"
+            modality during training. Forces cross-modal prediction by masking more
+            of one modality so the model must reconstruct it from the other.
+            Only effective when modality_split is set. Default 0.0 (no bias).
+            Typical values: 0.3–0.5.
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
@@ -997,7 +1061,9 @@ def train_proteomics_autoencoder(
     # Create trainer with device info for AMP support
     trainer = ProteomicsAutoencoderTrainer(
         model, learning_rate=learning_rate, device=device,
-        contrastive_args=contrastive_args
+        contrastive_args=contrastive_args,
+        modality_split=modality_split,
+        cross_modal_mask_ratio=cross_modal_mask_ratio
     )
 
     # Training loop with early stopping (P2)

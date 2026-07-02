@@ -63,7 +63,8 @@ def associate(
         'validation_split':0.2,
         'contrastive_args': None,
         'modality_split': None,
-        'use_vae': False
+        'use_vae': False,
+        'cross_modal_mask_ratio': 0.0
     },
     subset_args: dict={
         'nconds':None,
