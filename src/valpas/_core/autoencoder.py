@@ -715,7 +715,9 @@ class ProteomicsAutoencoderTrainer:
         device: Optional[torch.device] = None,
         contrastive_args: Optional[Dict] = None,
         modality_split: Optional[int] = None,
-        cross_modal_mask_ratio: float = 0.0
+        cross_modal_mask_ratio: float = 0.0,
+        kl_weight: float = 0.0,
+        norm_reg_weight: float = 0.0
     ):
         self.model = model
         self.optimizer = torch.optim.Adam(
@@ -727,6 +729,10 @@ class ProteomicsAutoencoderTrainer:
         # Cross-modal masking bias
         self.modality_split = modality_split
         self.cross_modal_mask_ratio = cross_modal_mask_ratio
+
+        # VAE KL loss weight and embedding norm regularization weight
+        self.kl_weight = kl_weight
+        self.norm_reg_weight = norm_reg_weight
 
         if reconstruction_loss == 'mse':
             self.criterion = nn.MSELoss()
@@ -873,37 +879,60 @@ class ProteomicsAutoencoderTrainer:
             self.optimizer.zero_grad()
 
             # Forward pass with optional mixed precision
+            need_embeddings = self.norm_reg_weight > 0
             if self.use_amp:
                 with torch.amp.autocast('cuda'):
-                    reconstruction = self.model(masked_data)
+                    if need_embeddings:
+                        reconstruction, emb_dict = self.model(masked_data, return_embeddings=True)
+                    else:
+                        reconstruction = self.model(masked_data)
                     recon_loss = self.criterion(reconstruction[masks], target[masks])
+                    loss = recon_loss
+
+                    # VAE KL loss
+                    if self.kl_weight > 0 and hasattr(self.model, '_last_kl_loss'):
+                        loss = loss + self.kl_weight * self.model._last_kl_loss
+
+                    # Embedding norm regularization
+                    if need_embeddings and hasattr(self.model, 'get_embedding_norm_loss'):
+                        norm_loss = self.model.get_embedding_norm_loss(emb_dict['protein_embeddings'])
+                        loss = loss + self.norm_reg_weight * norm_loss
 
                     # Negative contrastive loss
                     if use_neg and current_lambda > 0:
                         decoys = self.decoy_generator.generate(data_expanded).to(device)
                         decoy_reconstruction = self.model(decoys)
                         neg_loss = self.negative_loss_fn(decoys, decoy_reconstruction, recon_loss)
-                        loss = recon_loss + current_lambda * neg_loss
+                        loss = loss + current_lambda * neg_loss
                         total_neg_loss += neg_loss.item()
-                    else:
-                        loss = recon_loss
 
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
-                reconstruction = self.model(masked_data)
+                if need_embeddings:
+                    reconstruction, emb_dict = self.model(masked_data, return_embeddings=True)
+                else:
+                    reconstruction = self.model(masked_data)
                 recon_loss = self.criterion(reconstruction[masks], target[masks])
+                loss = recon_loss
+
+                # VAE KL loss
+                if self.kl_weight > 0 and hasattr(self.model, '_last_kl_loss'):
+                    loss = loss + self.kl_weight * self.model._last_kl_loss
+
+                # Embedding norm regularization
+                if need_embeddings and hasattr(self.model, 'get_embedding_norm_loss'):
+                    norm_loss = self.model.get_embedding_norm_loss(emb_dict['protein_embeddings'])
+                    loss = loss + self.norm_reg_weight * norm_loss
 
                 # Negative contrastive loss
                 if use_neg and current_lambda > 0:
                     decoys = self.decoy_generator.generate(data_expanded).to(device)
                     decoy_reconstruction = self.model(decoys)
                     neg_loss = self.negative_loss_fn(decoys, decoy_reconstruction, recon_loss)
-                    loss = recon_loss + current_lambda * neg_loss
+                    loss = loss + current_lambda * neg_loss
                     total_neg_loss += neg_loss.item()
-                else:
-                    loss = recon_loss
 
                 loss.backward()
                 self.optimizer.step()
@@ -974,6 +1003,8 @@ def train_proteomics_autoencoder(
     modality_split: Optional[int] = None,
     use_vae: bool = False,
     cross_modal_mask_ratio: float = 0.0,
+    kl_weight: float = 1e-3,
+    norm_reg_weight: float = 0.0,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -1007,6 +1038,11 @@ def train_proteomics_autoencoder(
             of one modality so the model must reconstruct it from the other.
             Only effective when modality_split is set. Default 0.0 (no bias).
             Typical values: 0.3–0.5.
+        kl_weight: Weight for VAE KL divergence loss term. Only applied when
+            use_vae=True. Default 1e-3.
+        norm_reg_weight: Weight for embedding norm regularization loss. Penalizes
+            deviation of protein embedding L2 norms from target (default 1.0).
+            Set > 0 to enable. Default 0.0 (disabled).
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
@@ -1063,7 +1099,9 @@ def train_proteomics_autoencoder(
         model, learning_rate=learning_rate, device=device,
         contrastive_args=contrastive_args,
         modality_split=modality_split,
-        cross_modal_mask_ratio=cross_modal_mask_ratio
+        cross_modal_mask_ratio=cross_modal_mask_ratio,
+        kl_weight=kl_weight if use_vae else 0.0,
+        norm_reg_weight=norm_reg_weight
     )
 
     # Training loop with early stopping (P2)

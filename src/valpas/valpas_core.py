@@ -64,7 +64,9 @@ def associate(
         'contrastive_args': None,
         'modality_split': None,
         'use_vae': False,
-        'cross_modal_mask_ratio': 0.0
+        'cross_modal_mask_ratio': 0.0,
+        'kl_weight': 1e-3,
+        'norm_reg_weight': 0.0
     },
     subset_args: dict={
         'nconds':None,
