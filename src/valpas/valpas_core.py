@@ -68,7 +68,9 @@ def associate(
         'kl_weight': 1e-3,
         'norm_reg_weight': 0.0,
         'curriculum_masking': None,
-        'row_mask_ratio': 0.0
+        'row_mask_ratio': 0.0,
+        'cosine_aux_weight': 0.0,
+        'cosine_aux_args': None
     },
     subset_args: dict={
         'nconds':None,

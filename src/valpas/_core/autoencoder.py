@@ -703,6 +703,86 @@ class NegativeContrastiveLoss(nn.Module):
         return loss
 
 
+class CosineEmbeddingAuxLoss(nn.Module):
+    """
+    Auxiliary loss that encourages protein embeddings to preserve data-space
+    cosine similarity structure.
+
+    For each mini-batch, computes pairwise cosine similarity among a random
+    subset of proteins in both:
+      1. Data space (raw expression rows from unmasked data)
+      2. Embedding space (learned protein embeddings)
+
+    The loss is the MSE between these two similarity matrices, encouraging
+    the embedding geometry to reflect biological similarity.
+
+    Args:
+        n_pairs: Number of protein pairs to sample per batch for efficiency.
+            Sampling avoids O(n_proteins^2) cost. Default 64.
+        temperature: Sharpening temperature applied to data-space similarities
+            before comparison. Lower values make the target more binary.
+            Default 1.0 (no sharpening).
+        detach_targets: If True, data-space similarities are detached from
+            the computation graph (default True — they're fixed targets).
+    """
+
+    def __init__(
+        self,
+        n_pairs: int = 64,
+        temperature: float = 1.0,
+        detach_targets: bool = True,
+    ):
+        super().__init__()
+        self.n_pairs = n_pairs
+        self.temperature = temperature
+        self.detach_targets = detach_targets
+
+    def forward(
+        self,
+        protein_embeddings: torch.Tensor,
+        data_tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute cosine embedding auxiliary loss.
+
+        Args:
+            protein_embeddings: [B, n_proteins, emb_dim] protein embeddings
+            data_tensor: [B, n_proteins, n_samples] unmasked data for targets
+
+        Returns:
+            Scalar loss (MSE between data-space and embedding-space cosine sims)
+        """
+        B, n_proteins, emb_dim = protein_embeddings.shape
+
+        # Sample random protein indices for pair comparison
+        n_sample = min(self.n_pairs, n_proteins)
+        indices = torch.randperm(n_proteins, device=protein_embeddings.device)[:n_sample]
+
+        # Extract subset of embeddings and data rows
+        emb_subset = protein_embeddings[:, indices, :]  # [B, n_sample, emb_dim]
+        data_subset = data_tensor[:, indices, :]  # [B, n_sample, n_samples]
+
+        # Compute pairwise cosine similarity in embedding space
+        # Normalize along embedding dim
+        emb_norm = F.normalize(emb_subset, p=2, dim=-1)  # [B, n_sample, emb_dim]
+        emb_sim = torch.bmm(emb_norm, emb_norm.transpose(1, 2))  # [B, n_sample, n_sample]
+
+        # Compute pairwise cosine similarity in data space
+        data_norm = F.normalize(data_subset, p=2, dim=-1)  # [B, n_sample, n_samples]
+        data_sim = torch.bmm(data_norm, data_norm.transpose(1, 2))  # [B, n_sample, n_sample]
+
+        # Apply temperature sharpening to data-space targets
+        if self.temperature != 1.0:
+            data_sim = data_sim / self.temperature
+
+        if self.detach_targets:
+            data_sim = data_sim.detach()
+
+        # MSE between similarity matrices (averaged over batch)
+        loss = F.mse_loss(emb_sim, data_sim)
+        return loss
+
+
 class ProteomicsAutoencoderTrainer:
     """Trainer class for the proteomics autoencoder"""
 
@@ -719,7 +799,9 @@ class ProteomicsAutoencoderTrainer:
         kl_weight: float = 0.0,
         norm_reg_weight: float = 0.0,
         curriculum_masking: Optional[Dict] = None,
-        row_mask_ratio: float = 0.0
+        row_mask_ratio: float = 0.0,
+        cosine_aux_weight: float = 0.0,
+        cosine_aux_args: Optional[Dict] = None
     ):
         self.model = model
         self.optimizer = torch.optim.Adam(
@@ -747,6 +829,18 @@ class ProteomicsAutoencoderTrainer:
 
         # Row/feature-level masking: fraction of masks that mask entire rows
         self.row_mask_ratio = row_mask_ratio
+
+        # Cosine embedding auxiliary loss
+        self.cosine_aux_weight = cosine_aux_weight
+        if cosine_aux_weight > 0:
+            aux_args = cosine_aux_args or {}
+            self.cosine_aux_loss = CosineEmbeddingAuxLoss(
+                n_pairs=aux_args.get('n_pairs', 64),
+                temperature=aux_args.get('temperature', 1.0),
+                detach_targets=aux_args.get('detach_targets', True),
+            )
+        else:
+            self.cosine_aux_loss = None
 
         if reconstruction_loss == 'mse':
             self.criterion = nn.MSELoss()
@@ -938,7 +1032,7 @@ class ProteomicsAutoencoderTrainer:
             self.optimizer.zero_grad()
 
             # Forward pass with optional mixed precision
-            need_embeddings = self.norm_reg_weight > 0
+            need_embeddings = self.norm_reg_weight > 0 or self.cosine_aux_weight > 0
             if self.use_amp:
                 with torch.amp.autocast('cuda'):
                     if need_embeddings:
@@ -953,9 +1047,14 @@ class ProteomicsAutoencoderTrainer:
                         loss = loss + self.kl_weight * self.model._last_kl_loss
 
                     # Embedding norm regularization
-                    if need_embeddings and hasattr(self.model, 'get_embedding_norm_loss'):
+                    if need_embeddings and self.norm_reg_weight > 0 and hasattr(self.model, 'get_embedding_norm_loss'):
                         norm_loss = self.model.get_embedding_norm_loss(emb_dict['protein_embeddings'])
                         loss = loss + self.norm_reg_weight * norm_loss
+
+                    # Cosine embedding auxiliary loss
+                    if need_embeddings and self.cosine_aux_weight > 0 and self.cosine_aux_loss is not None:
+                        cos_loss = self.cosine_aux_loss(emb_dict['protein_embeddings'], target)
+                        loss = loss + self.cosine_aux_weight * cos_loss
 
                     # Negative contrastive loss
                     if use_neg and current_lambda > 0:
@@ -981,9 +1080,14 @@ class ProteomicsAutoencoderTrainer:
                     loss = loss + self.kl_weight * self.model._last_kl_loss
 
                 # Embedding norm regularization
-                if need_embeddings and hasattr(self.model, 'get_embedding_norm_loss'):
+                if need_embeddings and self.norm_reg_weight > 0 and hasattr(self.model, 'get_embedding_norm_loss'):
                     norm_loss = self.model.get_embedding_norm_loss(emb_dict['protein_embeddings'])
                     loss = loss + self.norm_reg_weight * norm_loss
+
+                # Cosine embedding auxiliary loss
+                if need_embeddings and self.cosine_aux_weight > 0 and self.cosine_aux_loss is not None:
+                    cos_loss = self.cosine_aux_loss(emb_dict['protein_embeddings'], target)
+                    loss = loss + self.cosine_aux_weight * cos_loss
 
                 # Negative contrastive loss
                 if use_neg and current_lambda > 0:
@@ -1066,6 +1170,8 @@ def train_proteomics_autoencoder(
     norm_reg_weight: float = 0.0,
     curriculum_masking: Optional[Dict] = None,
     row_mask_ratio: float = 0.0,
+    cosine_aux_weight: float = 0.0,
+    cosine_aux_args: Optional[Dict] = None,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -1112,6 +1218,12 @@ def train_proteomics_autoencoder(
             (entire features masked) instead of element-wise. Forces the model to
             reconstruct whole features from context. Default 0.0 (disabled).
             Typical values: 0.1–0.3.
+        cosine_aux_weight: Weight for cosine embedding auxiliary loss. Encourages
+            protein embeddings to preserve data-space cosine similarity structure.
+            Set > 0 to enable. Default 0.0 (disabled). Typical values: 0.01–0.1.
+        cosine_aux_args: Optional dict configuring cosine aux loss parameters.
+            Keys: n_pairs (int, default 64), temperature (float, default 1.0),
+            detach_targets (bool, default True). If None, uses defaults.
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
@@ -1172,7 +1284,9 @@ def train_proteomics_autoencoder(
         kl_weight=kl_weight if use_vae else 0.0,
         norm_reg_weight=norm_reg_weight,
         curriculum_masking=curriculum_masking,
-        row_mask_ratio=row_mask_ratio
+        row_mask_ratio=row_mask_ratio,
+        cosine_aux_weight=cosine_aux_weight,
+        cosine_aux_args=cosine_aux_args
     )
 
     # Training loop with early stopping (P2)
