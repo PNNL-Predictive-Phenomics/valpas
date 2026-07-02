@@ -717,7 +717,9 @@ class ProteomicsAutoencoderTrainer:
         modality_split: Optional[int] = None,
         cross_modal_mask_ratio: float = 0.0,
         kl_weight: float = 0.0,
-        norm_reg_weight: float = 0.0
+        norm_reg_weight: float = 0.0,
+        curriculum_masking: Optional[Dict] = None,
+        row_mask_ratio: float = 0.0
     ):
         self.model = model
         self.optimizer = torch.optim.Adam(
@@ -733,6 +735,18 @@ class ProteomicsAutoencoderTrainer:
         # VAE KL loss weight and embedding norm regularization weight
         self.kl_weight = kl_weight
         self.norm_reg_weight = norm_reg_weight
+
+        # Curriculum masking: ramp mask probability from start to end over epochs
+        if curriculum_masking is not None:
+            self.curriculum_start = curriculum_masking.get('start_prob', 0.05)
+            self.curriculum_end = curriculum_masking.get('end_prob', 0.30)
+            self.curriculum_epochs = curriculum_masking.get('warmup_epochs', 50)
+            self.use_curriculum = True
+        else:
+            self.use_curriculum = False
+
+        # Row/feature-level masking: fraction of masks that mask entire rows
+        self.row_mask_ratio = row_mask_ratio
 
         if reconstruction_loss == 'mse':
             self.criterion = nn.MSELoss()
@@ -782,6 +796,46 @@ class ProteomicsAutoencoderTrainer:
         ramp_epochs = max(self.contrastive_warmup, 1)
         progress = min((epoch - self.contrastive_warmup) / ramp_epochs, 1.0)
         return self.contrastive_lambda + (self.contrastive_max_lambda - self.contrastive_lambda) * progress
+
+    def _get_mask_probability(self, epoch: int, base_prob: float) -> float:
+        """Get effective mask probability with optional curriculum schedule."""
+        if not self.use_curriculum:
+            return base_prob
+        progress = min(epoch / max(self.curriculum_epochs, 1), 1.0)
+        return self.curriculum_start + (self.curriculum_end - self.curriculum_start) * progress
+
+    def _apply_row_masking(self, masks: torch.Tensor, prob: float) -> torch.Tensor:
+        """
+        Replace a fraction of masks with full-row masks.
+
+        For row_mask_ratio of the batch elements, some rows are fully masked
+        (all columns set to True) instead of element-wise masking.
+        This forces the model to reconstruct entire features from context.
+
+        Args:
+            masks: Boolean mask tensor [B, n_proteins, n_samples]
+            prob: Current mask probability (used for row selection)
+
+        Returns:
+            Modified masks with some full-row masks applied
+        """
+        if self.row_mask_ratio <= 0:
+            return masks
+
+        B, n_proteins, n_samples = masks.shape
+        # For each batch element, randomly select rows to fully mask
+        # Number of rows to fully mask = prob * n_proteins (same expected coverage)
+        n_row_masks = max(1, int(prob * n_proteins))
+
+        # Apply row masking to row_mask_ratio fraction of batch elements
+        batch_mask = torch.rand(B) < self.row_mask_ratio
+        for i in range(B):
+            if batch_mask[i]:
+                # Pick random rows to fully mask
+                row_indices = torch.randperm(n_proteins)[:n_row_masks]
+                masks[i, row_indices, :] = True
+
+        return masks
 
     def _generate_cross_modal_masks(
         self, B: int, n_proteins: int, n_samples: int, base_prob: float
@@ -857,16 +911,21 @@ class ProteomicsAutoencoderTrainer:
         for i in range(0, n_batches, mini_batch_size):
             B = min(mini_batch_size, n_batches - i)
 
+            # Get effective mask probability (curriculum schedule or base)
+            mask_prob = self._get_mask_probability(epoch, dataset.mask_probability)
+
             # Generate multiple masks at once (P3: batch mask generation)
             # Cross-modal masking bias: when modality_split is set, increase mask
             # probability for the "other" modality to force cross-modal prediction
             if self.modality_split is not None and self.cross_modal_mask_ratio > 0:
                 masks = self._generate_cross_modal_masks(
-                    B, dataset.n_proteins, dataset.n_samples,
-                    dataset.mask_probability
+                    B, dataset.n_proteins, dataset.n_samples, mask_prob
                 )
             else:
-                masks = torch.rand(B, dataset.n_proteins, dataset.n_samples) < dataset.mask_probability
+                masks = torch.rand(B, dataset.n_proteins, dataset.n_samples) < mask_prob
+
+            # Apply row/feature-level masking
+            masks = self._apply_row_masking(masks, mask_prob)
             data_expanded = dataset.data_tensor.unsqueeze(0).expand(B, -1, -1)
             masked_data = data_expanded.clone()
             masked_data[masks] = 0
@@ -1005,6 +1064,8 @@ def train_proteomics_autoencoder(
     cross_modal_mask_ratio: float = 0.0,
     kl_weight: float = 1e-3,
     norm_reg_weight: float = 0.0,
+    curriculum_masking: Optional[Dict] = None,
+    row_mask_ratio: float = 0.0,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -1043,6 +1104,14 @@ def train_proteomics_autoencoder(
         norm_reg_weight: Weight for embedding norm regularization loss. Penalizes
             deviation of protein embedding L2 norms from target (default 1.0).
             Set > 0 to enable. Default 0.0 (disabled).
+        curriculum_masking: Optional dict configuring curriculum masking schedule.
+            Keys: start_prob (float), end_prob (float), warmup_epochs (int).
+            Mask probability ramps linearly from start_prob to end_prob over
+            warmup_epochs. If None (default), uses fixed mask_probability.
+        row_mask_ratio: Fraction of batch elements that receive full-row masking
+            (entire features masked) instead of element-wise. Forces the model to
+            reconstruct whole features from context. Default 0.0 (disabled).
+            Typical values: 0.1–0.3.
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
@@ -1101,7 +1170,9 @@ def train_proteomics_autoencoder(
         modality_split=modality_split,
         cross_modal_mask_ratio=cross_modal_mask_ratio,
         kl_weight=kl_weight if use_vae else 0.0,
-        norm_reg_weight=norm_reg_weight
+        norm_reg_weight=norm_reg_weight,
+        curriculum_masking=curriculum_masking,
+        row_mask_ratio=row_mask_ratio
     )
 
     # Training loop with early stopping (P2)
