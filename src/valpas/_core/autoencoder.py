@@ -1159,13 +1159,14 @@ class ProteomicsAutoencoderTrainer:
 
             # Apply row/feature-level masking
             masks = self._apply_row_masking(masks, mask_prob)
-            data_expanded = dataset.data_tensor.unsqueeze(0).expand(B, -1, -1)
-            masked_data = data_expanded.clone()
-            masked_data[masks] = 0
+            data_expanded = dataset.data_tensor.unsqueeze(0).expand(B, -1, -1).contiguous()
+            # Use element-wise masking (MPS boolean indexing is unreliable)
+            masks_float = masks.float()
+            masked_data = data_expanded * (1.0 - masks_float)
 
             # Move to device once per mini-batch (reduces transfers)
             masked_data = masked_data.to(device)
-            masks = masks.to(device)
+            masks_float = masks_float.to(device)
             target = data_expanded.to(device)
 
             self.optimizer.zero_grad()
@@ -1178,7 +1179,9 @@ class ProteomicsAutoencoderTrainer:
                         reconstruction, emb_dict = self.model(masked_data, return_embeddings=True)
                     else:
                         reconstruction = self.model(masked_data)
-                    recon_loss = self.criterion(reconstruction[masks], target[masks])
+                    # Masked MSE: element-wise loss weighted by mask (avoids boolean indexing)
+                    sq_err = (reconstruction - target) ** 2
+                    recon_loss = (sq_err * masks_float).sum() / masks_float.sum().clamp(min=1)
                     loss = recon_loss
 
                     # VAE KL loss
@@ -1211,7 +1214,9 @@ class ProteomicsAutoencoderTrainer:
                     reconstruction, emb_dict = self.model(masked_data, return_embeddings=True)
                 else:
                     reconstruction = self.model(masked_data)
-                recon_loss = self.criterion(reconstruction[masks], target[masks])
+                # Masked MSE: element-wise loss weighted by mask (avoids boolean indexing)
+                sq_err = (reconstruction - target) ** 2
+                recon_loss = (sq_err * masks_float).sum() / masks_float.sum().clamp(min=1)
                 loss = recon_loss
 
                 # VAE KL loss
@@ -1257,11 +1262,13 @@ class ProteomicsAutoencoderTrainer:
             for _ in range(n_batches):
                 masked_data, mask, target = dataset.create_masked_batch()
                 masked_data = masked_data.to(device)
-                mask = mask.to(device)
+                mask_float = mask.float().to(device)
                 target = target.to(device)
 
                 reconstruction = self.model(masked_data)
-                loss = self.criterion(reconstruction[mask], target[mask])
+                # Masked MSE without boolean indexing (MPS-safe)
+                sq_err = (reconstruction - target) ** 2
+                loss = (sq_err * mask_float).sum() / mask_float.sum().clamp(min=1)
                 total_loss += loss.item()
 
         return total_loss / n_batches
