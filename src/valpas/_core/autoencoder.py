@@ -1320,7 +1320,7 @@ def train_proteomics_autoencoder(
     cosine_aux_args: Optional[Dict] = None,
     cross_attention_args: Optional[Dict] = None,
     **kwargs
-) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
+) -> 'ProteomicsAutoencoderResults':
     """
     Train the proteomics autoencoder
 
@@ -1345,8 +1345,8 @@ def train_proteomics_autoencoder(
         modality_split: Row index where first modality ends. When provided,
             ModalityAwareAutoencoder is used with separate encoders per modality.
             If None (default), uses BiDirectionalAutoencoder (backward compatible).
-        use_vae: If True, enables variational bottleneck (requires modality_split
-            to use ModalityAwareAutoencoder). Default False.
+        use_vae: If True, enables the variational bottleneck and selects
+            ModalityAwareAutoencoder. Default False.
         cross_modal_mask_ratio: Additional mask probability applied to the "target"
             modality during training. Forces cross-modal prediction by masking more
             of one modality so the model must reconstruct it from the other.
@@ -1377,7 +1377,8 @@ def train_proteomics_autoencoder(
             n_layers (int, default 1). If None (default), no cross-attention.
 
     Returns:
-        Tuple of (trained_model, dataset, training_history)
+        ProteomicsAutoencoderResults containing the trained model, protein and
+        sample embeddings, similarity matrix, and training history.
     """
 
     if device is None:
@@ -1700,6 +1701,8 @@ class ProteomicsAutoencoderResults(AnalysisResults):
         self.similarity_matrix = results_dict.get('similarity_matrix')
         self.relationship_analysis = results_dict.get('relationship_analysis', {})
         self.embeddings = results_dict.get('embeddings')
+        self.protein_embeddings = results_dict.get('protein_embeddings', self.embeddings)
+        self.sample_embeddings = results_dict.get('sample_embeddings')
         self.reconstruction_results = results_dict.get('reconstruction_results', {})
         self.config = results_dict.get('config', {})
 

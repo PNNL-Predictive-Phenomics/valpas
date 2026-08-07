@@ -6,6 +6,10 @@
 VaLPAS documentation
 ====================
 
+VaLPAS identifies associations among molecular features measured across shared
+experimental conditions. Begin with the :doc:`user_guide` for method selection,
+input conventions, autoencoder configuration, and runnable workflows.
+
 ============
 Installation
 ============
@@ -175,6 +179,15 @@ If you encounter permission errors, try:
    pip install --user .
    pip install --user -r requirements.txt
 
+
+==========
+User guide
+==========
+
+.. toctree::
+   :maxdepth: 1
+
+   user_guide
 
 =============
 API Reference
