@@ -7,10 +7,11 @@ This guide is the central user-facing reference for selecting a method, preparin
 ## Contents
 
 - [Installation](#installation)
+- [Command-line interface](#command-line-interface)
 - [Data conventions](#data-conventions)
 - [Choose an analysis method](#choose-an-analysis-method)
-- [Quick start: correlation analysis](#quick-start-correlation-analysis)
-- [Quick start: autoencoder analysis](#quick-start-autoencoder-analysis)
+- [Quick start: association analysis in Python](#quick-start-association-analysis-in-python)
+- [Quick start: autoencoder analysis in Python](#quick-start-autoencoder-analysis-in-python)
 - [Autoencoder configuration](#autoencoder-configuration)
 - [Multi-omics workflows](#multi-omics-workflows)
 - [Results and export](#results-and-export)
@@ -35,6 +36,75 @@ pip install -r docs/requirements.txt
 ```
 
 See the root [README](../README.md) for platform-specific installation and GPU notes.
+
+## Command-line interface
+
+Installing VaLPAS creates the `valpas` command. The command-line interface (CLI) is the recommended entry point for file-based preparation, association analysis, and visualization. Use the Python API when an in-memory workflow, custom automation, or direct autoencoder configuration is required.
+
+Inspect the available commands and options before running an analysis:
+
+```bash
+valpas --help
+valpas associate --help
+valpas associate from_file --help
+```
+
+### Prepare an input file
+
+Validate a CSV input before analysis:
+
+```bash
+valpas prepare from_file --csv --infile measurements.csv
+```
+
+Use `--xlsx` instead of `--csv` for Excel input. For an Excel worksheet, add `--excel_sheet_name SHEET_NAME`.
+
+### Calculate associations
+
+Calculate Spearman associations from one CSV file and save a sorted edge list:
+
+```bash
+valpas associate from_file \
+  --csv \
+  --infile measurements.csv \
+  --association_type spearman \
+  --filter_missing_values 0.9 \
+  --output_type sorted_list \
+  --outfile spearman_associations.csv \
+  --overwrite_output
+```
+
+The command expects a file in the same tabular orientation as the file-based API: experimental conditions are observations and molecular features are variables. Key options are:
+
+| CLI option | Purpose |
+| --- | --- |
+| `--csv` / `--xlsx` | Select the input file format. Exactly one is required. |
+| `--infile` | Path to the primary data file. |
+| `--infile2` | Optional second omics file for cross-omics analysis. |
+| `--association_type` | Select `pearson`, `spearman`, `mutual_information`, cosine, or Jaccard metrics. |
+| `--filter_missing_values` | Minimum fraction of conditions where a feature must be detected; default is `0.9`. |
+| `--output_type` | Write a `sorted_list` or `correlation_matrix`. |
+| `--outfile` | Output path; omit to write to standard output. |
+| `--overwrite_output` | Permit replacing an existing output file. |
+
+For a directory-based workflow, replace `from_file --infile measurements.csv` with `from_folder --infolder INPUT_DIRECTORY`. The folder workflow supports `--normalization pre`, `--normalization post`, or `--normalization none`.
+
+### Visualize an association matrix
+
+Create a heatmap from a previously generated association matrix:
+
+```bash
+valpas visualize \
+  --infile association_matrix.csv \
+  --visualization_type heatmap \
+  --outfile association_heatmap.png
+```
+
+`--visualization_type graph` is accepted by the CLI but is not yet implemented. Use `valpas visualize --help` for display and Excel-sheet options.
+
+### CLI scope and autoencoders
+
+The CLI supports file-based preparation, classical association metrics, and heatmap visualization. Direct autoencoder training and its advanced options are currently configured through the Python API below. Although `autoencoder` appears in the CLI's accepted metric choices, the current CLI execution path does not implement that metric; use [`train_proteomics_autoencoder`](../src/valpas/_core/autoencoder.py) or the high-level Python API for autoencoder analyses.
 
 ## Data conventions
 
@@ -70,7 +140,7 @@ For a multi-omics matrix, vertically concatenate the modalities in a known order
 
 Correlation-like scores are associations, not causal claims. Inspect experimental design, replicate quality, missingness, and multiple-testing considerations before assigning biological meaning.
 
-## Quick start: correlation analysis
+## Quick start: association analysis in Python
 
 Use the public high-level interface for file-based association analysis:
 
@@ -99,7 +169,7 @@ Important options:
 | `min_counts` | `3` | Minimum number of contributing observations per edge. |
 | `calculate_confidence` | `False` | Calculate confidence when reference interactions are supplied. |
 
-## Quick start: autoencoder analysis
+## Quick start: autoencoder analysis in Python
 
 Use the direct API when working from an in-memory feature-by-sample `pandas.DataFrame`:
 

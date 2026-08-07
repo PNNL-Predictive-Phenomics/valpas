@@ -3,7 +3,7 @@ User guide
 
 The canonical VaLPAS user guide is maintained in `Markdown in the repository <https://github.com/PNNL-Predictive-Phenomics/valpas/blob/main/docs/USER_GUIDE.md>`__ so it is available directly on GitHub and alongside source distributions.
 
-It covers input conventions, method selection, all public autoencoder parameters, multi-omics workflows, advanced regularization options, result interpretation, and troubleshooting.
+It begins with command-line workflows for input preparation, association analysis, and visualization, then covers the Python API, method selection, all public autoencoder parameters, multi-omics workflows, advanced regularization options, result interpretation, and troubleshooting.
 
 Runnable companion scripts are available in the repository:
 

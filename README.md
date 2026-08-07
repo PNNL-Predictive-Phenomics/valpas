@@ -38,7 +38,31 @@ Conda environments are also supported. Activate the selected environment before 
 
 ## Quick start
 
-Use [`associate`](src/valpas/valpas_core.py:21) for file-based association analysis:
+### Command line: file-based association analysis
+
+The installed `valpas` command is the recommended entry point for file-based association workflows. Inspect its commands with:
+
+```bash
+valpas --help
+```
+
+Calculate Spearman associations from a CSV file and write a sorted association list:
+
+```bash
+valpas associate from_file \
+  --csv \
+  --infile measurements.csv \
+  --association_type spearman \
+  --output_type sorted_list \
+  --outfile spearman_associations.csv \
+  --overwrite_output
+```
+
+Validate inputs beforehand with `valpas prepare from_file --csv --infile measurements.csv`, and generate a heatmap with `valpas visualize --infile association_matrix.csv --outfile association_heatmap.png`. See the [CLI section of the user guide](docs/USER_GUIDE.md#command-line-interface) for all commands and options.
+
+### Python: file-based association analysis
+
+Use [`associate`](src/valpas/valpas_core.py:21) for scripted or in-memory file-based workflows:
 
 ```python
 from valpas.valpas_core import associate
@@ -51,6 +75,8 @@ results = associate(
     normalization="pre",
 )
 ```
+
+### Python: autoencoder analysis
 
 For nonlinear denoising and learned embeddings, use the direct autoencoder API with a feature-by-sample table (features as rows; samples or conditions as columns):
 
