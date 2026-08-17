@@ -61,7 +61,17 @@ def associate(
         'mask_probability':0.15,
         'scaling_method':'robust',
         'validation_split':0.2,
-        'contrastive_args': None
+        'contrastive_args': None,
+        'modality_split': None,
+        'use_vae': False,
+        'cross_modal_mask_ratio': 0.0,
+        'kl_weight': 1e-3,
+        'norm_reg_weight': 0.0,
+        'curriculum_masking': None,
+        'row_mask_ratio': 0.0,
+        'cosine_aux_weight': 0.0,
+        'cosine_aux_args': None,
+        'cross_attention_args': None
     },
     subset_args: dict={
         'nconds':None,

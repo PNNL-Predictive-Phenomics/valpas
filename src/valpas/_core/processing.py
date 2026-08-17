@@ -290,8 +290,8 @@ def beautify_series(df: pd.Series, value: str="Correlation") -> pd.DataFrame:
         })
 
     # Remove duplicate edges (e.g., (A,B) and (B,A))
-    # Sort the nodes in each pair to ensure uniqueness
-    df_return['sorted_nodes'] = df_return.apply(lambda row: tuple(sorted([row[id_1], row[id_2]])),
+    # Sort the nodes in each pair to ensure uniqueness (cast to str to handle mixed types)
+    df_return['sorted_nodes'] = df_return.apply(lambda row: tuple(sorted([str(row[id_1]), str(row[id_2])])),
                                         axis=1)
 
     df_return = df_return.drop_duplicates(subset='sorted_nodes')

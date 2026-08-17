@@ -270,6 +270,408 @@ class BiDirectionalAutoencoder(nn.Module):
         with torch.no_grad():
             return self.encode_samples(x)
 
+
+class CrossAttentionBlock(nn.Module):
+    """
+    Bidirectional cross-attention between two embedding sequences.
+
+    Given two sequences (e.g., protein embeddings and sample embeddings),
+    applies multi-head cross-attention in both directions:
+      - Sequence A attends to Sequence B (A as queries, B as keys/values)
+      - Sequence B attends to Sequence A (B as queries, A as keys/values)
+
+    Each direction uses residual connections and layer normalization.
+
+    Args:
+        dim_a: Embedding dimension of sequence A (protein embeddings)
+        dim_b: Embedding dimension of sequence B (sample embeddings)
+        n_heads: Number of attention heads. Must divide both dim_a and dim_b.
+        dropout: Dropout rate for attention weights. Default 0.1.
+        n_layers: Number of stacked cross-attention layers. Default 1.
+    """
+
+    def __init__(
+        self,
+        dim_a: int,
+        dim_b: int,
+        n_heads: int = 4,
+        dropout: float = 0.1,
+        n_layers: int = 1,
+    ):
+        super().__init__()
+        self.n_layers = n_layers
+
+        # Projection layers to align dimensions for cross-attention
+        # We project both to a common dimension (max of the two)
+        self.common_dim = max(dim_a, dim_b)
+
+        # Make sure common_dim is divisible by n_heads
+        if self.common_dim % n_heads != 0:
+            self.common_dim = ((self.common_dim // n_heads) + 1) * n_heads
+
+        self.proj_a = nn.Linear(dim_a, self.common_dim) if dim_a != self.common_dim else nn.Identity()
+        self.proj_b = nn.Linear(dim_b, self.common_dim) if dim_b != self.common_dim else nn.Identity()
+        self.unproj_a = nn.Linear(self.common_dim, dim_a) if dim_a != self.common_dim else nn.Identity()
+        self.unproj_b = nn.Linear(self.common_dim, dim_b) if dim_b != self.common_dim else nn.Identity()
+
+        # Cross-attention layers (A attends to B, B attends to A)
+        self.attn_a_to_b = nn.ModuleList([
+            nn.MultiheadAttention(self.common_dim, n_heads, dropout=dropout, batch_first=True)
+            for _ in range(n_layers)
+        ])
+        self.attn_b_to_a = nn.ModuleList([
+            nn.MultiheadAttention(self.common_dim, n_heads, dropout=dropout, batch_first=True)
+            for _ in range(n_layers)
+        ])
+
+        # Layer norms
+        self.norm_a = nn.ModuleList([nn.LayerNorm(self.common_dim) for _ in range(n_layers)])
+        self.norm_b = nn.ModuleList([nn.LayerNorm(self.common_dim) for _ in range(n_layers)])
+
+        # Feed-forward networks after attention
+        self.ff_a = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(self.common_dim, self.common_dim * 2),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(self.common_dim * 2, self.common_dim),
+                nn.Dropout(dropout),
+            ) for _ in range(n_layers)
+        ])
+        self.ff_b = nn.ModuleList([
+            nn.Sequential(
+                nn.Linear(self.common_dim, self.common_dim * 2),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(self.common_dim * 2, self.common_dim),
+                nn.Dropout(dropout),
+            ) for _ in range(n_layers)
+        ])
+        self.ff_norm_a = nn.ModuleList([nn.LayerNorm(self.common_dim) for _ in range(n_layers)])
+        self.ff_norm_b = nn.ModuleList([nn.LayerNorm(self.common_dim) for _ in range(n_layers)])
+
+    def forward(
+        self,
+        seq_a: torch.Tensor,
+        seq_b: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Apply bidirectional cross-attention.
+
+        Args:
+            seq_a: [batch_size, n_a, dim_a] (e.g., protein embeddings)
+            seq_b: [batch_size, n_b, dim_b] (e.g., sample embeddings)
+
+        Returns:
+            Tuple of (updated_seq_a, updated_seq_b) with same shapes as inputs
+        """
+        # Project to common dimension
+        a = self.proj_a(seq_a)  # [B, n_a, common_dim]
+        b = self.proj_b(seq_b)  # [B, n_b, common_dim]
+
+        for i in range(self.n_layers):
+            # A attends to B (A = queries, B = keys/values)
+            attn_out_a, _ = self.attn_a_to_b[i](a, b, b)
+            a = self.norm_a[i](a + attn_out_a)
+            a = self.ff_norm_a[i](a + self.ff_a[i](a))
+
+            # B attends to A (B = queries, A = keys/values)
+            attn_out_b, _ = self.attn_b_to_a[i](b, a, a)
+            b = self.norm_b[i](b + attn_out_b)
+            b = self.ff_norm_b[i](b + self.ff_b[i](b))
+
+        # Project back to original dimensions
+        out_a = self.unproj_a(a)
+        out_b = self.unproj_b(b)
+
+        return out_a, out_b
+
+
+class ModalityAwareAutoencoder(nn.Module):
+    """
+    Autoencoder with modality-specific encoders, optional VAE bottleneck,
+    cross-attention layers, and embedding norm regularization.
+
+    When modality_split is provided, separate encoders are used for each
+    modality (e.g., proteins vs metabolites). Otherwise falls back to a
+    single shared encoder (equivalent to BiDirectionalAutoencoder behavior).
+
+    Supports:
+        - Modality-specific feature encoders
+        - Variational (VAE) bottleneck with KL divergence
+        - Cross-attention between protein and sample embeddings
+        - Embedding norm regularization
+        - Cosine auxiliary loss (positive pair mining)
+    """
+
+    def __init__(
+        self,
+        n_proteins: int,
+        n_samples: int,
+        protein_embedding_dim: int = 128,
+        sample_embedding_dim: int = 64,
+        hidden_dims: List[int] = [256, 128],
+        dropout_rate: float = 0.1,
+        activation: str = 'relu',
+        modality_split: Optional[int] = None,
+        use_vae: bool = False,
+        embedding_norm_target: float = 1.0,
+        cross_attention_args: Optional[Dict] = None,
+    ):
+        """
+        Args:
+            n_proteins: Total number of features (rows) — proteins + metabolites
+            n_samples: Number of samples (columns)
+            protein_embedding_dim: Dimension of feature embeddings
+            sample_embedding_dim: Dimension of sample embeddings
+            hidden_dims: Hidden layer dimensions [first_hidden, second_hidden]
+            dropout_rate: Dropout rate for regularization
+            activation: Activation function ('relu', 'tanh', 'elu')
+            modality_split: Row index where first modality ends. If None,
+                uses single shared encoder (backward compatible).
+            use_vae: If True, adds variational bottleneck (mu/logvar)
+            embedding_norm_target: Target L2 norm for embedding regularization
+        """
+        super().__init__()
+
+        self.n_proteins = n_proteins
+        self.n_samples = n_samples
+        self.protein_embedding_dim = protein_embedding_dim
+        self.sample_embedding_dim = sample_embedding_dim
+        self.modality_split = modality_split
+        self.use_vae = use_vae
+        self.embedding_norm_target = embedding_norm_target
+
+        # Activation function
+        if activation == 'relu':
+            act_fn = nn.ReLU()
+        elif activation == 'tanh':
+            act_fn = nn.Tanh()
+        elif activation == 'elu':
+            act_fn = nn.ELU()
+        else:
+            raise ValueError("activation must be 'relu', 'tanh', or 'elu'")
+        self.activation = act_fn
+
+        # --- Feature Encoders ---
+        if modality_split is not None and 0 < modality_split < n_proteins:
+            # Modality-specific encoders
+            self.modality_a_encoder = self._make_encoder(
+                n_samples, hidden_dims, protein_embedding_dim, dropout_rate, act_fn
+            )
+            self.modality_b_encoder = self._make_encoder(
+                n_samples, hidden_dims, protein_embedding_dim, dropout_rate, act_fn
+            )
+            self.has_dual_encoders = True
+        else:
+            # Shared encoder (same as BiDirectionalAutoencoder)
+            self.protein_encoder = self._make_encoder(
+                n_samples, hidden_dims, protein_embedding_dim, dropout_rate, act_fn
+            )
+            self.has_dual_encoders = False
+
+        # --- Sample Encoder ---
+        self.sample_encoder = self._make_encoder(
+            n_proteins, hidden_dims, sample_embedding_dim, dropout_rate, act_fn
+        )
+
+        # --- VAE Bottleneck ---
+        if use_vae:
+            # Separate mu/logvar projections for feature and sample embeddings
+            self.protein_mu = nn.Linear(protein_embedding_dim, protein_embedding_dim)
+            self.protein_logvar = nn.Linear(protein_embedding_dim, protein_embedding_dim)
+            self.sample_mu = nn.Linear(sample_embedding_dim, sample_embedding_dim)
+            self.sample_logvar = nn.Linear(sample_embedding_dim, sample_embedding_dim)
+
+        # --- Decoders ---
+        self.protein_decoder = nn.Sequential(
+            nn.Linear(protein_embedding_dim, hidden_dims[1]),
+            act_fn,
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dims[1], n_samples)
+        )
+
+        self.sample_decoder = nn.Sequential(
+            nn.Linear(sample_embedding_dim, hidden_dims[1]),
+            act_fn,
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dims[1], n_proteins)
+        )
+
+        # --- Cross-Attention ---
+        if cross_attention_args is not None:
+            ca_args = cross_attention_args
+            self.cross_attention = CrossAttentionBlock(
+                dim_a=protein_embedding_dim,
+                dim_b=sample_embedding_dim,
+                n_heads=ca_args.get('n_heads', 4),
+                dropout=ca_args.get('dropout', 0.1),
+                n_layers=ca_args.get('n_layers', 1),
+            )
+            self.use_cross_attention = True
+        else:
+            self.cross_attention = None
+            self.use_cross_attention = False
+
+        # Learnable combination weight
+        self.combination_weight = nn.Parameter(torch.tensor(0.5))
+
+        # Store last KL for loss computation
+        self._last_kl_loss = torch.tensor(0.0)
+
+    @staticmethod
+    def _make_encoder(input_dim, hidden_dims, output_dim, dropout_rate, act_fn):
+        """Build a standard encoder block."""
+        return nn.Sequential(
+            nn.Linear(input_dim, hidden_dims[0]),
+            act_fn,
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dims[0], hidden_dims[1]),
+            act_fn,
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden_dims[1], output_dim)
+        )
+
+    def _reparameterize(self, mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+        """VAE reparameterization trick."""
+        if self.training:
+            std = (0.5 * logvar).exp()
+            eps = torch.randn_like(std)
+            return mu + eps * std
+        return mu
+
+    def encode_proteins(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode features (rows) with optional modality-specific encoders.
+
+        Args:
+            x: [batch_size, n_proteins, n_samples]
+
+        Returns:
+            embeddings: [batch_size, n_proteins, protein_embedding_dim]
+        """
+        batch_size = x.shape[0]
+
+        if self.has_dual_encoders:
+            # Split by modality
+            x_a = x[:, :self.modality_split, :]  # [B, split, S]
+            x_b = x[:, self.modality_split:, :]  # [B, n_proteins-split, S]
+
+            # Encode each modality with its own encoder
+            emb_a = self.modality_a_encoder(
+                x_a.reshape(-1, self.n_samples)
+            ).reshape(batch_size, self.modality_split, -1)
+
+            n_b = self.n_proteins - self.modality_split
+            emb_b = self.modality_b_encoder(
+                x_b.reshape(-1, self.n_samples)
+            ).reshape(batch_size, n_b, -1)
+
+            embeddings = torch.cat([emb_a, emb_b], dim=1)
+        else:
+            x_flat = x.reshape(-1, self.n_samples)
+            embeddings = self.protein_encoder(x_flat).reshape(batch_size, self.n_proteins, -1)
+
+        # VAE bottleneck
+        if self.use_vae:
+            mu = self.protein_mu(embeddings)
+            logvar = self.protein_logvar(embeddings)
+            embeddings = self._reparameterize(mu, logvar)
+            # Store KL for loss (summed across embedding dims, averaged across batch & features)
+            kl = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=-1).mean()
+            self._last_kl_loss = kl
+        else:
+            self._last_kl_loss = torch.tensor(0.0, device=x.device)
+
+        return embeddings
+
+    def encode_samples(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode samples (columns) across all features.
+
+        Args:
+            x: [batch_size, n_proteins, n_samples]
+
+        Returns:
+            embeddings: [batch_size, n_samples, sample_embedding_dim]
+        """
+        batch_size = x.shape[0]
+        x_t = x.transpose(1, 2).reshape(-1, self.n_proteins)
+        embeddings = self.sample_encoder(x_t).reshape(batch_size, self.n_samples, -1)
+
+        # VAE bottleneck for samples
+        if self.use_vae:
+            mu = self.sample_mu(embeddings)
+            logvar = self.sample_logvar(embeddings)
+            embeddings = self._reparameterize(mu, logvar)
+            kl = -0.5 * (1 + logvar - mu.pow(2) - logvar.exp()).sum(dim=-1).mean()
+            self._last_kl_loss = self._last_kl_loss + kl
+
+        return embeddings
+
+    def forward(self, x: torch.Tensor, return_embeddings: bool = False) -> Union[torch.Tensor, Tuple[torch.Tensor, Dict]]:
+        """
+        Forward pass through the autoencoder.
+
+        Args:
+            x: Input tensor [batch_size, n_proteins, n_samples]
+            return_embeddings: Whether to return embeddings along with reconstruction
+
+        Returns:
+            reconstruction or (reconstruction, embeddings_dict)
+        """
+        # Encode
+        protein_embeddings = self.encode_proteins(x)
+        sample_embeddings = self.encode_samples(x)
+
+        # Cross-attention: let protein and sample embeddings attend to each other
+        if self.use_cross_attention:
+            protein_embeddings, sample_embeddings = self.cross_attention(
+                protein_embeddings, sample_embeddings
+            )
+
+        # Decode
+        protein_reconstruction = self.protein_decoder(protein_embeddings)
+        sample_reconstruction = self.sample_decoder(sample_embeddings).transpose(1, 2)
+
+        # Combine
+        alpha = torch.sigmoid(self.combination_weight)
+        reconstruction = alpha * protein_reconstruction + (1 - alpha) * sample_reconstruction
+
+        if return_embeddings:
+            embeddings = {
+                'protein_embeddings': protein_embeddings,
+                'sample_embeddings': sample_embeddings,
+                'combination_weight': alpha.item()
+            }
+            return reconstruction, embeddings
+
+        return reconstruction
+
+    def get_protein_embeddings(self, x: torch.Tensor) -> torch.Tensor:
+        """Get protein embeddings for similarity analysis"""
+        with torch.no_grad():
+            return self.encode_proteins(x)
+
+    def get_sample_embeddings(self, x: torch.Tensor) -> torch.Tensor:
+        """Get sample embeddings for analysis"""
+        with torch.no_grad():
+            return self.encode_samples(x)
+
+    def get_kl_loss(self) -> torch.Tensor:
+        """Return KL divergence loss from last forward pass."""
+        return self._last_kl_loss
+
+    def get_embedding_norm_loss(self, protein_embeddings: torch.Tensor) -> torch.Tensor:
+        """
+        Compute embedding norm regularization loss.
+
+        Penalizes deviation of embedding L2 norms from target.
+        """
+        norms = protein_embeddings.norm(dim=-1)  # [B, n_proteins]
+        return (norms - self.embedding_norm_target).pow(2).mean()
+
+
 class DecoyGenerator:
     """
     Generates decoy inputs from real data using configurable strategies.
@@ -440,6 +842,86 @@ class NegativeContrastiveLoss(nn.Module):
         return loss
 
 
+class CosineEmbeddingAuxLoss(nn.Module):
+    """
+    Auxiliary loss that encourages protein embeddings to preserve data-space
+    cosine similarity structure.
+
+    For each mini-batch, computes pairwise cosine similarity among a random
+    subset of proteins in both:
+      1. Data space (raw expression rows from unmasked data)
+      2. Embedding space (learned protein embeddings)
+
+    The loss is the MSE between these two similarity matrices, encouraging
+    the embedding geometry to reflect biological similarity.
+
+    Args:
+        n_pairs: Number of protein pairs to sample per batch for efficiency.
+            Sampling avoids O(n_proteins^2) cost. Default 64.
+        temperature: Sharpening temperature applied to data-space similarities
+            before comparison. Lower values make the target more binary.
+            Default 1.0 (no sharpening).
+        detach_targets: If True, data-space similarities are detached from
+            the computation graph (default True — they're fixed targets).
+    """
+
+    def __init__(
+        self,
+        n_pairs: int = 64,
+        temperature: float = 1.0,
+        detach_targets: bool = True,
+    ):
+        super().__init__()
+        self.n_pairs = n_pairs
+        self.temperature = temperature
+        self.detach_targets = detach_targets
+
+    def forward(
+        self,
+        protein_embeddings: torch.Tensor,
+        data_tensor: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        Compute cosine embedding auxiliary loss.
+
+        Args:
+            protein_embeddings: [B, n_proteins, emb_dim] protein embeddings
+            data_tensor: [B, n_proteins, n_samples] unmasked data for targets
+
+        Returns:
+            Scalar loss (MSE between data-space and embedding-space cosine sims)
+        """
+        B, n_proteins, emb_dim = protein_embeddings.shape
+
+        # Sample random protein indices for pair comparison
+        n_sample = min(self.n_pairs, n_proteins)
+        indices = torch.randperm(n_proteins, device=protein_embeddings.device)[:n_sample]
+
+        # Extract subset of embeddings and data rows
+        emb_subset = protein_embeddings[:, indices, :]  # [B, n_sample, emb_dim]
+        data_subset = data_tensor[:, indices, :]  # [B, n_sample, n_samples]
+
+        # Compute pairwise cosine similarity in embedding space
+        # Normalize along embedding dim
+        emb_norm = F.normalize(emb_subset, p=2, dim=-1)  # [B, n_sample, emb_dim]
+        emb_sim = torch.bmm(emb_norm, emb_norm.transpose(1, 2))  # [B, n_sample, n_sample]
+
+        # Compute pairwise cosine similarity in data space
+        data_norm = F.normalize(data_subset, p=2, dim=-1)  # [B, n_sample, n_samples]
+        data_sim = torch.bmm(data_norm, data_norm.transpose(1, 2))  # [B, n_sample, n_sample]
+
+        # Apply temperature sharpening to data-space targets
+        if self.temperature != 1.0:
+            data_sim = data_sim / self.temperature
+
+        if self.detach_targets:
+            data_sim = data_sim.detach()
+
+        # MSE between similarity matrices (averaged over batch)
+        loss = F.mse_loss(emb_sim, data_sim)
+        return loss
+
+
 class ProteomicsAutoencoderTrainer:
     """Trainer class for the proteomics autoencoder"""
 
@@ -450,7 +932,15 @@ class ProteomicsAutoencoderTrainer:
         weight_decay: float = 1e-5,
         reconstruction_loss: str = 'mse',
         device: Optional[torch.device] = None,
-        contrastive_args: Optional[Dict] = None
+        contrastive_args: Optional[Dict] = None,
+        modality_split: Optional[int] = None,
+        cross_modal_mask_ratio: float = 0.0,
+        kl_weight: float = 0.0,
+        norm_reg_weight: float = 0.0,
+        curriculum_masking: Optional[Dict] = None,
+        row_mask_ratio: float = 0.0,
+        cosine_aux_weight: float = 0.0,
+        cosine_aux_args: Optional[Dict] = None
     ):
         self.model = model
         self.optimizer = torch.optim.Adam(
@@ -458,6 +948,38 @@ class ProteomicsAutoencoderTrainer:
             lr=learning_rate,
             weight_decay=weight_decay
         )
+
+        # Cross-modal masking bias
+        self.modality_split = modality_split
+        self.cross_modal_mask_ratio = cross_modal_mask_ratio
+
+        # VAE KL loss weight and embedding norm regularization weight
+        self.kl_weight = kl_weight
+        self.norm_reg_weight = norm_reg_weight
+
+        # Curriculum masking: ramp mask probability from start to end over epochs
+        if curriculum_masking is not None:
+            self.curriculum_start = curriculum_masking.get('start_prob', 0.05)
+            self.curriculum_end = curriculum_masking.get('end_prob', 0.30)
+            self.curriculum_epochs = curriculum_masking.get('warmup_epochs', 50)
+            self.use_curriculum = True
+        else:
+            self.use_curriculum = False
+
+        # Row/feature-level masking: fraction of masks that mask entire rows
+        self.row_mask_ratio = row_mask_ratio
+
+        # Cosine embedding auxiliary loss
+        self.cosine_aux_weight = cosine_aux_weight
+        if cosine_aux_weight > 0:
+            aux_args = cosine_aux_args or {}
+            self.cosine_aux_loss = CosineEmbeddingAuxLoss(
+                n_pairs=aux_args.get('n_pairs', 64),
+                temperature=aux_args.get('temperature', 1.0),
+                detach_targets=aux_args.get('detach_targets', True),
+            )
+        else:
+            self.cosine_aux_loss = None
 
         if reconstruction_loss == 'mse':
             self.criterion = nn.MSELoss()
@@ -508,6 +1030,90 @@ class ProteomicsAutoencoderTrainer:
         progress = min((epoch - self.contrastive_warmup) / ramp_epochs, 1.0)
         return self.contrastive_lambda + (self.contrastive_max_lambda - self.contrastive_lambda) * progress
 
+    def _get_mask_probability(self, epoch: int, base_prob: float) -> float:
+        """Get effective mask probability with optional curriculum schedule."""
+        if not self.use_curriculum:
+            return base_prob
+        progress = min(epoch / max(self.curriculum_epochs, 1), 1.0)
+        return self.curriculum_start + (self.curriculum_end - self.curriculum_start) * progress
+
+    def _apply_row_masking(self, masks: torch.Tensor, prob: float) -> torch.Tensor:
+        """
+        Replace a fraction of masks with full-row masks.
+
+        For row_mask_ratio of the batch elements, some rows are fully masked
+        (all columns set to True) instead of element-wise masking.
+        This forces the model to reconstruct entire features from context.
+
+        Args:
+            masks: Boolean mask tensor [B, n_proteins, n_samples]
+            prob: Current mask probability (used for row selection)
+
+        Returns:
+            Modified masks with some full-row masks applied
+        """
+        if self.row_mask_ratio <= 0:
+            return masks
+
+        B, n_proteins, n_samples = masks.shape
+        # For each batch element, randomly select rows to fully mask
+        # Number of rows to fully mask = prob * n_proteins (same expected coverage)
+        n_row_masks = max(1, int(prob * n_proteins))
+
+        # Apply row masking to row_mask_ratio fraction of batch elements
+        batch_mask = torch.rand(B) < self.row_mask_ratio
+        for i in range(B):
+            if batch_mask[i]:
+                # Pick random rows to fully mask
+                row_indices = torch.randperm(n_proteins)[:n_row_masks]
+                masks[i, row_indices, :] = True
+
+        return masks
+
+    def _generate_cross_modal_masks(
+        self, B: int, n_proteins: int, n_samples: int, base_prob: float
+    ) -> torch.Tensor:
+        """
+        Generate masks with cross-modal bias.
+
+        For each batch element, randomly choose one modality as the "source" and
+        the other as the "target". The target modality receives a higher mask
+        probability (base_prob + cross_modal_mask_ratio), forcing the model to
+        reconstruct target-modality features primarily from source-modality context.
+
+        Args:
+            B: Batch size (number of mask patterns)
+            n_proteins: Total number of features (rows)
+            n_samples: Number of samples (columns)
+            base_prob: Base mask probability
+
+        Returns:
+            Boolean mask tensor of shape (B, n_proteins, n_samples)
+        """
+        split = self.modality_split
+        target_prob = min(base_prob + self.cross_modal_mask_ratio, 1.0)
+
+        # Random uniform for threshold comparison
+        rand_vals = torch.rand(B, n_proteins, n_samples)
+
+        # Build per-row probability tensor
+        probs = torch.full((B, n_proteins, n_samples), base_prob)
+
+        # For each batch element, randomly pick which modality is the "target"
+        # (gets higher mask probability). 50/50 split per batch element.
+        target_is_b = torch.rand(B) < 0.5  # True => modality B is target
+
+        for i in range(B):
+            if target_is_b[i]:
+                # Modality B (rows >= split) gets higher mask prob
+                probs[i, split:, :] = target_prob
+            else:
+                # Modality A (rows < split) gets higher mask prob
+                probs[i, :split, :] = target_prob
+
+        masks = rand_vals < probs
+        return masks
+
     def train_epoch(
         self,
         dataset: ProteomicsDataset,
@@ -538,51 +1144,102 @@ class ProteomicsAutoencoderTrainer:
         for i in range(0, n_batches, mini_batch_size):
             B = min(mini_batch_size, n_batches - i)
 
+            # Get effective mask probability (curriculum schedule or base)
+            mask_prob = self._get_mask_probability(epoch, dataset.mask_probability)
+
             # Generate multiple masks at once (P3: batch mask generation)
-            masks = torch.rand(B, dataset.n_proteins, dataset.n_samples) < dataset.mask_probability
-            data_expanded = dataset.data_tensor.unsqueeze(0).expand(B, -1, -1)
-            masked_data = data_expanded.clone()
-            masked_data[masks] = 0
+            # Cross-modal masking bias: when modality_split is set, increase mask
+            # probability for the "other" modality to force cross-modal prediction
+            if self.modality_split is not None and self.cross_modal_mask_ratio > 0:
+                masks = self._generate_cross_modal_masks(
+                    B, dataset.n_proteins, dataset.n_samples, mask_prob
+                )
+            else:
+                masks = torch.rand(B, dataset.n_proteins, dataset.n_samples) < mask_prob
+
+            # Apply row/feature-level masking
+            masks = self._apply_row_masking(masks, mask_prob)
+            data_expanded = dataset.data_tensor.unsqueeze(0).expand(B, -1, -1).contiguous()
+            # Use element-wise masking (MPS boolean indexing is unreliable)
+            masks_float = masks.float()
+            masked_data = data_expanded * (1.0 - masks_float)
 
             # Move to device once per mini-batch (reduces transfers)
             masked_data = masked_data.to(device)
-            masks = masks.to(device)
+            masks_float = masks_float.to(device)
             target = data_expanded.to(device)
 
             self.optimizer.zero_grad()
 
             # Forward pass with optional mixed precision
+            need_embeddings = self.norm_reg_weight > 0 or self.cosine_aux_weight > 0
             if self.use_amp:
                 with torch.amp.autocast('cuda'):
-                    reconstruction = self.model(masked_data)
-                    recon_loss = self.criterion(reconstruction[masks], target[masks])
+                    if need_embeddings:
+                        reconstruction, emb_dict = self.model(masked_data, return_embeddings=True)
+                    else:
+                        reconstruction = self.model(masked_data)
+                    # Masked MSE: element-wise loss weighted by mask (avoids boolean indexing)
+                    sq_err = (reconstruction - target) ** 2
+                    recon_loss = (sq_err * masks_float).sum() / masks_float.sum().clamp(min=1)
+                    loss = recon_loss
+
+                    # VAE KL loss
+                    if self.kl_weight > 0 and hasattr(self.model, '_last_kl_loss'):
+                        loss = loss + self.kl_weight * self.model._last_kl_loss
+
+                    # Embedding norm regularization
+                    if need_embeddings and self.norm_reg_weight > 0 and hasattr(self.model, 'get_embedding_norm_loss'):
+                        norm_loss = self.model.get_embedding_norm_loss(emb_dict['protein_embeddings'])
+                        loss = loss + self.norm_reg_weight * norm_loss
+
+                    # Cosine embedding auxiliary loss
+                    if need_embeddings and self.cosine_aux_weight > 0 and self.cosine_aux_loss is not None:
+                        cos_loss = self.cosine_aux_loss(emb_dict['protein_embeddings'], target)
+                        loss = loss + self.cosine_aux_weight * cos_loss
 
                     # Negative contrastive loss
                     if use_neg and current_lambda > 0:
                         decoys = self.decoy_generator.generate(data_expanded).to(device)
                         decoy_reconstruction = self.model(decoys)
                         neg_loss = self.negative_loss_fn(decoys, decoy_reconstruction, recon_loss)
-                        loss = recon_loss + current_lambda * neg_loss
+                        loss = loss + current_lambda * neg_loss
                         total_neg_loss += neg_loss.item()
-                    else:
-                        loss = recon_loss
 
                 self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
-                reconstruction = self.model(masked_data)
-                recon_loss = self.criterion(reconstruction[masks], target[masks])
+                if need_embeddings:
+                    reconstruction, emb_dict = self.model(masked_data, return_embeddings=True)
+                else:
+                    reconstruction = self.model(masked_data)
+                # Masked MSE: element-wise loss weighted by mask (avoids boolean indexing)
+                sq_err = (reconstruction - target) ** 2
+                recon_loss = (sq_err * masks_float).sum() / masks_float.sum().clamp(min=1)
+                loss = recon_loss
+
+                # VAE KL loss
+                if self.kl_weight > 0 and hasattr(self.model, '_last_kl_loss'):
+                    loss = loss + self.kl_weight * self.model._last_kl_loss
+
+                # Embedding norm regularization
+                if need_embeddings and self.norm_reg_weight > 0 and hasattr(self.model, 'get_embedding_norm_loss'):
+                    norm_loss = self.model.get_embedding_norm_loss(emb_dict['protein_embeddings'])
+                    loss = loss + self.norm_reg_weight * norm_loss
+
+                # Cosine embedding auxiliary loss
+                if need_embeddings and self.cosine_aux_weight > 0 and self.cosine_aux_loss is not None:
+                    cos_loss = self.cosine_aux_loss(emb_dict['protein_embeddings'], target)
+                    loss = loss + self.cosine_aux_weight * cos_loss
 
                 # Negative contrastive loss
                 if use_neg and current_lambda > 0:
                     decoys = self.decoy_generator.generate(data_expanded).to(device)
                     decoy_reconstruction = self.model(decoys)
                     neg_loss = self.negative_loss_fn(decoys, decoy_reconstruction, recon_loss)
-                    loss = recon_loss + current_lambda * neg_loss
+                    loss = loss + current_lambda * neg_loss
                     total_neg_loss += neg_loss.item()
-                else:
-                    loss = recon_loss
 
                 loss.backward()
                 self.optimizer.step()
@@ -605,11 +1262,13 @@ class ProteomicsAutoencoderTrainer:
             for _ in range(n_batches):
                 masked_data, mask, target = dataset.create_masked_batch()
                 masked_data = masked_data.to(device)
-                mask = mask.to(device)
+                mask_float = mask.float().to(device)
                 target = target.to(device)
 
                 reconstruction = self.model(masked_data)
-                loss = self.criterion(reconstruction[mask], target[mask])
+                # Masked MSE without boolean indexing (MPS-safe)
+                sq_err = (reconstruction - target) ** 2
+                loss = (sq_err * mask_float).sum() / mask_float.sum().clamp(min=1)
                 total_loss += loss.item()
 
         return total_loss / n_batches
@@ -650,6 +1309,16 @@ def train_proteomics_autoencoder(
     early_stopping_patience: int = 20,
     min_delta: float = 1e-5,
     contrastive_args: Optional[Dict] = None,
+    modality_split: Optional[int] = None,
+    use_vae: bool = False,
+    cross_modal_mask_ratio: float = 0.0,
+    kl_weight: float = 1e-3,
+    norm_reg_weight: float = 0.0,
+    curriculum_masking: Optional[Dict] = None,
+    row_mask_ratio: float = 0.0,
+    cosine_aux_weight: float = 0.0,
+    cosine_aux_args: Optional[Dict] = None,
+    cross_attention_args: Optional[Dict] = None,
     **kwargs
 ) -> Tuple[BiDirectionalAutoencoder, ProteomicsDataset, Dict]:
     """
@@ -673,6 +1342,39 @@ def train_proteomics_autoencoder(
             Keys: strategy (str), n_decoys (int), loss_type (str), margin (float),
             lambda_weight (float), warmup_epochs (int), ramp_epochs (int).
             If None, contrastive loss is disabled.
+        modality_split: Row index where first modality ends. When provided,
+            ModalityAwareAutoencoder is used with separate encoders per modality.
+            If None (default), uses BiDirectionalAutoencoder (backward compatible).
+        use_vae: If True, enables variational bottleneck (requires modality_split
+            to use ModalityAwareAutoencoder). Default False.
+        cross_modal_mask_ratio: Additional mask probability applied to the "target"
+            modality during training. Forces cross-modal prediction by masking more
+            of one modality so the model must reconstruct it from the other.
+            Only effective when modality_split is set. Default 0.0 (no bias).
+            Typical values: 0.3–0.5.
+        kl_weight: Weight for VAE KL divergence loss term. Only applied when
+            use_vae=True. Default 1e-3.
+        norm_reg_weight: Weight for embedding norm regularization loss. Penalizes
+            deviation of protein embedding L2 norms from target (default 1.0).
+            Set > 0 to enable. Default 0.0 (disabled).
+        curriculum_masking: Optional dict configuring curriculum masking schedule.
+            Keys: start_prob (float), end_prob (float), warmup_epochs (int).
+            Mask probability ramps linearly from start_prob to end_prob over
+            warmup_epochs. If None (default), uses fixed mask_probability.
+        row_mask_ratio: Fraction of batch elements that receive full-row masking
+            (entire features masked) instead of element-wise. Forces the model to
+            reconstruct whole features from context. Default 0.0 (disabled).
+            Typical values: 0.1–0.3.
+        cosine_aux_weight: Weight for cosine embedding auxiliary loss. Encourages
+            protein embeddings to preserve data-space cosine similarity structure.
+            Set > 0 to enable. Default 0.0 (disabled). Typical values: 0.01–0.1.
+        cosine_aux_args: Optional dict configuring cosine aux loss parameters.
+            Keys: n_pairs (int, default 64), temperature (float, default 1.0),
+            detach_targets (bool, default True). If None, uses defaults.
+        cross_attention_args: Optional dict configuring cross-attention layers
+            between protein and sample embeddings. Enables ModalityAwareAutoencoder.
+            Keys: n_heads (int, default 4), dropout (float, default 0.1),
+            n_layers (int, default 1). If None (default), no cross-attention.
 
     Returns:
         Tuple of (trained_model, dataset, training_history)
@@ -691,14 +1393,32 @@ def train_proteomics_autoencoder(
         scaling_method=scaling_method
     )
 
-    # Create model
-    model = BiDirectionalAutoencoder(
-        n_proteins=dataset.n_proteins,
-        n_samples=dataset.n_samples,
-        protein_embedding_dim=protein_embedding_dim,
-        sample_embedding_dim=sample_embedding_dim,
-        hidden_dims=hidden_dims
-    ).to(device)
+    # Create model — use ModalityAwareAutoencoder when modality_split is specified
+    if modality_split is not None or use_vae or cross_attention_args is not None:
+        model = ModalityAwareAutoencoder(
+            n_proteins=dataset.n_proteins,
+            n_samples=dataset.n_samples,
+            protein_embedding_dim=protein_embedding_dim,
+            sample_embedding_dim=sample_embedding_dim,
+            hidden_dims=hidden_dims,
+            modality_split=modality_split,
+            use_vae=use_vae,
+            cross_attention_args=cross_attention_args,
+        ).to(device)
+        if modality_split is not None:
+            print(f"Using ModalityAwareAutoencoder (split at row {modality_split})")
+        if use_vae:
+            print("VAE bottleneck enabled")
+        if cross_attention_args is not None:
+            print(f"Cross-attention enabled ({cross_attention_args.get('n_layers', 1)} layers, {cross_attention_args.get('n_heads', 4)} heads)")
+    else:
+        model = BiDirectionalAutoencoder(
+            n_proteins=dataset.n_proteins,
+            n_samples=dataset.n_samples,
+            protein_embedding_dim=protein_embedding_dim,
+            sample_embedding_dim=sample_embedding_dim,
+            hidden_dims=hidden_dims
+        ).to(device)
 
     # Apply torch.compile() for PyTorch 2.0+ (P2: kernel fusion optimization)
     # Only use on CUDA — MPS Metal shader compilation is experimental and buggy
@@ -712,7 +1432,15 @@ def train_proteomics_autoencoder(
     # Create trainer with device info for AMP support
     trainer = ProteomicsAutoencoderTrainer(
         model, learning_rate=learning_rate, device=device,
-        contrastive_args=contrastive_args
+        contrastive_args=contrastive_args,
+        modality_split=modality_split,
+        cross_modal_mask_ratio=cross_modal_mask_ratio,
+        kl_weight=kl_weight if use_vae else 0.0,
+        norm_reg_weight=norm_reg_weight,
+        curriculum_masking=curriculum_masking,
+        row_mask_ratio=row_mask_ratio,
+        cosine_aux_weight=cosine_aux_weight,
+        cosine_aux_args=cosine_aux_args
     )
 
     # Training loop with early stopping (P2)
