@@ -51,5 +51,10 @@ from ._core.classes.experiments import (
     CrossExperiment,
 )
 
+from .confidence_evaluation import (
+    calculate_edge_confidence_default,
+    ConfidenceModel,  # ADD THIS
+)
+
 from ._version import __version__
 from ._version import __version_tuple__

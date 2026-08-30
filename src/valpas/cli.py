@@ -4,7 +4,6 @@ The main script that gets executed.
 
 import argparse
 import sys
-
 import textwrap
 import pandas as pd
 import networkx as nx
@@ -26,203 +25,208 @@ from valpas._core.processing import combine_results
 
 from valpas.utils.validator import validate_input
 
+# Import the core associate function
+from valpas.valpas_core import associate as core_associate
+
 
 def main():
     """
     The main method.
     """
 
-    # Defining the argument parser. There are sereval (currently two)
-    # subroutines (commands) that can be executed. For each of those a
-    # seperate subparser is instanciated.
     main_parser = argparse.ArgumentParser(
-        add_help=True,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=textwrap.dedent(
-            '''
-            VaLPAS is a framework to establish and investigate functional
-            relations between proteins and other "omics-data". It currently
-            consits of the the two sub routines:
-
-                - associate    (creates associations between data instances)
-                - visualize    (helps to visualize generated associations)
-            ''')
+        prog="valpas",
+        description=textwrap.dedent("""
+            VaLPAS (Variation-Leveraged Phenomic Association Study) is a toolkit
+            for generating associations between different omics datatypes.
+        """),
+        formatter_class=argparse.RawDescriptionHelpFormatter
     )
+
     command_parsers = main_parser.add_subparsers(
         dest="command",
         title="commands",
         required=True,
     )
 
-    # p_associate contains all arguments needed for the subroutine that
-    # establishes association values between items (proteins, lipids,
-    # metabolites, etc.). This can be either associations between items
-    # of one omics datatype (e.g. protein-protein) or across two
-    # different omics datatypes (e.g. protein-metabolite)
-    p_associate = command_parsers.add_parser(
-        "associate",
-        description=
-            '''
-            The association subroutine enables the generation of association
-            scores between data points from either one or two omics data types.
-            Omics data types can be for example proteomics, transcriptomics or
-            metabolomics. Typically each data type contains multiple values
-            (conditions) per data point (e.g. a metabolite). Multiple types of
-            association metrics are available to choose from (see below).
-            ''',
-        add_help=True
-    )
-    # by default the function "associate" is executed with the arguments
-    # that are passed to the tool on the command line (see also
-    # args.func(args) further down)
-    p_associate.set_defaults(func=associate)
+    # =========================================================================
+    # Shared argument parsers (to avoid repetition)
+    # =========================================================================
 
-    # The associate command contains additional subroutines (defined
-    # further down) that share certain command line arguments. To cover
-    # these a new ArgumentParser is defined that will serve as parent
-    # to the subparsers of 'associate'
-    p_associate_shared_args = argparse.ArgumentParser(add_help=False)
-    p_associate_shared_args.add_argument(
-        "-a", "--association_type",
-        dest="ASSOCIATION_TYPE",
-        choices=(
-            'spearman',
-            'pearson',
-            'mutual_information',
-            'cosine_similarity',
-            'cosine_distance',
-            'jaccard_similarity',
-            'jaccard_index',
-            'jaccard_distance',
-            'autoencoder',
-            'learn_correlation'
-            ),
-        default='pearson',
-        help="Defines the type of metric used for generating associations. "
-             "Defaults to 'pearson' if omitted."
-    )
-    p_associate_shared_args.add_argument(
-        "-o", "--outfile",
-        dest="OUTFILE",
-        type=check_outfile,
-        default=sys.stdout,
-        help="Path to an optional output file. If omitted, any output "
-             "generated will be piped to stdout."
-    )
-    p_associate_shared_args.add_argument(
-        "-ti", "--training_interactions",
-        dest='training_interactions',
-        help="Optional argument to specify a set of training interactions "
-             "to be used for learning correlation weights and/or confidence "
-             "calculation. The format is [id1]\t[id2], where the ids are "
-             "valid protein/gene identifiers used in the input data matrices."
-    )
-    p_associate_shared_args.add_argument(
-        '-O', '--overwrite_output',
-        dest='OVERWRITE_OUTPUT',
-        action='store_true',
-        help=''
-    )
-    p_associate_shared_args.add_argument(
-        "-ot", "--output_type",
-        dest="OUTPUT_TYPE",
-        choices=(
-            'sorted_list',
-            'correlation_matrix',
-        ),
-        default='sorted_list',
-        help="Optional argument that defines the output format. Currently the "
-             "choice is between: (1) A sorted association list returning the "
-             "computed associations as comma separated file, sorted in "
-             "descending order starting with the highest association. (2) A "
-             "association matrix (comma separated)."
-    )
-    p_associate_shared_args.add_argument(
-        "-f", "--filter_missing_values",
-        dest="FILTER_CUTOFF",
-        type=check_cutoff_range,
-        default=0.9,
-        help="Can be set to a float between [0.0, 1.0]. If passed to the "
-             "command a datapoint e.g. metabolite has to be detected (a value "
-             "recorded larger than 0) in at least x of a fraction of the "
-             "investigated conditions."
-        )
-
-    p_import_shared_args = argparse.ArgumentParser(add_help=False)
-
-    g_file_type = p_import_shared_args.add_mutually_exclusive_group()
-    g_file_type.add_argument('--csv', action='store_true')
-    g_file_type.add_argument('--xlsx', action='store_true')
-
-    p_import_shared_args.add_argument(
-        "-s", "--excel_sheet_name",
-        dest="SHEET",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE "
-             "if INFILE is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
-    )
-    p_import_shared_args.add_argument(
-        "-S", "--excel_sheet_name_2",
-        dest="SHEET2",
-        type=str,
-        help="Optional argument that defines the name of the sheet in INFILE2 "
-             "if INFILE2 is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
-    )
-
-    p_import_from_file = argparse.ArgumentParser(
-        add_help=False,
-        parents=[p_import_shared_args],
-        )
+    # Shared arguments for importing from file
+    p_import_from_file = argparse.ArgumentParser(add_help=False)
     p_import_from_file.add_argument(
         "-i", "--infile",
         dest="INFILE",
         required=True,
         type=check_infile,
-        help="Path to input file containing data points for which "
-             "associations are to be generated. If used on it's own (without "
-             "'-I') associations between data instances of only this input "
-             "file will be generated."
+        help="Path to input data file."
     )
     p_import_from_file.add_argument(
-        "-I", "--infile2",
+        "-i2", "--infile2",
         dest="INFILE2",
         type=check_infile,
-        help="Path to an optional second input file. If passed to command "
-             "associations between data instances of INFILE1 and INFILE2 will "
-             "be generated."
-        )
+        help="Path to second input data file (for cross-experiment analysis)."
+    )
+    p_import_from_file.add_argument(
+        "-s", "--sheet",
+        dest="SHEET",
+        type=str,
+        help="Sheet name if input is an Excel file."
+    )
+    p_import_from_file.add_argument(
+        "-s2", "--sheet2",
+        dest="SHEET2",
+        type=str,
+        help="Sheet name for second input file if Excel."
+    )
 
-    p_import_from_folder = argparse.ArgumentParser(
-        add_help=False,
-        parents=[p_import_shared_args],
-        )
+    # Shared arguments for importing from folder
+    p_import_from_folder = argparse.ArgumentParser(add_help=False)
     p_import_from_folder.add_argument(
-        "-i", "--infolder",
+        "-d", "--infolder",
         dest="INFOLDER",
-        required=True
-    )
-    p_import_from_folder.add_argument(
-        '-t',
-        '--two_omics_types',
-        dest="TWO_OMICS_TYPES",
-        action='store_true',
+        required=True,
+        type=Path,
+        help="Path to folder containing input data files."
     )
 
+    # Shared arguments for associate command
+    p_associate_shared_args = argparse.ArgumentParser(add_help=False)
+    p_associate_shared_args.add_argument(
+        "-a", "--association_type",
+        dest="ASSOCIATION_TYPE",
+        choices=(
+            "pearson", "spearman",
+            "jaccard_similarity", "jaccard_distance", "jaccard_index",
+            "mutual_information",
+            "cosine_similarity", "cosine_distance",
+            "autoencoder", "learn_correlation"
+        ),
+        default="pearson",
+        help="Type of association metric to use. Default is 'pearson'."
+    )
+    p_associate_shared_args.add_argument(
+        "-f", "--filter_cutoff",
+        dest="FILTER_CUTOFF",
+        type=check_cutoff_range,
+        default=0.9,
+        help="Cutoff for filtering low-confidence features. Default is 0.9."
+    )
+    p_associate_shared_args.add_argument(
+        "-m", "--min_counts",
+        dest="MIN_COUNTS",
+        type=int,
+        default=3,
+        help="Minimum number of counts required. Default is 3."
+    )
+    p_associate_shared_args.add_argument(
+        "-o", "--outfile",
+        dest="OUTFILE",
+        type=check_outfile,
+        help="Path to output file."
+    )
+    p_associate_shared_args.add_argument(
+        "-ot", "--output_type",
+        dest="OUTPUT_TYPE",
+        choices=("sorted_list", "correlation_matrix"),
+        default="sorted_list",
+        help="Output format. Default is 'sorted_list'."
+    )
+    p_associate_shared_args.add_argument(
+        "-ft", "--file_type",
+        dest="FILE_TYPE",
+        choices=("csv", "tsv", "xlsx"),
+        default="csv",
+        help="Input file type. Default is 'csv'."
+    )
+    p_associate_shared_args.add_argument(
+        "--overwrite",
+        dest="OVERWRITE",
+        action="store_true",
+        help="Overwrite output file if it exists."
+    )
+    p_associate_shared_args.add_argument(
+        "--clr",
+        dest="TRANSFORM_CLR",
+        action="store_true",
+        help="Apply CLR transformation to the results."
+    )
+    p_associate_shared_args.add_argument(
+        "--training-interactions",
+        dest="TRAINING_INTERACTIONS",
+        type=str,
+        help="Path to file containing known interactions for training."
+    )
+    p_associate_shared_args.add_argument(
+        "--calculate-confidence",
+        dest="CALCULATE_CONFIDENCE",
+        action="store_true",
+        help="Calculate confidence scores for edges."
+    )
+    p_associate_shared_args.add_argument(
+        "--annotation-file",
+        dest="ANNOTATION_FILE",
+        type=str,
+        help="Path to annotation file."
+    )
+    p_associate_shared_args.add_argument(
+        "--report-file",
+        dest="REPORT_FILE",
+        type=str,
+        help="Path to save analysis report."
+    )
+    # NEW: Confidence model arguments
+    p_associate_shared_args.add_argument(
+        "--confidence-model",
+        dest="CONFIDENCE_MODEL",
+        type=str,
+        default=None,
+        help="Path to a pre-trained confidence model (.pkl) to use for "
+             "confidence scoring instead of training a new one."
+    )
+    p_associate_shared_args.add_argument(
+        "--save-confidence-model",
+        dest="SAVE_CONFIDENCE_MODEL",
+        type=str,
+        default=None,
+        help="Path to save the trained confidence model (.pkl) for reuse "
+             "in future analyses."
+    )
+    p_associate_shared_args.add_argument(
+        "--confidence-model-type",
+        dest="CONFIDENCE_MODEL_TYPE",
+        type=str,
+        choices=("logistic", "random_forest"),
+        default="logistic",
+        help="Type of model to use for confidence prediction. "
+             "Default is 'logistic'."
+    )
 
-    # Instatiting the subparsers of 'associate'. They are used to define
-    # the source of the data files. Either from up to two directly
-    # defined files, or
+    # =========================================================================
+    # Associate command
+    # =========================================================================
+
+    p_associate = command_parsers.add_parser(
+        "associate",
+        description=textwrap.dedent("""
+            The 'associate' command generates associations between data instances
+            using various correlation and similarity metrics.
+        """),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
     p_source = p_associate.add_subparsers(
         dest="SOURCE",
         title="source",
         required=True
     )
+
     p_associate_from_file = p_source.add_parser(
         "from_file",
         parents=[p_associate_shared_args, p_import_from_file],
     )
+
     p_associate_from_folder = p_source.add_parser(
         "from_folder",
         parents=[p_associate_shared_args, p_import_from_folder],
@@ -231,26 +235,35 @@ def main():
         "-n", "--normalization",
         dest="NORMALIZATION",
         choices=('pre', 'post', 'none'),
+        default='none',
+        help="Normalization strategy. Default is 'none'."
     )
 
+    p_associate.set_defaults(func=associate)
+
+    # =========================================================================
+    # Prepare command
+    # =========================================================================
 
     p_prepare = command_parsers.add_parser(
         "prepare",
-        description=
-            """
-            The 'prepare' command performs an optional perparation and
+        description=textwrap.dedent("""
+            The 'prepare' command performs an optional preparation and
             validation step of the input data for the 'associate' routine.
-            """
+        """)
     )
+
     p_source = p_prepare.add_subparsers(
         dest="SOURCE",
         title="source",
         required=True,
     )
+
     p_prepare_from_file = p_source.add_parser(
         "from_file",
         parents=[p_import_from_file],
     )
+
     p_prepare_from_folder = p_source.add_parser(
         "from_folder",
         parents=[p_import_from_folder],
@@ -258,299 +271,196 @@ def main():
 
     p_prepare.set_defaults(func=prepare)
 
-    # the subparser definition for the visulatization component
+    # =========================================================================
+    # Visualize command
+    # =========================================================================
+
     p_visualize = command_parsers.add_parser(
         "visualize",
-        description=
-            """
-            The 'visualize' command enables visualizing results generated by
-            the 'associate' command. This can be either plots like heatmaps or
-            (still to be implemented) network visualizations of the calculated
-            associations between datapoints.
-            """
-
+        description=textwrap.dedent("""
+            The 'visualize' command creates visualizations of association data.
+        """)
     )
-    # definition of default function call
+
     p_visualize.set_defaults(func=visualize)
     p_visualize.add_argument(
         "-i", "--infile",
         dest="INFILE",
         required=True,
         type=Path,
-        help="Path to a input datafile containing the association matix of "
-             "datapoints."
+        help="Path to input datafile containing the association matrix."
     )
     p_visualize.add_argument(
         "-s", "--excel_sheet_name",
         dest="SHEET",
         type=str,
-        help="Optional argument that defines the name of the sheet in INFILE "
-             "if INFILE is an Excel file. If argument is present but imported "
-             "file is not an Excel file this option will be ignored."
+        help="Sheet name if input is an Excel file."
     )
     p_visualize.add_argument(
         "-t", "--visualization_type",
         dest="TYPE",
         choices=("heatmap", "graph"),
         default="heatmap",
-        help="Defines the type of visualization that is done. Currently only "
-             "heatmap visualization is implemented. Will return a png of the "
-             "generated plot if used in conjunction with '-o'."
+        help="Type of visualization. Default is 'heatmap'."
     )
     p_visualize.add_argument(
         "-cl", "--color_bar_label",
         dest="LABEL",
         default="Association Strength",
-        help="Defines the label of the color_bar when generating a heatmap."
+        help="Label for the color bar in heatmap."
     )
     p_visualize.add_argument(
         "-o", "--outfile",
         dest="OUTFILE",
         type=str,
-        help="Optional argument defining the path to where the generated plot "
-             "should be stored. Note that omitting this option only makes "
-             "sense in the context of running valpas.py as backend to a "
-             "jupyter notebook, where you might only want to display the "
-             "generated plot but not necessarily store it."
+        help="Path to save the generated plot."
     )
 
-    # small check if a command / subparser has been passed to valpas.py
-    # if not then the help will be printed (this is not standard
-    # behaviour in argparse for what ever reason...)
-    if len(sys.argv) == 1:
-        main_parser.print_help(sys.stderr)
-        sys.exit(0)
-    try:
-        args = main_parser.parse_args()
-    except FileNotFoundError as e:
-        sys.exit(e)
-    except ValueError as e:
-        sys.exit(e)
+    # =========================================================================
+    # Parse and execute
+    # =========================================================================
+
+    args = main_parser.parse_args()
+
+    if args.command is None:
+        main_parser.print_help()
+        sys.exit(1)
+
+    # Call the appropriate function
     args.func(args)
 
-# TODO: make this call the valpas_core function for associate to keep things
-#       neat and tidy. Currently the CLI and API have different behavior.
+
 def associate(args):
+    """
+    CLI handler for the 'associate' command.
+    Delegates to valpas_core.associate() with mapped arguments.
+    """
 
-    if args.csv:
-        file_type = 'csv'
-    elif args.xlsx:
-        file_type = 'xlsx'
-
-    sheet_names = None
-    if args.SHEET is not None:
-        sheet_names = [args.SHEET]
-    if args.SHEET2 is not None:
-        if sheet_names is not None:
-            sheet_names.append(args.SHEET2)
-        else:
-            sheet_names = [args.SHEET2]
-
-    if args.SOURCE == 'from_folder':
-        inpath = Path(args.INFOLDER).absolute()
-        inpath2 = None
-        files = []
-        for child in inpath.glob(f'*.{file_type}'):
-            files.append(child)
-        if args.csv and len(files) > 4:
-            raise ValueError(
-                "Import of more than four CSV files currently not supported."
-            )
-        if args.xlsx and len(files) > 2:
-            raise ValueError(
-                "Import of more than two XLSX file currently not supported."
-            )
+    # Determine input source
+    if args.SOURCE == "from_file":
+        infile = args.INFILE
+        infile2 = getattr(args, 'INFILE2', None)
+        infolder = None
+        sheet = getattr(args, 'SHEET', None)
+        sheet2 = getattr(args, 'SHEET2', None)
+    elif args.SOURCE == "from_folder":
+        infile = None
+        infile2 = None
+        infolder = args.INFOLDER
+        sheet = None
+        sheet2 = None
     else:
-        inpath = args.INFILE
-        inpath2 = args.INFILE2
+        print(f"Unknown source: {args.SOURCE}", file=sys.stderr)
+        sys.exit(1)
 
-    experiments = import_experiments(
-        path=inpath,
-        file_type=file_type,
-        source=args.SOURCE,
-        path2=inpath2,
-        sheet_names=sheet_names
-    )
+    # Get normalization (only available for from_folder)
+    normalization = getattr(args, 'NORMALIZATION', 'none') or 'none'
 
-    if args.ASSOCIATION_TYPE in [
-            'jaccard_similarity',
-            'jaccard_index',
-            'jaccard_distance'
-            ]:
-        threshold = 0.5
-        thresholded = True
+    # Determine output file handle
+    if hasattr(args, 'OUTFILE') and args.OUTFILE is not None:
+        outfile = args.OUTFILE
     else:
-        threshold = None
-        thresholded = False
+        outfile = sys.stdout
 
-    if len(experiments) == 1:
-        experiment = experiments.pop()
-
-        experiment.pre_process(
-            rm_low_conf_features=args.FILTER_CUTOFF,
-            threshold=threshold,
-            inplace=True
+    # Call the core associate function
+    try:
+        core_associate(
+            association_type=args.ASSOCIATION_TYPE,
+            infile=infile,
+            infile2=infile2,
+            infolder=infolder,
+            file_type=args.FILE_TYPE,
+            sheet=sheet,
+            sheet2=sheet2,
+            output_type=args.OUTPUT_TYPE,
+            filter_cutoff=args.FILTER_CUTOFF,
+            normalization=normalization,
+            min_counts=args.MIN_COUNTS,
+            training_interactions=getattr(args, 'TRAINING_INTERACTIONS', None),
+            calculate_confidence=getattr(args, 'CALCULATE_CONFIDENCE', False),
+            transform_clr=getattr(args, 'TRANSFORM_CLR', False),
+            annotation_file=getattr(args, 'ANNOTATION_FILE', None),
+            overwrite_output=getattr(args, 'OVERWRITE', False),
+            outfile=outfile,
+            report_file=getattr(args, 'REPORT_FILE', None),
+            # NEW: Confidence model parameters
+            confidence_model_path=getattr(args, 'CONFIDENCE_MODEL', None),
+            save_confidence_model=getattr(args, 'SAVE_CONFIDENCE_MODEL', None),
+            confidence_model_type=getattr(args, 'CONFIDENCE_MODEL_TYPE', 'logistic'),
         )
-        try:
-            result = experiment.associate(
-                metric=args.ASSOCIATION_TYPE,
-                thresholded=thresholded
-            )
-        except ValueError:
-            sys.exit(
-                f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
-            )
+    except Exception as e:
+        print(f"Error during association: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    elif len(experiments) == 2:
-        for experiment in experiments:
-            if args.NORMALIZATION == 'pre':
-                normalize_ = True
-            else:
-                normalize_ = False
-            experiment.pre_process(
-                rm_low_conf_features=args.FILTER_CUTOFF,
-                normalize=normalize_,
-                threshold=threshold,
-                inplace=True
-            )
-        if args.NORMALIZATION in ['pre', 'none']:
-            cross_experiment = CrossExperiment(
-                name='cross_experiment',
-                experiments=experiments,
-            )
-            cross_experiment.combine(inplace=True)
-
-            try:
-                result = cross_experiment.associate(
-                    metric=args.ASSOCIATION_TYPE,
-                    thresholded=thresholded
-                )
-            except ValueError:
-                sys.exit(
-                    f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
-                )
-
-        elif args.NORMALIZATION == 'post':
-            results = []
-            for experiment in experiments:
-                try:
-                    result = experiment.associate(
-                        metric=args.ASSOCIATION_TYPE,
-                        thresholded=thresholded,
-                    )
-                except ValueError:
-                    sys.exit(
-                        f"Association type {args.ASSOCIATION_TYPE} not yet implemented"
-                    )
-                results.append(result)
-            result = combine_results(
-                results=results,
-                normalization_metric='mean'
-            )
-
-
-    else:
-        raise NotImplementedError(
-            "Cross Experiment assocations for more than 2 experiments is"
-            "currently not supported."
-            )
-
-    result.save(
-        file_handle=args.OUTFILE,
-        type=args.OUTPUT_TYPE,
-        overwrite=args.OVERWRITE_OUTPUT,
-        assocation_metric=args.ASSOCIATION_TYPE
-    )
 
 def prepare(args):
-    if args.csv:
-        file_type = 'csv'
-    elif args.xlsx:
-        file_type = 'xlsx'
+    """
+    CLI handler for the 'prepare' command.
+    Validates and prepares input data.
+    """
 
-    sheet_names = None
-    if args.SHEET is not None:
-        sheet_names = [args.SHEET]
-    if args.SHEET2 is not None:
-        if sheet_names is not None:
-            sheet_names.append(args.SHEET2)
-        else:
-            sheet_names = [args.SHEET2]
-
-    if args.SOURCE == 'from_folder':
-        inpath = Path(args.INFOLDER).absolute()
-        inpath2 = None
-        files = []
-        for child in inpath.glob(f'*.{file_type}'):
-            files.append(child)
-        if args.csv and len(files) > 4:
-            raise ValueError(
-                "Import of more than four CSV files currently not supported."
-            )
-        if args.xlsx and len(files) > 2:
-            raise ValueError(
-                "Import of more than two XLSX file currently not supported."
-            )
+    if args.SOURCE == "from_file":
+        path = args.INFILE
+        path2 = getattr(args, 'INFILE2', None)
+        source = "from_file"
+        sheet_names = [getattr(args, 'SHEET', None), getattr(args, 'SHEET2', None)]
+    elif args.SOURCE == "from_folder":
+        path = args.INFOLDER
+        path2 = None
+        source = "from_folder"
+        sheet_names = [None, None]
     else:
-        inpath = args.INFILE
-        inpath2 = args.INFILE2
+        print(f"Unknown source: {args.SOURCE}", file=sys.stderr)
+        sys.exit(1)
 
-    experiments = import_experiments(
-        path=inpath,
-        file_type=file_type,
-        source=args.SOURCE,
-        path2=inpath2,
-        sheet_names=sheet_names
-    )
+    try:
+        experiments = import_experiments(
+            path=path,
+            file_type="csv",  # default, could be made configurable
+            source=source,
+            path2=path2,
+            sheet_names=sheet_names,
+        )
 
-    validate_input(experiments)
-    pass
+        validate_input(experiments)
+        print("Validation complete. Input data is ready for association.")
+
+    except Exception as e:
+        print(f"Error during preparation: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 def visualize(args):
-    if args.TYPE == "heatmap":
-        if args.SHEET is None:
-            sheet = 0
-        else:
-            sheet = args.SHEET
-        try:
-            df = import_asssociation_matrix(filepath=args.INFILE, sheet=sheet)
-        except ValueError:
-            sys.exit(f"sheet '{sheet}' not found in file '{args.INFILE}'")
-        except FileNotFoundError:
-            sys.exit(f"file '{args.INFILE}' not found.")
-        fig = create_fig(df=df, fig_out=args.OUTFILE, cbarlabel=args.LABEL)
-    else:
-        print("Not yet implemented.", file=sys.stderr)
+    """
+    CLI handler for the 'visualize' command.
+    Creates visualizations of association data.
+    """
 
-
-def df_to_graph(file_path, index_name, net, threshold):
-    #read in data
-    df = pd.read_csv(file_path)
-    #set row names
-    df = df.set_index(index_name)
-    df.index.names = [None]
-    #collect data for nodes, only grab edges over a given threshold
-    for column in df:
-        net.add_node(column, label=column)
-        for row in df.index:
-            net.add_node(row, label=row)
-            value = float(df.loc[row, column].split(':')[0])
-            if abs(value) > threshold:
-                net.add_edge(column, row, weight = value)
-    return net
-
-def assign_clusters(net):
-    clusters = nx.community.louvain_communities(net, seed=123)
-    for i in range(len(clusters)):
-        for node in clusters[i]:
-            net.nodes[node]['group'] = i
-    return net
-
-
-if __name__ == '__main__':
-    import sys
     try:
-        main()
-    except KeyboardInterrupt:
-        pass
+        # Import association matrix
+        df = import_asssociation_matrix(
+            path=args.INFILE,
+            sheet_name=getattr(args, 'SHEET', None)
+        )
+
+        if args.TYPE == "heatmap":
+            create_fig(
+                df=df,
+                fig_out=getattr(args, 'OUTFILE', None),
+                cbarlabel=args.LABEL
+            )
+        elif args.TYPE == "graph":
+            # Graph visualization would go here
+            print("Graph visualization not yet fully implemented.", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print(f"Unknown visualization type: {args.TYPE}", file=sys.stderr)
+            sys.exit(1)
+
+    except Exception as e:
+        print(f"Error during visualization: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -13,7 +13,8 @@ warnings.filterwarnings('ignore')
 
 class ConfidenceModel:
     """
-    Simple model for predicting confidence from edge weights
+    Model for predicting confidence from edge weights.
+    Can be trained on known interactions and reused for future analyses.
     """
 
     def __init__(
@@ -26,7 +27,8 @@ class ConfidenceModel:
         self.calibrate = calibrate
         self.random_state = random_state
         self.model = None
-        self.scaler = None
+        self.scaler = StandardScaler()
+        self.is_fitted = False
         self.training_history = []
         self.feature_names = ['weight']
 
@@ -35,7 +37,10 @@ class ConfidenceModel:
     def _initialize_model(self):
         """Initialize the base model"""
         if self.model_type == 'logistic':
-            base_model = LogisticRegression(random_state=self.random_state)
+            base_model = LogisticRegression(
+                random_state=self.random_state,
+                max_iter=1000
+            )
         elif self.model_type == 'random_forest':
             base_model = RandomForestClassifier(
                 n_estimators=100,
@@ -45,132 +50,256 @@ class ConfidenceModel:
         else:
             raise ValueError(f"Unknown model type: {self.model_type}")
 
-        # Use calibrated classifier for better probability estimates
         if self.calibrate:
-            self.model = CalibratedClassifierCV(base_model, cv=3)
+            self.model = CalibratedClassifierCV(
+                base_model,
+                cv=5,
+                method='isotonic'
+            )
         else:
             self.model = base_model
 
-        self.scaler = StandardScaler()
-
-    def _prepare_features(self, weights: np.ndarray) -> np.ndarray:
-        """Prepare features from weights"""
-        # For now, just use weight as primary feature
-        # Could be extended to include weight transformations, statistics, etc.
-        features = np.column_stack([
-            weights,                           # Raw weight
-            np.log(weights + 1e-8),           # Log weight
-            weights ** 2,                      # Squared weight
-            np.sqrt(weights),                  # Square root weight
-            (weights > np.median(weights)).astype(int)  # Above median indicator
-        ])
-
-        self.feature_names = ['weight', 'log_weight', 'weight_squared', 'sqrt_weight', 'above_median']
-        return features
-
-    def fit(self, weights: np.ndarray, labels: np.ndarray, update_existing: bool = False):
+    def fit(
+        self,
+        edges_df: pd.DataFrame,
+        positive_interactions: List[Tuple[str, str]],
+        negative_interactions: Optional[List[Tuple[str, str]]] = None,
+        weight_col: str = 'weight',
+        source_col: str = 'source',
+        target_col: str = 'target',
+        n_negative_samples: int = None,
+        verbose: bool = True
+    ) -> 'ConfidenceModel':
         """
-        Fit the model to weight-label data
+        Train the confidence model on known positive (and optionally negative) interactions.
 
-        Args:
-            weights: Array of edge weights
-            labels: Binary labels (1 for positive, 0 for negative)
-            update_existing: Whether to update existing model or train from scratch
+        Parameters
+        ----------
+        edges_df : pd.DataFrame
+            DataFrame containing edges with weights
+        positive_interactions : List[Tuple[str, str]]
+            Known true positive interactions
+        negative_interactions : List[Tuple[str, str]], optional
+            Known true negative interactions. If None, samples from non-positive edges.
+        weight_col : str
+            Column name for edge weights
+        source_col, target_col : str
+            Column names for source and target nodes
+        n_negative_samples : int, optional
+            Number of negative samples to use. Defaults to len(positive_interactions)
+        verbose : bool
+            Print training progress
+
+        Returns
+        -------
+        self : ConfidenceModel
+            Fitted model
         """
-        X = self._prepare_features(weights)
 
-        if update_existing and hasattr(self, 'model') and self.model is not None:
-            # For updating, we'll retrain on combined data
-            # In practice, you might want more sophisticated incremental learning
-            print("Note: Retraining model with combined data (incremental learning not implemented)")
+        def normalize_pair(pair):
+            """Ensure consistent ordering of node pairs"""
+            return tuple(sorted([str(pair[0]), str(pair[1])]))
 
-        # Fit scaler
-        if not update_existing or self.scaler is None:
-            X_scaled = self.scaler.fit_transform(X)
+        # Create lookup sets
+        positive_set = set(normalize_pair(p) for p in positive_interactions)
+
+        if negative_interactions is not None:
+            negative_set = set(normalize_pair(n) for n in negative_interactions)
         else:
-            X_scaled = self.scaler.transform(X)
+            negative_set = set()
 
-        # Fit model
-        self.model.fit(X_scaled, labels)
+        # Build feature matrix and labels
+        X_positive = []
+        X_negative = []
 
-        # Store training info
-        training_info = {
-            'n_samples': len(weights),
-            'n_positive': np.sum(labels),
-            'n_negative': np.sum(labels == 0),
-            'weight_range': [np.min(weights), np.max(weights)],
-            'positive_rate': np.mean(labels)
-        }
+        for _, row in edges_df.iterrows():
+            pair = normalize_pair((row[source_col], row[target_col]))
+            weight = row[weight_col]
 
-        # Cross-validation score
-        cv_scores = cross_val_score(self.model, X_scaled, labels, cv=3, scoring='roc_auc')
-        training_info['cv_auc_mean'] = np.mean(cv_scores)
-        training_info['cv_auc_std'] = np.std(cv_scores)
+            if pair in positive_set:
+                X_positive.append([weight])
+            elif negative_interactions is not None and pair in negative_set:
+                X_negative.append([weight])
+            elif negative_interactions is None and pair not in positive_set:
+                X_negative.append([weight])
 
-        self.training_history.append(training_info)
+        if len(X_positive) == 0:
+            raise ValueError("No positive interactions found in edges_df")
 
-        return training_info
+        if verbose:
+            print(f"Found {len(X_positive)} positive edges in data")
+            print(f"Found {len(X_negative)} candidate negative edges")
 
-    def predict_confidence(self, weights: np.ndarray) -> np.ndarray:
-        """Predict confidence scores for given weights"""
-        if self.model is None:
-            raise ValueError("Model has not been trained yet")
+        # Sample negatives if needed
+        if n_negative_samples is None:
+            n_negative_samples = len(X_positive)
 
-        X = self._prepare_features(weights)
+        if len(X_negative) > n_negative_samples:
+            indices = np.random.choice(
+                len(X_negative),
+                n_negative_samples,
+                replace=False
+            )
+            X_negative = [X_negative[i] for i in indices]
+
+        # Combine into training data
+        X = np.array(X_positive + X_negative)
+        y = np.array([1] * len(X_positive) + [0] * len(X_negative))
+
+        if verbose:
+            print(f"Training on {len(X_positive)} positives, {len(X_negative)} negatives")
+
+        # Scale features
+        X_scaled = self.scaler.fit_transform(X)
+
+        # Train model with cross-validation scoring
+        cv_scores = cross_val_score(self.model, X_scaled, y, cv=5, scoring='roc_auc')
+
+        if verbose:
+            print(f"Cross-validation AUC: {cv_scores.mean():.3f} ± {cv_scores.std():.3f}")
+
+        # Fit final model
+        self.model.fit(X_scaled, y)
+        self.is_fitted = True
+
+        # Store training history
+        self.training_history.append({
+            'n_positive': len(X_positive),
+            'n_negative': len(X_negative),
+            'cv_auc_mean': cv_scores.mean(),
+            'cv_auc_std': cv_scores.std()
+        })
+
+        return self
+
+    def predict_confidence(
+        self,
+        edges_df: pd.DataFrame,
+        weight_col: str = 'weight'
+    ) -> np.ndarray:
+        """
+        Predict confidence scores for edges.
+
+        Parameters
+        ----------
+        edges_df : pd.DataFrame
+            DataFrame containing edges with weights
+        weight_col : str
+            Column name for edge weights
+
+        Returns
+        -------
+        np.ndarray
+            Confidence scores (probabilities) for each edge
+        """
+        if not self.is_fitted:
+            raise RuntimeError("Model must be fitted before predicting. Call fit() first.")
+
+        X = edges_df[[weight_col]].values
         X_scaled = self.scaler.transform(X)
 
         # Get probability of positive class
         confidence_scores = self.model.predict_proba(X_scaled)[:, 1]
+
         return confidence_scores
 
-    def get_feature_importance(self) -> Dict[str, float]:
-        """Get feature importance (if supported by model)"""
-        if self.model is None:
-            return {}
+    def add_confidence_to_edges(
+        self,
+        edges_df: pd.DataFrame,
+        weight_col: str = 'weight',
+        confidence_col: str = 'model_confidence'
+    ) -> pd.DataFrame:
+        """
+        Add confidence column to edges DataFrame.
 
-        # For calibrated classifiers, get base estimator
-        base_model = self.model.base_estimator if hasattr(self.model, 'base_estimator') else self.model
+        Parameters
+        ----------
+        edges_df : pd.DataFrame
+            DataFrame containing edges
+        weight_col : str
+            Column name for edge weights
+        confidence_col : str
+            Name for the new confidence column
 
-        if hasattr(base_model, 'feature_importances_'):
-            importance = base_model.feature_importances_
-        elif hasattr(base_model, 'coef_'):
-            importance = np.abs(base_model.coef_[0])
-        else:
-            return {}
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with added confidence column
+        """
+        result_df = edges_df.copy()
+        result_df[confidence_col] = self.predict_confidence(edges_df, weight_col)
+        return result_df
 
-        return dict(zip(self.feature_names, importance))
+    def save(self, filepath: str):
+        """
+        Save the trained model to disk.
 
-    def save_model(self, filepath: str):
-        """Save model to file"""
+        Parameters
+        ----------
+        filepath : str
+            Path to save the model (recommend .pkl extension)
+        """
+        if not self.is_fitted:
+            raise RuntimeError("Cannot save unfitted model")
+
         model_data = {
             'model': self.model,
             'scaler': self.scaler,
             'model_type': self.model_type,
             'calibrate': self.calibrate,
+            'random_state': self.random_state,
+            'feature_names': self.feature_names,
             'training_history': self.training_history,
-            'feature_names': self.feature_names
+            'is_fitted': self.is_fitted
         }
 
         with open(filepath, 'wb') as f:
             pickle.dump(model_data, f)
 
     @classmethod
-    def load_model(cls, filepath: str):
-        """Load model from file"""
+    def load(cls, filepath: str) -> 'ConfidenceModel':
+        """
+        Load a trained model from disk.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the saved model
+
+        Returns
+        -------
+        ConfidenceModel
+            Loaded model ready for prediction
+        """
         with open(filepath, 'rb') as f:
             model_data = pickle.load(f)
 
-        instance = cls(
-            model_type=model_data['model_type'],
-            calibrate=model_data['calibrate']
-        )
-
+        # Create new instance without initializing model
+        instance = cls.__new__(cls)
         instance.model = model_data['model']
         instance.scaler = model_data['scaler']
-        instance.training_history = model_data['training_history']
+        instance.model_type = model_data['model_type']
+        instance.calibrate = model_data['calibrate']
+        instance.random_state = model_data['random_state']
         instance.feature_names = model_data['feature_names']
+        instance.training_history = model_data['training_history']
+        instance.is_fitted = model_data['is_fitted']
 
         return instance
+
+    def get_training_summary(self) -> Dict:
+        """Get summary of model training"""
+        if not self.training_history:
+            return {'status': 'not trained'}
+
+        latest = self.training_history[-1]
+        return {
+            'status': 'trained',
+            'model_type': self.model_type,
+            'calibrated': self.calibrate,
+            'n_training_runs': len(self.training_history),
+            'latest_training': latest
+        }
 
 def generate_negative_interactions(
     positive_interactions: List[Tuple[str, str]],
@@ -565,3 +694,82 @@ def calculate_edge_confidence(
         result_df = pd.concat([result_df, leave_part_df], ignore_index=True)
 
     return result_df
+
+def calculate_edge_confidence_with_model(
+    edges_df: pd.DataFrame,
+    model: ConfidenceModel = None,
+    positive_interactions: List[Tuple] = None,
+    weight_col: str = 'weight',
+    source_col: str = 'source',
+    target_col: str = 'target',
+    train_new_model: bool = False,
+    model_save_path: str = None,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Calculate edge confidence using either a pre-trained model or by training a new one.
+
+    Parameters
+    ----------
+    edges_df : pd.DataFrame
+        Edge list with weights
+    model : ConfidenceModel, optional
+        Pre-trained model. If None and train_new_model=True, trains a new model.
+    positive_interactions : List[Tuple], optional
+        Known positive interactions (required if train_new_model=True)
+    train_new_model : bool
+        Whether to train a new model if none provided
+    model_save_path : str, optional
+        If provided, saves the trained model to this path
+    verbose : bool
+        Print progress information
+
+    Returns
+    -------
+    pd.DataFrame
+        Edges with confidence scores added
+    """
+
+    if model is not None and model.is_fitted:
+        if verbose:
+            print("Using pre-trained confidence model")
+        return model.add_confidence_to_edges(
+            edges_df,
+            weight_col=weight_col
+        )
+
+    if train_new_model:
+        if positive_interactions is None:
+            raise ValueError(
+                "positive_interactions required when train_new_model=True"
+            )
+
+        if verbose:
+            print("Training new confidence model...")
+
+        model = ConfidenceModel(model_type='logistic', calibrate=True)
+        model.fit(
+            edges_df,
+            positive_interactions=positive_interactions,
+            weight_col=weight_col,
+            source_col=source_col,
+            target_col=target_col,
+            verbose=verbose
+        )
+
+        if model_save_path:
+            model.save(model_save_path)
+            if verbose:
+                print(f"Model saved to {model_save_path}")
+
+        return model.add_confidence_to_edges(edges_df, weight_col=weight_col)
+
+    # Fall back to default calculation without model
+    if verbose:
+        print("No model provided, using default confidence calculation")
+
+    return calculate_edge_confidence_default(
+        edges_df,
+        positive_interactions=positive_interactions,
+        weight_col=weight_col
+    )
