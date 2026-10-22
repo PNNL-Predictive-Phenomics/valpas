@@ -226,8 +226,8 @@ def sort_associations(df: pd.DataFrame, reduced_output: bool=False) -> pd.Series
         #
         # The code block extracts the upper triangle of the matrix,
         # sets the lower triangle (including the diagonal) to NaN.
-        # `pd.DataFrame.stack()` drops NaNs by default and therefore
-        # excludes the pairs from sorting and being returned.
+        # `pd.DataFrame.stack()` keeps NaNs in pandas >= 3, so they are
+        # dropped explicitly to exclude these pairs from sorting and output.
         upper_tri = np.triu(df, -1)
         upper_tri[np.tril_indices(upper_tri.shape[0], 0)] = np.nan
 
@@ -236,14 +236,14 @@ def sort_associations(df: pd.DataFrame, reduced_output: bool=False) -> pd.Series
             index=df.index,
             columns=df.columns
             )
-        df_sorted = df_upper_tri.stack().sort_values(ascending=False)
+        df_sorted = df_upper_tri.stack().dropna().sort_values(ascending=False)
 
     else:
         # by default full output of the sorted list is generated to
         # guarantuee that all results are returned. This is especially
         # important if association between two different data types was
         # generated and no "self-hits" exsist
-        df_sorted = df.stack().sort_values(ascending=False)
+        df_sorted = df.stack().dropna().sort_values(ascending=False)
 
 
     return df_sorted
@@ -269,7 +269,8 @@ def beautify_series(df: pd.Series, value: str="Correlation") -> pd.DataFrame:
         A DataFrame object with three columns. (1) & (2) are omics
         identifiers, (3) is the association value
     """
-    df = df.stack().sort_values(ascending=False)
+    # pandas >= 3 keeps NaNs in stack(); drop them so blanked-out pairs are excluded
+    df = df.stack().dropna().sort_values(ascending=False)
     try:
         if df.index.names[0] == df.index.names[1]:
             id_1 = '_'.join([df.index.names[0], '1'])
