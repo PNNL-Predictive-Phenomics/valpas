@@ -18,6 +18,12 @@ from valpas.utils.validator import validate_input
 from valpas.confidence_evaluation import calculate_edge_confidence_default
 from ._core.processing import beautify_series
 
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def associate(
     association_type="pearson",
     infile=None,
@@ -37,63 +43,64 @@ def associate(
     overwrite_output=False,
     outfile=sys.stdout,
     report_file=None,
-    annotation_args: dict={
-        'primary_id_column': 'id',
-        'primary_annotation_column': 'annotation',
-        'sheet_name': 0,
-        'validate_ids': True,
-        'remove_duplicates': 'warn',
-        'handle_missing_annotations': 'keep',
-        'strip_whitespace': True,
-        'case_sensitive': True,
-        'verbose': True
+    generate_association_stats: bool = False,
+    annotation_args: dict = {
+        "primary_id_column": "id",
+        "primary_annotation_column": "annotation",
+        "sheet_name": 0,
+        "validate_ids": True,
+        "remove_duplicates": "warn",
+        "handle_missing_annotations": "keep",
+        "strip_whitespace": True,
+        "case_sensitive": True,
+        "verbose": True,
     },
-    learncorr_args: dict={
-        'learning_method':'empirical',
-        'missing_strategy':'median'
+    learncorr_args: dict = {
+        "learning_method": "empirical",
+        "missing_strategy": "median",
     },
-    autoencoder_args: dict={
-        'protein_embedding_dim':128,
-        'sample_embedding_dim':64,
-        'hidden_dims':[256, 128],
-        'epochs':200,
-        'learning_rate':1e-3,
-        'mask_probability':0.15,
-        'scaling_method':'robust',
-        'validation_split':0.2,
-        'contrastive_args': None,
-        'modality_split': None,
-        'use_vae': False,
-        'cross_modal_mask_ratio': 0.0,
-        'kl_weight': 1e-3,
-        'norm_reg_weight': 0.0,
-        'curriculum_masking': None,
-        'row_mask_ratio': 0.0,
-        'cosine_aux_weight': 0.0,
-        'cosine_aux_args': None,
-        'cross_attention_args': None
+    autoencoder_args: dict = {
+        "protein_embedding_dim": 128,
+        "sample_embedding_dim": 64,
+        "hidden_dims": [256, 128],
+        "epochs": 200,
+        "learning_rate": 1e-3,
+        "mask_probability": 0.15,
+        "scaling_method": "robust",
+        "validation_split": 0.2,
+        "contrastive_args": None,
+        "modality_split": None,
+        "use_vae": False,
+        "cross_modal_mask_ratio": 0.0,
+        "kl_weight": 1e-3,
+        "norm_reg_weight": 0.0,
+        "curriculum_masking": None,
+        "row_mask_ratio": 0.0,
+        "cosine_aux_weight": 0.0,
+        "cosine_aux_args": None,
+        "cross_attention_args": None,
     },
-    subset_args: dict={
-        'nconds':None,
-        'percentage':None,
-        'keep_conds':[],
-        'inplace':False,
-        'random_state':0,
+    subset_args: dict = {
+        "nconds": None,
+        "percentage": None,
+        "keep_conds": [],
+        "inplace": False,
+        "random_state": 0,
     },
-    confidence_args: dict={
-        'negative_interactions': None,
-        'exclude_negative_interactions': None,
-        'protein_col1': 'protein1',
-        'protein_col2': 'protein2',
-        'weight_col': 'weight',
-        'calculate_limit': 10000,
-        'return_all': False,
-        'confidence_metric': 'ppv',
-        'additional_metrics': None,
-        'min_threshold_samples': 1,
-        'negative_ratio': 0,
-        'normalize_pairs': False,
-        'extrapolate_confidence': False,
+    confidence_args: dict = {
+        "negative_interactions": None,
+        "exclude_negative_interactions": None,
+        "protein_col1": "protein1",
+        "protein_col2": "protein2",
+        "weight_col": "weight",
+        "calculate_limit": 10000,
+        "return_all": False,
+        "confidence_metric": "ppv",
+        "additional_metrics": None,
+        "min_threshold_samples": 1,
+        "negative_ratio": 0,
+        "normalize_pairs": False,
+        "extrapolate_confidence": False,
     },
 ):
     """
@@ -111,8 +118,8 @@ def associate(
         filter_cutoff (float): Cutoff for filtering missing values.
         normalization (str): Normalization mode ('pre', 'post', 'none').
         min_counts (int): Filter out edges with fewer comparisons.
-        transform_clr
-        training_interactions
+        transform_clr (bool): Whether to apply CLR transformation.
+        training_interactions (list or str): List of training interactions or path to a file containing them.
         calculate_confidence (bool): if True and training_interactions are
             provided then use training_interactions to calculate confidence
             values for predictions
@@ -130,22 +137,52 @@ def associate(
     Returns:
         result: Computed associations as a DataFrame or saves to the outfile.
     """
+    logger.debug(
+        "associate function arguments:\n"
+        f"  association_type={association_type}\n"
+        f"  infile={infile}\n"
+        f"  infile2={infile2}\n"
+        f"  infolder={infolder}\n"
+        f"  file_type={file_type}\n"
+        f"  sheet={sheet}\n"
+        f"  sheet2={sheet2}\n"
+        f"  output_type={output_type}\n"
+        f"  filter_cutoff={filter_cutoff}\n"
+        f"  normalization={normalization}\n"
+        f"  min_counts={min_counts}\n"
+        f"  transform_clr={transform_clr}\n"
+        f"  training_interactions={training_interactions}\n"
+        f"  calculate_confidence={calculate_confidence}\n"
+        f"  subset_args={subset_args}\n"
+        f"  autoencoder_args={autoencoder_args}\n"
+        f"  learncorr_args={learncorr_args}\n"
+        f"  confidence_args={confidence_args}\n"
+        f"  overwrite_output={overwrite_output}\n"
+        f"  outfile={outfile}"
+    )
     sheet_names = [sheet] if sheet else None
     if sheet2:
-        sheet_names = sheet_names + [sheet2] if sheet_names is not None else [sheet2]
+        sheet_names = (
+            sheet_names + [sheet2] if sheet_names is not None else [sheet2]
+        )
 
     if infolder:
         inpath = Path(infolder).absolute()
         files = [child for child in inpath.glob(f"*.{file_type}")]
         if file_type == "csv" and len(files) > 4:
-            raise ValueError("Import of more than four CSV files currently not supported.")
+            raise ValueError(
+                "Import of more than four CSV files currently not supported."
+            )
         if file_type == "xlsx" and len(files) > 2:
-            raise ValueError("Import of more than two XLSX files currently not supported.")
+            raise ValueError(
+                "Import of more than two XLSX files currently not supported."
+            )
         inpath2 = None
     else:
         inpath = infile
         inpath2 = infile2
 
+    logger.info("Importing experiments...")
     experiments = import_experiments(
         path=inpath,
         file_type=file_type,
@@ -158,70 +195,124 @@ def associate(
         if not isinstance(training_interactions, list):
             # we will treat this as a file path and read in a list of tuples
             # for now assume that this is tab-delimited with a header
-            df = pd.read_csv(training_interactions, sep='\t', header=1)
+            df = pd.read_csv(training_interactions, sep="\t", header=1)
             training_interactions = list(zip(df.iloc[:, 0], df.iloc[:, 1]))
 
-    threshold = 0.5 if association_type in [
-        "jaccard_similarity",
-        "jaccard_index",
-        "jaccard_distance"
-    ] else None
+    threshold = (
+        0.5
+        if association_type
+        in ["jaccard_similarity", "jaccard_index", "jaccard_distance"]
+        else None
+    )
     thresholded = bool(threshold)
 
     if len(experiments) == 1:
+        logger.info("Processing single experiment...")
         experiment = experiments.pop()
-        experiment.pre_process(rm_low_conf_features=filter_cutoff, threshold=threshold, normalize=normalization, inplace=True)
-        result = experiment.associate(metric=association_type, thresholded=thresholded,
-                                      training_interactions=training_interactions,
-                                      transform_clr=transform_clr,
-                                      subset_args=subset_args,
-                                      autoencoder_args=autoencoder_args,
-                                      learncorr_args=learncorr_args)
+        experiment.pre_process(
+            rm_low_conf_features=filter_cutoff,
+            threshold=threshold,
+            normalize=normalization,
+            inplace=True,
+        )
+        logger.info("Generating associations...") 
+        result = experiment.associate(
+            metric=association_type,
+            thresholded=thresholded,
+            training_interactions=training_interactions,
+            transform_clr=transform_clr,
+            subset_args=subset_args,
+            autoencoder_args=autoencoder_args,
+            learncorr_args=learncorr_args,
+            generate_association_stats=generate_association_stats,
+        )
+        logger.info("Association generation completed for single experiment.")
     elif len(experiments) == 2:
-        cross_experiment = CrossExperiment(name="cross_experiment", experiments=experiments)
+        logger.info("Processing cross experiment...")
+        cross_experiment = CrossExperiment(
+            name="cross_experiment", experiments=experiments
+        )
         if normalization == "pre":
+            logger.info("Normalizing individual experiments before combining...")
             for experiment in experiments:
-                experiment.pre_process(rm_low_conf_features=filter_cutoff, normalize=True, threshold=threshold, inplace=True)
+                experiment.pre_process(
+                    rm_low_conf_features=filter_cutoff,
+                    normalize=True,
+                    threshold=threshold,
+                    inplace=True,
+                )
             cross_experiment.combine(inplace=True)
         elif normalization == "none":
+            logger.info("No normalization is being applied to individual experiments...")
             for experiment in experiments:
-                experiment.pre_process(rm_low_conf_features=filter_cutoff, normalize=False, threshold=threshold, inplace=True)
+                experiment.pre_process(
+                    rm_low_conf_features=filter_cutoff,
+                    normalize=False,
+                    threshold=threshold,
+                    inplace=True,
+                )
             cross_experiment.combine(inplace=True)
         elif normalization == "post":
+            logger.info("Normalizing individual experiments after associations are generated...")
             results = []
             for experiment in experiments:
-                experiment.pre_process(rm_low_conf_features=filter_cutoff, normalize=False, threshold=threshold, inplace=True)
-                results.append(experiment.associate(metric=association_type, thresholded=thresholded,
-                                                    training_interactions=training_interactions,
-                                                    transform_clr=transform_clr,
-                                                    subset_args=subset_args,
-                                                    autoencoder_args=autoencoder_args,
-                                                    learncorr_args=learncorr_args))
-            result = combine_results(results=results, normalization_metric="mean")
+                experiment.pre_process(
+                    rm_low_conf_features=filter_cutoff,
+                    normalize=False,
+                    threshold=threshold,
+                    inplace=True,
+                )
+                logger.info("Generating associations for experiment...")
+                results.append(
+                    experiment.associate(
+                        metric=association_type,
+                        thresholded=thresholded,
+                        training_interactions=training_interactions,
+                        transform_clr=transform_clr,
+                        subset_args=subset_args,
+                        autoencoder_args=autoencoder_args,
+                        learncorr_args=learncorr_args,
+                        generate_association_stats=generate_association_stats,
+                    )
+                )
+            result = combine_results(
+                results=results, normalization_metric="mean"
+            )
         else:
-            raise ValueError(f"Normalization mode '{normalization}' not supported.")
+            raise ValueError(
+                f"Normalization mode '{normalization}' not supported."
+            )
     else:
-        raise NotImplementedError("Cross-experiment associations for more than 2 experiments not supported.")
+        raise NotImplementedError(
+            "Cross-experiment associations for more than 2 experiments not supported."
+        )
 
     # handle incorporation of annotations
     if annotation_file:
-        result.annotationlist = AnnotationList(annotation_file, **annotation_args)
+        logger.info("Incorporating annotations from file...")
+        result.annotationlist = AnnotationList(
+            annotation_file, **annotation_args
+        )
 
-    # make an edgelist so we can do things with it
-    edgelist = result.as_list(min_counts=min_counts)
-    result.edgelist = edgelist
+
 
     if calculate_confidence and training_interactions:
         # for now confidence evaluation operates on a list of edges
         # FIXME: this should really be integrated in to the result class so that
         #        we can add confidence and annotations there - instead of doing it here
 
-        # filter out self edges that seem to creep in somehow
-        edgelist = edgelist[edgelist.iloc[:,0] != edgelist.iloc[:,1]]
+        # make an edgelist so we can do things with it
+        edgelist = result.as_list(min_counts=min_counts)
 
-        confidencelist = calculate_edge_confidence_default(edgelist,
-                        positive_interactions=training_interactions,
-                        min_counts=min_counts, **confidence_args)
+        # filter out self edges that seem to creep in somehow
+        edgelist = edgelist[edgelist.iloc[:, 0] != edgelist.iloc[:, 1]]
+
+        confidencelist = calculate_edge_confidence_default(
+            edgelist,
+            positive_interactions=training_interactions,
+            min_counts=min_counts,
+            **confidence_args,
+        )
 
         # this will overwrite output no problems/no check
         # add support for overwrite checking
@@ -229,6 +320,7 @@ def associate(
         result.edgelist = confidencelist
 
     else:
+        logger.info("Saving association results...")
         result.save(
             file_handle=outfile,
             type=output_type,
@@ -238,14 +330,21 @@ def associate(
 
     # produce report probably only for when annotations are provided
     # though we may change this in the future to include non-annotated as well
-    #if annotation_file and report_file:
+    # if annotation_file and report_file:
     #    report = result.generate_report(format="html")
     #    print(report)
 
     return result
 
 
-def prepare(infile=None, infile2=None, infolder=None, file_type="csv", sheet=None, sheet2=None):
+def prepare(
+    infile=None,
+    infile2=None,
+    infolder=None,
+    file_type="csv",
+    sheet=None,
+    sheet2=None,
+):
     """
     Prepares and validates input data for association analysis.
 
@@ -262,7 +361,9 @@ def prepare(infile=None, infile2=None, infolder=None, file_type="csv", sheet=Non
     """
     sheet_names = [sheet] if sheet else None
     if sheet2:
-        sheet_names = sheet_names + [sheet2] if sheet_names is not None else [sheet2]
+        sheet_names = (
+            sheet_names + [sheet2] if sheet_names is not None else [sheet2]
+        )
 
     if infolder:
         inpath = Path(infolder).absolute()
@@ -288,7 +389,7 @@ def visualize(
     sheet=None,
     visualization_type="heatmap",
     label="Association Strength",
-    outfile=None
+    outfile=None,
 ):
     """
     Visualizes association results.
@@ -315,4 +416,6 @@ def visualize(
         fig = create_fig(df=df, fig_out=outfile, cbarlabel=label)
         return fig
     else:
-        raise NotImplementedError("Only heatmap visualization is currently supported.")
+        raise NotImplementedError(
+            "Only heatmap visualization is currently supported."
+        )
