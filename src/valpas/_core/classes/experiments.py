@@ -91,7 +91,8 @@ class Experiment():
             transform_clr: bool=False,
             learncorr_args: dict={},
             autoencoder_args: dict={},
-            subset_args: dict={}
+            subset_args: dict={},
+            generate_association_stats: bool=False,
             ) -> AssociationResult:
         """
         Function that calculates association values for the Experiment.
@@ -132,7 +133,8 @@ class Experiment():
             transform_clr=transform_clr,
             learncorr_args=learncorr_args,
             autoencoder_args=autoencoder_args,
-            subset_args=subset_args
+            subset_args=subset_args,
+            generate_association_stats=generate_association_stats
             )
 
 class SingleExperiment(Experiment):

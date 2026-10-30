@@ -32,6 +32,9 @@ from valpas._core import autoencoder
 from valpas._core import weightedcorrelationmodel
 from valpas._core import clr_transform
 
+import logging
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from valpas._typing import(
         CrossExperiment,
@@ -56,6 +59,7 @@ def calculate_association(
         learncorr_args: dict={},
         autoencoder_args: dict={},
         subset_args: dict={},
+        generate_association_stats: bool=False,
     ) -> AssociationResult:
     """
     Universal wrapper function that can be called to calculate any of
@@ -107,6 +111,16 @@ def calculate_association(
         ValueError that is passed along from
         ``valpas.utils.data_handling.prep_single_experiment()``
     """
+    logger.debug(
+        "running calculate_association with arguments:\n"
+        f"  method={method}\n"
+        f"  thresholded={thresholded}\n"
+        f"  subset_args={subset_args}\n"
+        f"  autoencoder_args={autoencoder_args}\n"
+        f"  learncorr_args={learncorr_args}\n"
+        f"  transform_clr={transform_clr}\n"
+        f"  training_interactions={training_interactions}"
+    )
 
     # Subset the input measurements first?
     if subset_args['nconds'] or subset_args['percentage'] or subset_args['keep_conds']:
@@ -114,6 +128,8 @@ def calculate_association(
 
     # we are currently building out the AnalysisResults usage
     analysis_results = None
+
+    logger.info("Starting association calculation using method: %s", method)
 
     if method in ['pearson', 'spearman']:
         result_values = experiment.measurements.corr(method=method)
@@ -183,14 +199,19 @@ def calculate_association(
 
     else:
         raise ValueError(f"Association type {method} not supported!")
+    logger.info("Association calculation completed for method: %s", method)
 
     # Tranform similarity matrix using the CLR-style Zscore transform
     if transform_clr:
+        logger.info("Transforming similarity matrix using CLR-style Zscore...")
         result_values = clr_transform.clr_transform(result_values)
+        logger.info("CLR-style Zscore transform applied.")
+
 
     # getting the counts of how many values were considered in the
     # calculation of each association value
     if method not in ["load_sim", "autoencoder"]:
+        logger.info("Calculating counts of values used in association calculation...")
         if thresholded:
             result_counts = experiment.measurements.corr(
                 method=count_vals_in_thresholded_association
@@ -199,16 +220,26 @@ def calculate_association(
             result_counts = experiment.measurements.corr(
                 method=count_vals_in_association
                 )
+        logger.info("Counts of values used in association calculation completed.")
 
-    # if we didn't have a specific one made above then
-    if not analysis_results:
-        # Create results object
-        analysis_results = StatisticalAssociationResults(
-            similarity_matrix=result_values,
-            input_data=experiment.measurements.transpose(),
-            method=method
-        )
+    # Optionally generate association statistics if requested
+    # This is only really crucial for methods that do not already produce
+    # detailed analysis results such as 'pearson' or 'spearman'
+    # Note that the generation of association statistics is time
+    # consuming and may significantly increase runtime for large datasets
+    if generate_association_stats:
+        logger.info("Generating association statistics...")
+        # if we didn't have a specific one made above then
+        if not analysis_results:
+            # Create results object
+            analysis_results = StatisticalAssociationResults(
+                similarity_matrix=result_values,
+                input_data=experiment.measurements.transpose(),
+                method=method
+            )
+        logger.info("Association statistics generated.")
 
+    logger.debug("Creating association result object...")
     result = AssociationResult(
         values=result_values,
         counts=result_counts,
@@ -216,7 +247,7 @@ def calculate_association(
         omic_y=experiment.omic_y,
         analysis_results=analysis_results
     )
-
+    logger.debug("Association result object ready for return.")
     return result
 
 def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:

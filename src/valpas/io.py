@@ -19,6 +19,8 @@ from ._core.processing import beautify_series
 from valpas import SingleExperiment
 from valpas import OmicMeasurement
 
+import logging
+logger = logging.getLogger(__name__)
 
 def export_csv(
         filepath_or_buffer: str | PathLike | Path | TextIOBase,
@@ -456,16 +458,19 @@ def write_outfile(
     data_counts.drop(labels=idx_to_drop.values, axis="index", inplace=True)
 
     if f_type in ('csv', 'tsv') and output_type == 'sorted_list':
+        logger.debug("Preparing data for sorted list output.")
         data_association = beautify_series(df=data_association,
                                            value=association_type)
         data_counts = beautify_series(df=data_counts, value='counts')
 
         if f_type in ('csv', 'tsv'):
+            logger.debug("Merging association and count data for output.")
             data_ = data_association.merge(
                 data_counts,
                 on=[idx[0],idx[1]],
                 how='inner'
                 )
+            logger.debug("Exporting merged data to CSV.")
             export_csv(
                 filepath_or_buffer=file_handle,
                 data=data_,
