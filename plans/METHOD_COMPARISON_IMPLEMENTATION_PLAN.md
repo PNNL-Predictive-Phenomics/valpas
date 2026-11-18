@@ -1,6 +1,6 @@
 # Implementation plan: within-dataset method comparison
 
-**Status:** A0 implemented; focused validation passed with three dependency-blocked legacy import checks (see below). A1–B3 remain unimplemented.
+**Status:** A0 and A1 implemented. A1 focused validation: 51 tests, 48 passed and the same three dependency-blocked A0 legacy import checks skipped (see records below). A2–B3 remain unimplemented. A1 input bundles are not A2 comparison-result bundles or reports.
 
 **Requirements:** [development handoff](valpas_method_comparison_development.md). This plan turns that handoff into implementation increments and acceptance gates; the handoff remains the scientific specification. Both Release A and Release B are in scope. This work does not depend on completing CLI autoencoder training support.
 
@@ -118,6 +118,21 @@ Deliverables:
 8. Strict, common, and native-inspection pool construction with complete exclusion/status records.
 
 **Acceptance:** hand-calculated ranks match; reordered IDs align; score signs remain unchanged; source objects are unmodified; known identity mismatches cannot be overridden; truncated lists cannot enter common-pool reranking; conflicting scores/ranks and malformed permutations fail.
+
+#### A1 implementation and validation record
+
+Implemented 2026-11-18:
+
+- Standard-library-only [contracts and structured issues](../src/valpas/comparison/models.py), strict nested schema validation, explicit unknown metadata, immutable detached descriptors and pair records.
+- [Adapters](../src/valpas/comparison/adapters.py) for labeled/transposed matrices, long scores, full candidate permutations (not inverse ranks), complete ordered ranks, certified native prefixes, inspection-only filtered lists, and legacy score:count matrices. Local UTF-8 JSON/CSV/TSV paths are manifest-relative and contained; unsupported executable/checkpoint/NumPy formats fail. Legacy precision warnings and opt-in symmetric reciprocal expansion are explicit.
+- [Compatibility and pools](../src/valpas/comparison/compatibility.py) validate source evidence, exact observation sets, context, namespaces, field-specific legacy attestations and complete non-seed run grouping. Field-level configuration differences, native/active ranks, statuses, coverage and exclusions are retained. Strict finite-set gaps are unavailable; common reranking rejects limited inputs.
+- [Deterministic ranking](../src/valpas/comparison/ranking.py) implements all four policies, Unicode candidate-ID tie breaks, unchanged signed raw scores and namespace-aware self exclusion. Prefix depth/exhaustion and native-pool identity are checked; filtered lists never receive a fabricated rank view.
+- Detached structural result adaptation copies explicitly selected labeled values/counts without importing the legacy class or calling mutating methods. [Input bundle helpers](../src/valpas/comparison/bundles.py) export full-precision normalized records to a new staged destination and reload via completion/inventory/checksum validation, independently of original files. Existing destinations are always refused; no overwrite mode is provided.
+- Published [A1 API and schema](../docs/COMPARISON_SCHEMA_V1.md), [validated demo manifest](../tests/comparison/fixtures/demo-01/manifest.json), and [runnable input inspection/export example](../examples/inspect_comparison_inputs.py). Original A0 metadata, matrices, expected values and tests are retained. No A2 metric/report/CLI APIs or later-phase placeholder contracts were added.
+
+Validation with Python 3.12.3: standard-library unittest discovery over [comparison tests](../tests/comparison/) ran **51 tests: 48 passed, 3 skipped**. All **31 new A1 tests passed**. The skips are the existing A0 real autoencoder/experiment imports blocked by missing PyTorch, not new A1 skips. Tests cover each representation, malformed/nested settings, identity/configuration contradictions, exact/reordered IDs, score signs/ties, permutation semantics, missing/eligibility states, prefix restrictions, source immutability, full-precision roundtrip, unsafe destinations, failure cleanup, and a full load/rank/export/reload path with heavy/training modules blocked and warning state unchanged. The saved-input example, focused static compilation, Git whitespace checks and changed-file review passed. Pytest remains unavailable; test classes support unittest/pytest. No dependencies were installed, training was run, checkpoints were loaded, or remote services were contacted.
+
+Limitations/boundary: optional NumPy support is deliberately omitted. Measurement evidence is validated as supplied rather than recovered from scores. External rank-only tie policies remain declared metadata. Prefixes with mixed/unmatched native-pool certificates remain conservatively unavailable in strict mode; all prefixes are prohibited in common mode. Input bundles have no overwrite support. File parsing currently materializes each input and complete records use Python pair objects; the target-scale compact storage/streaming optimization and benchmark remain unverified later work. A2 metric orchestration/result bundles, A3 profiles/UI/CLI, and B1–B3 diagnostics/reference/production hooks/packaging remain unimplemented. Existing full-dependency legacy import, documentation/Sphinx and cross-attention environmental follow-ups remain separate from this phase.
 
 ### A2 — Comparison engine, bundle export/reload, CLI
 

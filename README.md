@@ -120,6 +120,12 @@ Run the test suite with:
 pytest
 ```
 
+## Saved-output comparison inputs (A1)
+
+The lightweight [comparison API and schema](docs/COMPARISON_SCHEMA_V1.md) now load saved scores/ranks, validate identity and run configurations, build deterministic native/common rank views, and export/reload full-precision input bundles. Use the [validated synthetic manifest](tests/comparison/fixtures/demo-01/manifest.json) with the [saved-input example](examples/inspect_comparison_inputs.py); no training or checkpoints are needed.
+
+This is **phase A1 only**: agreement/recurrence metrics, comparison reports, profiles and comparison CLI commands remain later phases. Existing association and training workflows are unchanged.
+
 ## Troubleshooting
 
 ### Python or permission errors

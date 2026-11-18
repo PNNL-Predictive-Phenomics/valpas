@@ -7,7 +7,9 @@ This is hand-authored test data, not a trained model result or a real measuremen
 - [Metadata](metadata.json): dataset/source attestation, exact axes and namespaces, orientation, completeness/missing policy, and shared non-seed configuration records. Both AE outputs reference the same configuration; only their run identity and seed differ.
 - [Expected results](expected.json): hand-calculated ordered candidate IDs (one-based rank is position), strict availability, common pools/exclusions, and selected overlap/Jaccard calculations.
 
-These metadata keys are **fixture scaffolding, not a supported manifest schema or loader API**. A1 will finalize the schema. The shared source identity is an explicit synthetic attestation, not a computed measurement fingerprint. The illustrative non-seed configuration specifies the public training options; it is not evidence that any model was executed.
+The original metadata keys remain **A0 fixture scaffolding**, preserved with the independent expected values. A1 supplements them with a supported [version-one manifest](manifest.json), validated by the production [loader](../../../../src/valpas/comparison/adapters.py). See the [schema/API reference](../../../../docs/COMPARISON_SCHEMA_V1.md) and [runnable saved-input example](../../../../examples/inspect_comparison_inputs.py).
+
+The shared source identity is an explicit synthetic attestation, not a computed measurement fingerprint. The illustrative non-seed configuration specifies hypothetical training options; it is not evidence that any model was executed. A1 tests compare production native/common ranks and strict availability with the retained A0 expectations; overlap/recurrence metric implementation remains A2.
 
 ## Hand calculations
 
