@@ -6,25 +6,12 @@ import argparse
 import sys
 
 import textwrap
-import pandas as pd
-import networkx as nx
 
 from pathlib import Path
-
-from valpas import CrossExperiment
 
 from valpas.utils.checker import check_infile
 from valpas.utils.checker import check_outfile
 from valpas.utils.checker import check_cutoff_range
-
-from valpas.visualization.heatmap import create_fig
-
-from valpas.io import import_asssociation_matrix
-from valpas.io import import_experiments
-
-from valpas._core.processing import combine_results
-
-from valpas.utils.validator import validate_input
 
 
 def main():
@@ -331,6 +318,9 @@ def main():
 # TODO: make this call the valpas_core function for associate to keep things
 #       neat and tidy. Currently the CLI and API have different behavior.
 def associate(args):
+    from valpas import CrossExperiment
+    from valpas.io import import_experiments
+    from valpas._core.processing import combine_results
 
     if args.csv:
         file_type = 'csv'
@@ -463,6 +453,9 @@ def associate(args):
     )
 
 def prepare(args):
+    from valpas.io import import_experiments
+    from valpas.utils.validator import validate_input
+
     if args.csv:
         file_type = 'csv'
     elif args.xlsx:
@@ -509,6 +502,9 @@ def prepare(args):
 
 def visualize(args):
     if args.TYPE == "heatmap":
+        from valpas.io import import_asssociation_matrix
+        from valpas.visualization.heatmap import create_fig
+
         if args.SHEET is None:
             sheet = 0
         else:
@@ -525,6 +521,8 @@ def visualize(args):
 
 
 def df_to_graph(file_path, index_name, net, threshold):
+    import pandas as pd
+
     #read in data
     df = pd.read_csv(file_path)
     #set row names
@@ -541,6 +539,8 @@ def df_to_graph(file_path, index_name, net, threshold):
     return net
 
 def assign_clusters(net):
+    import networkx as nx
+
     clusters = nx.community.louvain_communities(net, seed=123)
     for i in range(len(clusters)):
         for node in clusters[i]:

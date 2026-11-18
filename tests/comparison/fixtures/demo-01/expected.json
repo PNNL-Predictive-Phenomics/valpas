@@ -1,0 +1,47 @@
+{
+  "inventory": {"methods": 2, "configurations": 2, "outputs": 3},
+  "native_order": {
+    "M01": {
+      "pearson-run": ["P01", "P02", "P03"],
+      "ae-seed-42": ["P02", "P01", "P03"],
+      "ae-seed-123": ["P02", "P01", "P03"]
+    },
+    "M02": {
+      "pearson-run": ["P01", "P03"],
+      "ae-seed-42": ["P02", "P03", "P01"],
+      "ae-seed-123": ["P01", "P02", "P03"]
+    }
+  },
+  "strict_query_status": {
+    "M01": {"status": "available", "reason": null},
+    "M02": {"status": "unavailable", "reason": "scorable_candidate_sets_differ"}
+  },
+  "common_candidates": {"M01": ["P01", "P02", "P03"], "M02": ["P01", "P03"]},
+  "common_exclusions": [
+    {"query_id": "M02", "candidate_id": "P02", "output_id": "pearson-run", "status": "unscored", "reason": "synthetic_missing_score"}
+  ],
+  "common_order": {
+    "M01": {
+      "pearson-run": ["P01", "P02", "P03"],
+      "ae-seed-42": ["P02", "P01", "P03"],
+      "ae-seed-123": ["P02", "P01", "P03"]
+    },
+    "M02": {
+      "pearson-run": ["P01", "P03"],
+      "ae-seed-42": ["P03", "P01"],
+      "ae-seed-123": ["P01", "P03"]
+    }
+  },
+  "agreements": [
+    {"query_id": "M01", "outputs": ["pearson-run", "ae-seed-42"], "pool": "strict", "requested_depth": 1, "effective_depth": 1, "shared_count": 0, "overlap_fraction": 0.0, "jaccard": 0.0, "status": "available"},
+    {"query_id": "M01", "outputs": ["pearson-run", "ae-seed-42"], "pool": "strict", "requested_depth": 2, "effective_depth": 2, "shared_count": 2, "overlap_fraction": 1.0, "jaccard": 1.0, "status": "available"},
+    {"query_id": "M01", "outputs": ["pearson-run", "ae-seed-123"], "pool": "strict", "requested_depth": 1, "effective_depth": 1, "shared_count": 0, "overlap_fraction": 0.0, "jaccard": 0.0, "status": "available"},
+    {"query_id": "M01", "outputs": ["pearson-run", "ae-seed-123"], "pool": "strict", "requested_depth": 2, "effective_depth": 2, "shared_count": 2, "overlap_fraction": 1.0, "jaccard": 1.0, "status": "available"},
+    {"query_id": "M01", "outputs": ["ae-seed-42", "ae-seed-123"], "pool": "strict", "requested_depth": 1, "effective_depth": 1, "shared_count": 1, "overlap_fraction": 1.0, "jaccard": 1.0, "status": "available"},
+    {"query_id": "M02", "outputs": ["pearson-run", "ae-seed-42"], "pool": "strict", "requested_depth": 1, "effective_depth": null, "shared_count": null, "overlap_fraction": null, "jaccard": null, "status": "unavailable", "reason": "scorable_candidate_sets_differ"},
+    {"query_id": "M02", "outputs": ["pearson-run", "ae-seed-42"], "pool": "common", "requested_depth": 1, "effective_depth": 1, "shared_count": 0, "overlap_fraction": 0.0, "jaccard": 0.0, "status": "available"},
+    {"query_id": "M02", "outputs": ["pearson-run", "ae-seed-42"], "pool": "common", "requested_depth": 2, "effective_depth": 2, "shared_count": 2, "overlap_fraction": 1.0, "jaccard": 1.0, "status": "available"},
+    {"query_id": "M02", "outputs": ["pearson-run", "ae-seed-123"], "pool": "common", "requested_depth": 1, "effective_depth": 1, "shared_count": 1, "overlap_fraction": 1.0, "jaccard": 1.0, "status": "available"},
+    {"query_id": "M02", "outputs": ["ae-seed-42", "ae-seed-123"], "pool": "common", "requested_depth": 5, "effective_depth": 2, "shared_count": 2, "overlap_fraction": 1.0, "jaccard": 1.0, "status": "available"}
+  ]
+}

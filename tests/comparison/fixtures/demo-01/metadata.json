@@ -1,0 +1,111 @@
+{
+  "fixture_format": "a0-saved-scores-1",
+  "provenance": {
+    "kind": "hand_authored_synthetic",
+    "training_performed": false,
+    "limitations": "Illustrative scores, not measured correlations or trained model outputs. Configuration records describe hypothetical runs only. This is test scaffolding, not the A1 manifest schema."
+  },
+  "dataset": {
+    "dataset_id": "demo-01",
+    "source_identity": "synthetic:valpas:a0:demo-01",
+    "dataset_evidence": {
+      "type": "fixture_author_attestation",
+      "statement": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied."
+    },
+    "observation_ids": ["S01", "S02", "S03", "S04", "S05", "S06"],
+    "query_namespace": {"id": "demo-metabolites", "modality": "metabolomics"},
+    "candidate_namespace": {"id": "demo-proteins", "modality": "proteomics"},
+    "query_ids": ["M01", "M02"],
+    "candidate_ids": ["P01", "P02", "P03"],
+    "context": "Score-only, same-source synthetic comparison; no observed profiles."
+  },
+  "matrix_contract": {
+    "orientation": "query_rows_candidate_columns",
+    "representation": "labeled_score_matrix",
+    "completeness": "complete_declared_axes_with_explicit_unscored_cells",
+    "blank_cell_status": "unscored",
+    "blank_cell_reason": "synthetic_missing_score",
+    "eligibility": "all_declared_candidates",
+    "tie_break": "canonical_candidate_id_unicode_ascending"
+  },
+  "configurations": {
+    "pearson-base": {
+      "method_id": "pearson",
+      "observation_selection": "all_declared_observations",
+      "preprocessing": {"transform": "none", "imputation": "none"},
+      "score_semantics": "signed_pearson_correlation",
+      "ranking_policy": "absolute_descending",
+      "supervision": "none",
+      "parameters": {"missing_values": "pairwise_complete", "minimum_joint_observations": 3}
+    },
+    "ae-base": {
+      "method_id": "autoencoder",
+      "observation_selection": "all_declared_observations",
+      "preprocessing": {"scaling_method": "robust", "imputation": "none"},
+      "score_semantics": "protein_embedding_cosine_similarity",
+      "ranking_policy": "native_descending",
+      "supervision": "none",
+      "training_feature_ids": ["P01", "P02", "P03", "M01", "M02"],
+      "parameters": {
+        "protein_embedding_dim": 16,
+        "sample_embedding_dim": 8,
+        "hidden_dims": [32, 16],
+        "epochs": 3,
+        "learning_rate": 0.001,
+        "mask_probability": 0.15,
+        "scaling_method": "robust",
+        "device": "cpu",
+        "validation_split": 0.2,
+        "early_stopping_patience": 0,
+        "min_delta": 0.00001,
+        "contrastive_args": null,
+        "modality_split": 3,
+        "use_vae": false,
+        "cross_modal_mask_ratio": 0.0,
+        "kl_weight": 0.001,
+        "norm_reg_weight": 0.0,
+        "curriculum_masking": null,
+        "row_mask_ratio": 0.0,
+        "cosine_aux_weight": 0.0,
+        "cosine_aux_args": null,
+        "cross_attention_args": null,
+        "extra_kwargs": {}
+      }
+    }
+  },
+  "outputs": [
+    {
+      "output_id": "pearson-run",
+      "method_id": "pearson",
+      "configuration_id": "pearson-base",
+      "run_id": "pearson-run",
+      "seed": null,
+      "dataset_id": "demo-01",
+      "source_identity": "synthetic:valpas:a0:demo-01",
+      "observation_ids": ["S01", "S02", "S03", "S04", "S05", "S06"],
+      "score_file": "pearson-run.csv"
+    },
+    {
+      "output_id": "ae-seed-42",
+      "method_id": "autoencoder",
+      "configuration_id": "ae-base",
+      "run_id": "ae-seed-42",
+      "seed": 42,
+      "dataset_id": "demo-01",
+      "source_identity": "synthetic:valpas:a0:demo-01",
+      "observation_ids": ["S01", "S02", "S03", "S04", "S05", "S06"],
+      "score_file": "ae-seed-42.csv"
+    },
+    {
+      "output_id": "ae-seed-123",
+      "method_id": "autoencoder",
+      "configuration_id": "ae-base",
+      "run_id": "ae-seed-123",
+      "seed": 123,
+      "dataset_id": "demo-01",
+      "source_identity": "synthetic:valpas:a0:demo-01",
+      "observation_ids": ["S01", "S02", "S03", "S04", "S05", "S06"],
+      "score_file": "ae-seed-123.csv"
+    }
+  ]
+}

@@ -25,31 +25,36 @@ __all__ = [
     ]
 
 
-from . import (
-    confidence_evaluation,
-    # io,
-    # valpas_core,
-    )
+from importlib import import_module as _import_module
 
 
-from ._core import autoencoder
+# Resolve the existing public API only when requested. Importing a lightweight
+# subpackage must not import analysis/training code or alter warning filters.
+_LAZY_EXPORTS = {
+    'autoencoder': ('._core.autoencoder', None),
+    'confidence_evaluation': ('.confidence_evaluation', None),
+    'AnnotationList': ('._core.classes.annotations', 'AnnotationList'),
+    'AnalysisResults': ('._core.classes.results', 'AnalysisResults'),
+    'AssociationResult': ('._core.classes.results', 'AssociationResult'),
+    'Omic': ('._core.classes.omics', 'Omic'),
+    'OmicMeasurement': ('._core.classes.omics', 'OmicMeasurement'),
+    'SingleExperiment': ('._core.classes.experiments', 'SingleExperiment'),
+    'CrossExperiment': ('._core.classes.experiments', 'CrossExperiment'),
+}
 
-from ._core.classes.annotations import(
-    AnnotationList
-)
 
-from ._core.classes.omics import (
-    Omic,
-    OmicMeasurement,
-    )
-from ._core.classes.results import (
-    AnalysisResults,
-    AssociationResult,
-)
-from ._core.classes.experiments import (
-    SingleExperiment,
-    CrossExperiment,
-)
+def __getattr__(name):
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute = _LAZY_EXPORTS[name]
+    module = _import_module(module_name, __name__)
+    value = module if attribute is None else getattr(module, attribute)
+    globals()[name] = value
+    return value
+
+
+def __dir__():
+    return sorted(set(globals()) | set(__all__))
 
 from ._version import __version__
 from ._version import __version_tuple__
