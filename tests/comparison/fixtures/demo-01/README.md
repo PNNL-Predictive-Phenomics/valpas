@@ -9,7 +9,7 @@ This is hand-authored test data, not a trained model result or a real measuremen
 
 The original metadata keys remain **A0 fixture scaffolding**, preserved with the independent expected values. A1 supplements them with a supported [version-one manifest](manifest.json), validated by the production [loader](../../../../src/valpas/comparison/adapters.py). See the [schema/API reference](../../../../docs/COMPARISON_SCHEMA_V1.md) and [runnable saved-input example](../../../../examples/inspect_comparison_inputs.py).
 
-The shared source identity is an explicit synthetic attestation, not a computed measurement fingerprint. The illustrative non-seed configuration specifies hypothetical training options; it is not evidence that any model was executed. A1 tests compare production native/common ranks and strict availability with the retained A0 expectations; overlap/recurrence metric implementation remains A2.
+The shared source identity is an explicit synthetic attestation, not a computed measurement fingerprint. The illustrative non-seed configuration specifies hypothetical training options; it is not evidence that any model was executed. A1 tests compare production native/common ranks and strict availability with the retained A0 expectations. [A2 engine tests](../../test_a2_engine.py) now check production agreement and recurrence against the hand-calculated values; the [A2 example](../../../../examples/compare_saved_results.py) exports/reloads tables without training or a target feature.
 
 ## Hand calculations
 
@@ -25,4 +25,4 @@ For M02, Pearson's P02 cell is blank: **unscored, not zero and not worst-ranked*
 
 Pearson versus seed 42 therefore has common top-one overlap 0 and top-two overlap 1. Pearson versus seed 123 has common top-one overlap 1. A requested depth of five is bounded to two in this pool. Unavailable strict metrics are null, never zero.
 
-The A0 tests verify only the integrity of these fixtures using small independent standard-library calculations. They do not implement or validate the future production comparison engine.
+The A0 tests verify fixture integrity using independent standard-library calculations. Production A2 engine/bundle/CLI validation is kept in separate tests, preserving that independent reference. No HTML or measured-data profile is supplied by this fixture.

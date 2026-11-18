@@ -120,11 +120,20 @@ Run the test suite with:
 pytest
 ```
 
-## Saved-output comparison inputs (A1)
+## Saved-output comparison (A2, tables only)
 
-The lightweight [comparison API and schema](docs/COMPARISON_SCHEMA_V1.md) now load saved scores/ranks, validate identity and run configurations, build deterministic native/common rank views, and export/reload full-precision input bundles. Use the [validated synthetic manifest](tests/comparison/fixtures/demo-01/manifest.json) with the [saved-input example](examples/inspect_comparison_inputs.py); no training or checkpoints are needed.
+Compare two or more saved outputs—including two runs of one configuration—without training, scoring, checkpoints or network access. The lightweight [comparison API and schema](docs/COMPARISON_SCHEMA_V1.md) now provide full available ranks, coverage/exclusions, output-pair agreement, separate run recurrence, and dataset/query summaries. **No target metabolite or protein is required up front:** compare all declared queries under an explicit pool policy, inspect the overview, then select queries for detail.
 
-This is **phase A1 only**: agreement/recurrence metrics, comparison reports, profiles and comparison CLI commands remain later phases. Existing association and training workflows are unchanged.
+Run the [saved-comparison example](examples/compare_saved_results.py), or use the [manifest-driven CLI](src/valpas/cli.py:304) with the [validated synthetic manifest](tests/comparison/fixtures/demo-01/manifest.json):
+
+```sh
+PYTHONPATH=src python3 examples/compare_saved_results.py
+PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest.json --outdir demo-comparison --pool common --depths 1 2 5 --tables-only
+```
+
+The result bundle retains normalized saved values, stable content/settings identity, source fingerprints and complete machine-readable tables. It reloads without original sources/models. CSV data cells are JSON encoded; large detail tables are compressed. Existing destinations are refused by default; explicit overwrite is restricted to intact owned result bundles containing no consumed inputs or foreign files. The [A1 input inspection/export example](examples/inspect_comparison_inputs.py) remains available separately.
+
+**A2 does not generate HTML.** Offline browsing/basic profiles (A3), diagnostics, references, sessions and figures (B phases) remain future work. Agreement is not correctness; seed recurrence is not biological replication. Neither release is complete. Existing association and training workflows are unchanged, and B3 target-scale performance remains unverified.
 
 ## Troubleshooting
 

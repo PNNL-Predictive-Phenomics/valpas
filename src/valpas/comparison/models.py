@@ -344,12 +344,15 @@ class ComparisonInput:
     warnings: tuple = ()
     source_files: tuple = ()
 
+    source_fingerprints: tuple = ()
+
     def __post_init__(self):
         validate_descriptor(self.descriptor)
         object.__setattr__(self, "descriptor", freeze(self.descriptor))
         object.__setattr__(self, "pairs", freeze(self.pairs))
         object.__setattr__(self, "warnings", tuple(self.warnings))
         object.__setattr__(self, "source_files", tuple(self.source_files))
+        object.__setattr__(self, "source_fingerprints", freeze(self.source_fingerprints))
         # One validator for direct construction, file and structural adapters.
         from .adapters import _validate_pairs
         _validate_pairs(self)
@@ -397,6 +400,7 @@ class ComparisonManifest:
     outputs: tuple
     settings: ComparisonSettings
     compatibility: object
+    source_fingerprints: tuple = ()
 
 
 @dataclass(frozen=True)

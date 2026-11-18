@@ -2,6 +2,7 @@
 import csv
 import io
 import json
+import hashlib
 import math
 from collections.abc import Mapping
 from pathlib import Path
@@ -106,19 +107,30 @@ def _data_contract(d):
                 fail("data.symmetric", "symmetric expansion needs identical entity namespaces and axis sets", oid)
 
 
+def _read_fingerprinted(path, role, oid=None):
+    """Hash precisely the bytes parsed, not a later reopening of the source."""
+    try:
+        raw = path.read_bytes()
+        content = raw.decode("utf-8")
+    except (OSError, UnicodeError) as exc:
+        fail("data.path", "cannot read UTF-8 file: " + str(exc), oid)
+    return content, {"path": str(path.resolve()), "role": role,
+                     "sha256": hashlib.sha256(raw).hexdigest(), "size_bytes": len(raw)}
+
+
 def _payload(d, base):
     data, oid = d["data"], d["output_id"]
     _data_contract(d)
     if "inline" in data:
-        return data["inline"], ()
+        return data["inline"], (), ()
     path = _local_path(data["path"], base, "data.path", oid)
     fmt = data["format"]
     suffix = ".json" if fmt in ("json", "normalized") else "." + fmt
     if path.suffix.lower() != suffix:
         fail("data.path", "file extension must match declared safe format", oid)
-    content = _read(path, oid)
+    content, fingerprint = _read_fingerprinted(path, "output_data", oid)
     if fmt in ("json", "normalized"):
-        return _json(content, "data", oid), (str(path),)
+        return _json(content, "data", oid), (str(path),), (fingerprint,)
     try:
         rows = list(csv.reader(io.StringIO(content, newline=""), delimiter="," if fmt == "csv" else "\t", strict=True))
     except csv.Error as exc:
@@ -129,10 +141,10 @@ def _payload(d, base):
         fail("data", "duplicate header IDs/columns", oid)
     if d["representation"] in ("score_matrix", "legacy_score_count"):
         return {"row_ids": [r[0] for r in rows[1:]], "column_ids": rows[0][1:],
-                "values": [r[1:] for r in rows[1:]]}, (str(path),)
+                "values": [r[1:] for r in rows[1:]]}, (str(path),), (fingerprint,)
     if d["representation"] == "rank_permutation":
         fail("data.format", "permutations require JSON integer arrays", oid)
-    return {"records": [dict(zip(rows[0], r)) for r in rows[1:]]}, (str(path),)
+    return {"records": [dict(zip(rows[0], r)) for r in rows[1:]]}, (str(path),), (fingerprint,)
 
 
 def _insert(pairs, pair, value, oid):
@@ -325,7 +337,7 @@ def _validate_pairs(output):
 def load_comparison_input(descriptor, *, base_dir="."):
     """Load a v1 output descriptor; paths are contained within base_dir."""
     validate_descriptor(descriptor)
-    payload, sources = _payload(descriptor, base_dir)
+    payload, sources, fingerprints = _payload(descriptor, base_dir)
     rep = descriptor["representation"]
     if descriptor["data"]["format"] == "normalized":
         pairs = _records(descriptor, payload, normalized=True)
@@ -340,7 +352,7 @@ def load_comparison_input(descriptor, *, base_dir="."):
     if rep == "legacy_score_count":
         warnings = (Issue("data", "legacy scores may be rounded to five decimals; ranks use available precision",
                           "Re-export full-precision source matrices for exact original ordering.", descriptor["output_id"]),)
-    return ComparisonInput(descriptor, pairs, warnings, sources)
+    return ComparisonInput(descriptor, pairs, warnings, sources, fingerprints)
 
 
 def load_manifest(path):
@@ -348,7 +360,8 @@ def load_manifest(path):
     path = Path(path)
     if path.suffix.lower() != ".json" or not path.is_file():
         fail("manifest", "expected a local JSON manifest file")
-    data = _json(_read(path), "manifest")
+    content, fingerprint = _read_fingerprinted(path, "manifest")
+    data = _json(content, "manifest")
     keys(data, ("schema_version", "dataset", "outputs", "settings"), field="manifest")
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         fail("schema_version", "unsupported version")
@@ -360,7 +373,7 @@ def load_manifest(path):
     from .compatibility import validate_compatibility
     report = validate_compatibility(outputs, settings, dataset=data["dataset"])
     from .models import freeze
-    return ComparisonManifest(freeze(data["dataset"]), outputs, settings, report)
+    return ComparisonManifest(freeze(data["dataset"]), outputs, settings, report, freeze((fingerprint,)))
 
 
 def from_association_result(result, descriptor, *, query_axis, query_ids, candidate_ids):

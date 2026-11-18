@@ -1,6 +1,8 @@
-# Saved-output comparison inputs: schema v1 / phase A1
+# Saved-output comparison: schema v1 / phases A1–A2
 
-A1 provides validated **inputs, compatibility, ranking and pools**, not a comparison metric engine, report, or command. No training, association scoring, checkpoint loading, network access or annotation lookup occurs. The implementation and public imports use only the standard library; root lazy exports and existing CLI localization are preserved.
+A1 provides validated inputs, compatibility, ranking and pools. A2 adds **comparison metrics, overview tables, normalized result bundles and a tables-only CLI**. No training, association scoring, checkpoint loading, network access or annotation lookup occurs. The implementation and public imports use only the standard library; root lazy exports and existing CLI behavior are preserved.
+
+**Overview first:** no target metabolite or protein is required. Compare all declared queries under the chosen pool policy, inspect dataset/query summaries, then select queries for detailed inspection. These tables are foundations for a future dashboard and query drilldown, not an implemented browser or a commitment to particular plots.
 
 ## Public API
 
@@ -14,19 +16,24 @@ All names below are exported by [the comparison namespace](../src/valpas/compari
 | [ComparisonManifest](../src/valpas/comparison/models.py) | Dataset descriptor, tuple of normalized outputs, settings and compatibility report. |
 | [PairValue](../src/valpas/comparison/models.py) / [PairStatus](../src/valpas/comparison/models.py) | Raw score, optional count and supplied rank, plus explicit status and reason. |
 | [RankingPolicy](../src/valpas/comparison/models.py) / [PoolPolicy](../src/valpas/comparison/models.py) | Supported policy enums. String values are accepted by the validated contracts. |
-| [load_manifest()](../src/valpas/comparison/adapters.py:346) | Read local JSON, load only named data, validate identity/configuration. A1 permits one input for inspection/export; A2 orchestration will require at least two. |
-| [load_comparison_input()](../src/valpas/comparison/adapters.py:325) | Normalize one v1 descriptor; optional base directory defaults to the working directory. Does not assert cross-output compatibility by itself. |
-| [from_association_result()](../src/valpas/comparison/adapters.py:366) | Structural adapter for existing labeled values/counts; explicit query axis and exact ordered query/candidate selections required. Copies scalar values; never calls legacy save/list conversion or imports the result class. |
+| [load_manifest()](../src/valpas/comparison/adapters.py:358) | Read local JSON, fingerprint the bytes consumed, load only named data, validate identity/configuration. A1 permits one input for inspection/export; A2 orchestration requires at least two. |
+| [load_comparison_input()](../src/valpas/comparison/adapters.py:337) | Normalize one v1 descriptor; optional base directory defaults to the working directory. Does not assert cross-output compatibility by itself. |
+| [from_association_result()](../src/valpas/comparison/adapters.py:379) | Structural adapter for existing labeled values/counts; explicit query axis and exact ordered query/candidate selections required. Copies scalar values; never calls legacy save/list conversion or imports the result class. |
 | [validate_compatibility()](../src/valpas/comparison/compatibility.py:48) | Return configuration difference rows, configuration-to-run groups, identity status and persistent warning records. Known identity/configuration contradictions are errors. |
 | [rank_output()](../src/valpas/comparison/ranking.py:22) | One query's native ordinal order/ranks, all declared candidate statuses, certification and exhaustion flags. |
 | [top_list()](../src/valpas/comparison/ranking.py:60) | Return only a certified native prefix; reject unavailable query, arbitrary filtering, or insufficient saved depth. |
 | [build_pools()](../src/valpas/comparison/compatibility.py:148) | Validate compatibility and return per-query native/active orders and ranks, explicit pools, coverage, controlled availability and exclusion records. Does not calculate overlap or recurrence. |
 | [export_comparison_inputs()](../src/valpas/comparison/bundles.py:21) | Opt-in, full-precision detached input bundle. Accept normalized outputs, destination, optional dataset and settings. No overwrite mode. |
-| [load_input_bundle()](../src/valpas/comparison/bundles.py:94) | Check completed input-bundle inventory/checksums and reload without original input paths. Not the future A2 comparison-result bundle loader. |
+| [load_input_bundle()](../src/valpas/comparison/bundles.py:94) | Check completed A1 input-bundle inventory/checksums and reload without original input paths. Distinct from the A2 result-bundle loader. |
+| [compare_results()](../src/valpas/comparison/engine.py:238) | Accept a validated manifest or sequence of at least two normalized inputs, optional settings, and keyword dataset anchor. Two distinct runs of one configuration are valid. Return an immutable result over all queries under policy. |
+| [ComparisonResult](../src/valpas/comparison/engine.py:136) | Normalized inputs, settings, identity, fingerprints, warnings and compact summaries. Complete detail tables are generated query-by-query, not retained as expanded tables. |
+| [iter_table()](../src/valpas/comparison/engine.py:157) / [materialize_table()](../src/valpas/comparison/engine.py:167) | Iterate detached row dictionaries by table name; materialization defaults to at most 10,000 rows and errors rather than silently truncating. |
+| [write_comparison()](../src/valpas/comparison/report.py:220) | Accept a result and destination; tables-only defaults true, overwrite defaults false. Publish normalized inputs and complete scientific tables. HTML requests are rejected. |
+| [load_comparison_bundle()](../src/valpas/comparison/report.py:180) | Validate A2 completion, schemas, checksums, normalized identity and exact table parity. Reconstruct the result without original files or models. |
 
 Returned records also include [CompatibilityReport](../src/valpas/comparison/models.py), [RankView](../src/valpas/comparison/models.py), [Exclusion](../src/valpas/comparison/models.py), [QueryPool](../src/valpas/comparison/models.py) and [PoolResult](../src/valpas/comparison/models.py). Descriptors, nested metadata, pairs and returned scientific mappings are detached immutable mappings/tuples.
 
-Run [the saved-input example](../examples/inspect_comparison_inputs.py) from a source checkout. It loads [the validated demo manifest](../tests/comparison/fixtures/demo-01/manifest.json), prints native/common orders and strict availability, and can optionally export/reload an input bundle. The [A0 expected fixture](../tests/comparison/fixtures/demo-01/expected.json) remains the independent reference; no A2 metrics are asserted as implemented.
+Run [the A2 comparison example](../examples/compare_saved_results.py) from a source checkout for the complete load/compare/write/reload workflow. The [A1 input example](../examples/inspect_comparison_inputs.py) still demonstrates input inspection/export separately. Both use [the validated demo manifest](../tests/comparison/fixtures/demo-01/manifest.json). The [A0 expected fixture](../tests/comparison/fixtures/demo-01/expected.json) remains the independent mathematical reference used by the A2 engine tests.
 
 ## Manifest and strictness
 
@@ -76,7 +83,7 @@ Supported settings, all optional with defaults:
 | --- | --- |
 | pool_policy | strict; alternatives common and native_inspection. |
 | exclude_self | true, a JSON boolean. |
-| depths | [5, 10, 20]; nonempty distinct positive integers. Used to check prefix availability, not compute metrics. |
+| depths | [5, 10, 20]; nonempty distinct positive integers. A2 summary/nomination depths, each assessed independently for certification and effective pool size. |
 | attestations | Empty list. Every claim requires output_id, field, claimed_value, statement. |
 
 Attestable fields are dataset_evidence, observation_ids, context and configuration. Claims target an existing output and a specific missing field; no generic force flag. Claimed identity values obey that field's schema. A configuration claim supplies the entire complete non-seed configuration and cannot contradict known leaves. Duplicate, unused, wrong-target and already-known-field claims are errors. Known identity mismatches are checked across all outputs before claims are considered. Attestation warnings remain visible in the compatibility report; unknown configuration prevents isolated-method claims and seed grouping.
@@ -139,7 +146,7 @@ Strict requires equal query and per-query eligible candidate sets, aligned by ex
 
 Common intersects query identities and per-query eligible scorable candidate identities across every included output. It requires complete representations and errors on empty query or per-query candidate intersections. Active ranks are restrictions of saved native order, never newly fitted/scored values. Native ranks remain available. Every removed query is recorded for each output; every excluded candidate includes status/reason, including otherwise-scorable candidates excluded because another output lacks them. Coverage includes declared, eligible, scorable, retained and excluded counts and certification flags.
 
-Native inspection preserves independent universes and reports controlled unavailable with “different search spaces; descriptive only.” Unknown omissions remain explicit. A1 does not calculate even descriptive overlap metrics.
+Native inspection preserves independent universes and reports controlled unavailable with “different search spaces; descriptive only.” Unknown omissions remain explicit. A2 reports descriptive pairwise Jaccard and directional shared fractions only when both native lists are certified; it never invents a common overlap denominator.
 
 ## Detached input bundles and safety
 
@@ -149,12 +156,59 @@ Files are staged in a temporary sibling, then published to an exclusively reserv
 
 Reload verifies completion and exact consumed-file inventory/checksums. Checksums detect changes, not malicious provenance forgery. Inputs are local and may contain sensitive identifiers or metadata; bundles retain them verbatim, with no spreadsheet/display escaping. Never present bundle files as privacy-filtered report exports.
 
+## A2 scientific tables and denominators
+
+The exact ordered column contract is [TABLE_COLUMNS](../src/valpas/comparison/engine.py:347), also embedded in every result bundle. Ten tables are exported:
+
+| Table | Scope and interpretation |
+| --- | --- |
+| Output inventory | One row per saved output, with method/configuration/run, seed, representation, metadata, identity status and canonical content digest. |
+| Configuration differences | Field-level differences for every output pair; configuration differences prevent isolated-method interpretation. |
+| Dataset summary | Dataset identity, method/configuration/output counts, declared/included/excluded query counts and observation count. |
+| Query summary | One row per declared query/depth, including common-excluded queries; coverage and available/descriptive/unavailable pair counts, plus expected/assessed recurrence group counts. No run-pair average or consensus score. |
+| Agreement summary | One row per output-pair/depth; declared, policy-eligible, controlled-evaluable, descriptive and controlled-excluded query counts, exclusion reasons and min/Q1/median/Q3/max controlled overlap. Quartiles interpolate at the fraction times one less than the evaluable query count. |
+| Coverage | Per included query/output native and retained counts, certification/exhaustion, active pool size and query-level controlled availability. Depth-specific availability is in agreement/recurrence. |
+| Exclusions | Every policy exclusion or known non-scorable status with output/query/candidate and reason; query exclusions have a null candidate. |
+| Candidate ranks | Full available native/active/saved ranks, signed scores, counts and statuses, not just top nominations. Complete inputs include all declared candidate rows; common-excluded queries retain native ranks with no active rank. Limited inputs export known rows only; omission semantics remain in the normalized descriptors. |
+| Agreement | One row per included query/output-pair/requested depth, with classification, effective depth, list sizes, intersection, union, fractions and status/reason. |
+| Run recurrence | Separate per query/configuration/depth/candidate counts. Includes zero-nomination active candidates; a null-candidate sentinel discloses an empty group. Never pooled into method agreement. |
+
+Controlled overlap is intersection divided by effective depth; Jaccard is intersection divided by union. Effective depth is the smaller of requested depth and a certified exhausted pool size. Strict/common comparisons require cohort-wide comparability and depth certification, not merely a comparable pair. A too-deep prefix request does not invalidate a shallower request. Missing/unscored values and unavailable metrics are null, never zero or worst rank.
+
+Native inspection has no shared effective depth or controlled overlap fraction. Its directional fractions divide the intersection by each list's own size. Descriptive queries are counted separately and excluded from controlled distributions; a descriptive comparison is not a controlled comparison even if its lists happen to match.
+
+Recurrence groups require identical known or specifically attested non-seed configuration. The expected run denominator includes every declared run in the group. Missing or insufficiently certified runs remain visible as unavailable; known nominations/evaluable-run counts may still be shown, but no reduced-denominator recurrence fraction is substituted. One run is not assessed. Native-inspection recurrence fractions are unavailable. Seed runs are not biological replicates; agreement/recurrence is not correctness, confidence, reference recovery, or a best-method ranking.
+
+## A2 result bundles, identity and publication
+
+An A2 result bundle is distinct from an A1 input bundle. Its [completion record](../src/valpas/comparison/report.py:87) stores ownership kind, schema/software/policy versions, resolved settings, dataset scope, comparison ID, warnings, normalized descriptors, source fingerprints, table schemas/row counts and exact file inventory with SHA-256/byte counts. Gzip JSONL members contain explicit full-precision saved pair records; original completeness and implicit missing semantics remain in the descriptors. Candidate-rank, recurrence and exclusion CSV tables are gzip-compressed; the other tables are plain CSV. Original source files can be deleted after export; reload never opens recorded original paths.
+
+**CSV encoding:** headers are ordinary column names, but **every data cell is a JSON value**. Decode each cell as JSON after CSV parsing. This distinguishes null, empty strings, numbers, booleans and structured metadata without coercing exact IDs. Python's standard JSON encoder roundtrips saved binary float precision. These canonical files are machine-readable, not spreadsheet-safe or privacy-filtered exports; identifiers, metadata and original source paths may be sensitive.
+
+The comparison ID hashes canonical normalized IDs/values/statuses, scientific descriptors, resolved settings, dataset identity, and schema/policy/software versions. It is independent of input ordering, matrix-axis ordering, depth/attestation ordering, labels, descriptive provenance, source paths and export timestamps. Generic configuration arrays retain their declared order (for example architecture dimensions or training-input order); reordering them is not presumed semantically equivalent. Changing saved values, counts, missing statuses, scientific settings or run identity changes the ID. Raw source SHA-256 hashes cover exactly the bytes parsed and are separate provenance: rewriting a source file with equivalent formatting can change its raw digest without changing comparison identity. In-memory inputs receive canonical content hashes without pretending that file bytes existed.
+
+Reload validates member names, no symlink members, exact inventory, checksums, completion/schema/version, normalized contracts, comparison identity, warnings, and every table row against recomputed saved-value ranks/metrics. This recomputation is not fitting or association scoring. Version-one reload currently requires the same software/policy version; no migration is implemented. Checksums are integrity checks, not proof against forged provenance.
+
+Publication writes to a temporary sibling and writes completion last, then publishes by rename. Existing destinations, including empty directories, are refused by default. Explicit overwrite accepts only a fully validated owned A2 bundle with no foreign members, never a consumed-source directory, A1 bundle, symlink, or unrelated directory. The old bundle is moved to a sibling backup and restored on publication failure; exporter-owned staging is cleaned. A result loaded from a bundle cannot overwrite that supplying bundle. Use a new destination to re-export it. This is staged local publication with rollback, not a crash-durable filesystem transaction or protection against hostile concurrent modifications; a process crash during replacement may leave a sibling backup requiring recovery.
+
+## CLI and example workflow
+
+The [compare command](../src/valpas/cli.py:304) accepts required manifest/outdir, optional pool and positive-integer depths overrides, explicit tables-only (also the default), and safe overwrite. It calls the public loader, engine and writer; resolved overrides are persisted. Failures exit nonzero with field/reason/remediation rather than proceeding with partial scientific results. No target-query argument is required.
+
+From a source checkout, run the following command against the [demo manifest](../tests/comparison/fixtures/demo-01/manifest.json), choosing a new output directory:
+
+```sh
+PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest.json --outdir demo-comparison --pool common --depths 1 2 5 --tables-only
+```
+
+The [Python example](../examples/compare_saved_results.py) prints the overview before detail and checks roundtrip parity. Begin with dataset/query/agreement summaries, then inspect coverage, exclusions, pairwise agreement and separate run recurrence. No HTML is generated.
+
 ## Phase boundary and limitations
 
-- A2 metric orchestration, recurrence, summaries, stable comparison IDs and comparison-result bundles are not implemented. Input-bundle checksums do not claim to implement those features.
-- A3 reports/profiles/CLI, B1 diagnostics, B2 reference/session/figure features, and B3 production export hooks/packaging/scale checks remain unimplemented. No placeholder APIs for those phases are exported.
+- A2 provides metrics, normalized tables-only bundles and CLI/API; it does not complete Release A or Release B.
+- A3 HTML/browser/basic profiles, B1 diagnostics, B2 reference/session/figure features and export-query command, and B3 production export hooks/packaging/target-scale checks remain unimplemented. No placeholder APIs for those phases are exported.
 - NumPy loading is deliberately omitted; all required representations work with JSON/CSV/TSV and standard-library code.
 - The adapter reads structural labeled matrices; it does not introspect omics objects to guess namespaces or provenance. It requires explicit metadata and selections.
-- File loaders currently materialize a file's parsed contents, and complete inputs use per-pair Python records. Export writes records incrementally, but no target-scale memory/performance claim is made. Compact arrays, bounded processing and the planned scale measurement remain later work.
+- File loaders materialize parsed input contents and complete inputs use per-pair Python records. A2 processes detail tables one query at a time and streams export/reload validation; compact summaries scale with query/output-pair/depth counts. No giant expanded rank/exclusion/recurrence table is retained. A 20-query × 100-candidate × 3-output smoke test verifies 6,000 full-rank rows and streamed write/reload, not target-scale performance. The B3 1,000 × 5,000 × 8 measurement and compact input storage remain future work.
 - Bundle export is opt-in and separate from legacy production/save methods. Legacy filenames, behavior and precision are unchanged.
-- Earlier full-dependency legacy imports, documentation/Sphinx and cross-attention environmental follow-ups remain separate from A1 validation.
+- Earlier full-dependency legacy imports, documentation/Sphinx and cross-attention environmental follow-ups remain separate from comparison validation. No dependencies are installed or training suites run for A2.

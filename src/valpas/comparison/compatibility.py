@@ -146,6 +146,19 @@ def validate_compatibility(outputs, settings=None, *, dataset=None):
 
 
 def build_pools(outputs, settings=None):
+    """Materialize A1 pools; A2 uses the same query iterator without expansion."""
+    outputs = tuple(outputs)
+    settings = settings or ComparisonSettings()
+    report = validate_compatibility(outputs, settings)
+    queries, exclusions = {}, []
+    for pool, rows in _iter_pools(outputs, settings):
+        if pool is not None:
+            queries[pool.query_id] = pool
+        exclusions.extend(rows)
+    return PoolResult(settings.pool_policy, freeze(queries), tuple(exclusions), report)
+
+
+def _iter_pools(outputs, settings, *, depth_independent=False):
     """Build per-query native/active orders, statuses, coverage and exclusions.
 
     Strict finite-set gaps are unavailable, not errors or zeros. Common mode
@@ -153,7 +166,6 @@ def build_pools(outputs, settings=None):
     """
     outputs = tuple(outputs)
     settings = settings or ComparisonSettings()
-    report = validate_compatibility(outputs, settings)
     policy = settings.pool_policy
     if policy == "common" and any(not o.complete for o in outputs):
         fail("settings.pool_policy", "common reranking requires complete representations; truncated/filtered inputs prohibited",
@@ -166,13 +178,16 @@ def build_pools(outputs, settings=None):
     if policy == "common" and not shared_q:
         fail("query_ids", "empty common query cohort")
     queries = shared_q if policy == "common" else union_q
-    exclusions, results = [], {}
+    exclusions = []
     if policy == "common":
         for q in sorted(union_q - shared_q):
             for o in outputs:
                 exclusions.append(Exclusion(o.output_id, q, None, "missing_query" if q not in o.query_ids else "excluded_query",
                                             "query_not_shared_by_all_outputs"))
+    if exclusions:
+        yield None, tuple(exclusions)
     for q in sorted(queries):
+        exclusions = []
         native = {o.output_id: rank_output(o, q, exclude_self=settings.exclude_self) for o in outputs}
         eligible, scorable = {}, {}
         for o in outputs:
@@ -204,7 +219,7 @@ def build_pools(outputs, settings=None):
                                       for o in outputs]
                     if len({(c["pool_id"], c["pool_size"]) for c in certs}) != 1 or any(s != certified_sets[0] for s in certified_sets):
                         reason = "certified_native_pools_differ"
-                    elif any(any(min(k, c["pool_size"]) > c["depth"] for k in settings.depths) for c in certs):
+                    elif not depth_independent and any(any(min(k, c["pool_size"]) > c["depth"] for k in settings.depths) for c in certs):
                         reason = "insufficient_certified_depth"
             elif any(s != next(iter(scorable.values())) for s in scorable.values()):
                 reason = "scorable_candidate_sets_differ"
@@ -230,6 +245,5 @@ def build_pools(outputs, settings=None):
                     exclusions.append(Exclusion(oid, q, c, status, why or status))
                 elif policy == "common" and c not in common:
                     exclusions.append(Exclusion(oid, q, c, "excluded_from_common", "not_scorable_in_every_output"))
-        results[q] = QueryPool(q, freeze(native), freeze(active), freeze(ranks), freeze(pools),
-                               reason is None, reason, freeze(coverage))
-    return PoolResult(policy, freeze(results), tuple(exclusions), report)
+        yield (QueryPool(q, freeze(native), freeze(active), freeze(ranks), freeze(pools),
+                         reason is None, reason, freeze(coverage)), tuple(exclusions))

@@ -1,12 +1,14 @@
 # Implementation plan: within-dataset method comparison
 
-**Status:** A0 and A1 implemented. A1 focused validation: 51 tests, 48 passed and the same three dependency-blocked A0 legacy import checks skipped (see records below). A2–B3 remain unimplemented. A1 input bundles are not A2 comparison-result bundles or reports.
+**Status:** A0, A1 and A2 implemented. A2 focused validation: **89 tests, 86 passed, 3 existing missing-PyTorch legacy import skips** (see records below). A2 is tables-only; A3 and B1–B3 remain unimplemented. A1 input bundles and A2 result bundles are distinct. Neither Release A nor Release B is complete.
 
 **Requirements:** [development handoff](valpas_method_comparison_development.md). This plan turns that handoff into implementation increments and acceptance gates; the handoff remains the scientific specification. Both Release A and Release B are in scope. This work does not depend on completing CLI autoencoder training support.
 
 ## 1. Scope and invariants
 
 Build a local workspace for inspecting saved nominations from the same dataset. It compares outputs, not fitted model objects, and must distinguish methods, configurations, and runs.
+
+**Overview-first workflow:** no target metabolite/protein is required up front. Compare all declared queries under the explicit pool policy, inspect overall/query summaries, then drill into selected queries. A2 exports these foundations for a later dashboard/browser; suggested future plots are not implementation commitments or claims of existing UI.
 
 All increments preserve these invariants:
 
@@ -47,7 +49,7 @@ Implement the handoff's proposed contracts and API names in the new [comparison 
 
 Add narrowly scoped helpers for manifest loading, comparison-ready input export, and saved-bundle loading. The bundle loader is necessary for offline report regeneration, session validation, and figure export without original source paths. Finalize these helper names in A1 before documentation/examples depend on them.
 
-The locations above are proposed new files, not existing implementations.
+These are target contracts across phases, not a claim that all exist. A1/A2 implemented names are documented in the [schema/API reference](../docs/COMPARISON_SCHEMA_V1.md); profiles, references and figure APIs remain future work.
 
 ### Internal representation and scaling
 
@@ -70,7 +72,7 @@ Browser depth/output/filter controls operate within the exported scope. Hiding a
 
 ### CLI surface
 
-Add a manifest-driven **compare** command with required **--manifest** and **--outdir** options. Allow limited overrides for pool policy, interactive depth, tables-only export, and overwrite; record all resolved settings.
+The A2 [compare command](../src/valpas/cli.py:304) requires manifest and outdir, and supports pool policy, summary depths, tables-only export, and safe overwrite overrides. All resolved settings are recorded. Interactive depth controls belong to A3, not this tables-only CLI.
 
 Add **export-query** for a saved comparison bundle with explicit query/candidate, layer, and output destination. Both commands delegate to the public API. Training configuration and the earlier autoencoder CLI proposal are separate concerns.
 
@@ -148,6 +150,25 @@ Deliverables:
 8. CLI dispatch to the same loader/engine/writer used by Python, concise summaries, nonzero error exits, and actionable empty-common-pool errors.
 
 **Acceptance:** API and exported values agree; strict finite-score gaps produce unavailable controlled metrics; common ranks are restrictions of saved scores/order; missing runs are not silently removed from recurrence denominators; bundle reload reproduces numerical tables; interrupted output is never marked complete.
+
+#### A2 implementation and validation record
+
+Implemented 2026-11-18:
+
+- Public [compare_results()](../src/valpas/comparison/engine.py:238) and [ComparisonResult](../src/valpas/comparison/engine.py:136) accept a manifest or at least two normalized saved outputs, including two runs of one configuration. They compare all queries selected by policy without a target feature. Full native/active ranks (including native ranks for common-excluded queries), coverage/exclusions, pair classifications, agreement, separate run recurrence, configuration differences, and dataset/query/distribution summaries are available through bounded iterators/materialization.
+- Strict controlled availability remains cohort-wide. Prefix certification is assessed independently at each requested depth; exhausted shorter lists retain honest effective depth. Native unequal-list comparisons expose directional denominators and descriptive Jaccard, not controlled overlap. Missing runs retain the full expected denominator and unavailable recurrence fractions. No consensus, average across run pairs, best-method, correctness or biological-replication claim is made.
+- Query-wise [pool iteration](../src/valpas/comparison/compatibility.py:161) supports streamed detail export without retaining expanded rank/recurrence/exclusion tables. Existing A1 pool behavior is preserved. Compact summaries remain in memory; input parsing still uses Python pair objects.
+- [Adapters](../src/valpas/comparison/adapters.py:110) hash exactly the source bytes parsed. Canonical normalized hashes include IDs, values, counts, statuses and scientific metadata. Stable comparison identity additionally binds resolved settings and dataset/software/policy versions; transport paths, export timestamps, labels and equivalent axis/output/depth ordering do not define identity.
+- [write_comparison()](../src/valpas/comparison/report.py:220) exports normalized gzip JSONL inputs and ten exact-schema CSV tables, compressing long detail tables. Every CSV data cell is JSON encoded. Completion metadata contains inventory/checksums, source fingerprints, versions, scope, settings and warnings. [load_comparison_bundle()](../src/valpas/comparison/report.py:180) validates completion/schema/inventory, normalized content identity and exact table parity without original sources/models.
+- Staged sibling publication refuses existing destinations by default. Explicit overwrite fully validates an owned A2 bundle, rejects foreign files/symlinks/source containment, rechecks before mutation, and restores the old bundle if publication fails. A loaded bundle cannot overwrite itself. This is local rename publication with rollback, not crash-durable transactional storage or hostile-concurrency protection.
+- [CLI dispatch](../src/valpas/cli.py:332) delegates to public loader/engine/writer, records overrides, prints concise overview/warnings, and fails nonzero with actionable messages. Existing legacy handlers/science are unchanged. No HTML is generated.
+- Updated [schema/API guide](../docs/COMPARISON_SCHEMA_V1.md), [README](../README.md), [saved-input example](../examples/inspect_comparison_inputs.py), [fixture guide](../tests/comparison/fixtures/demo-01/README.md), and added the overview-first [comparison example](../examples/compare_saved_results.py).
+
+Validation with Python 3.12.3: standard-library unittest discovery over [comparison tests](../tests/comparison/) ran **89 tests: 86 passed, 3 skipped**. All **38 new A2 tests passed**: [16 scientific engine tests](../tests/comparison/test_a2_engine.py), [17 identity/persistence/safety tests](../tests/comparison/test_a2_persistence.py), and [5 CLI/API/import tests](../tests/comparison/test_a2_cli.py). Coverage includes the independent A0 expected calculations; native unequal lists; missing runs; deep prefix failures; full-rank/common-excluded-query retention; source-byte snapshot hashes; identity invariance/sensitivity; all-table/API parity; deleted-source reload; schema/inventory/content corruption; safe overwrite and injected staging/rename failure rollback; public CLI delegation/overrides/errors; and a fresh-process full A2 path blocking scientific/training imports while preserving warnings. The bounded **20 × 100 × 3** smoke workload exported/reloaded **6,000 rank rows** while forbidding materialized detail tables; it is not the B3 target-scale benchmark.
+
+Both saved-input and A2 comparison examples passed. A separate module-CLI invocation exported/reloaded the common-pool demo successfully using a temporary destination; generated bundles were cleaned up. Focused source/test/example compilation, Git whitespace checks and changed-file review passed. Final focused rerun: 89 tests in 10.231 seconds, 86 passed and 3 skipped.
+
+The three skips remain real legacy experiment/autoencoder imports blocked by missing PyTorch. Pytest remains unavailable; unittest-compatible tests require no installation. No training, new association scoring, checkpoints, network access, broad benchmarks or full training suites were used. Full-dependency legacy import, Sphinx/documentation-build and cross-attention follow-ups remain separate. A3 HTML/browser/profiles and all B-phase features remain unimplemented; no release-complete claim is made. Input compact-storage optimization, software-version migration, installed example/assets packaging and the B3 1,000 × 5,000 × 8 measurement remain unverified future work.
 
 ### A3 — Offline query browser and basic profiles: Release A gate
 

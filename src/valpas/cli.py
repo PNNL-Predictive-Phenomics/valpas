@@ -301,6 +301,20 @@ def main():
              "generated plot but not necessarily store it."
     )
 
+    p_compare = command_parsers.add_parser(
+        "compare", description="Compare saved outputs over all declared queries; A2 tables only, no training or HTML.")
+    p_compare.add_argument("--manifest", required=True, type=Path)
+    p_compare.add_argument("--outdir", required=True, type=Path)
+    p_compare.add_argument("--pool", choices=("strict", "common", "native_inspection"),
+                           help="Override the manifest pool policy.")
+    p_compare.add_argument("--depths", nargs="+", type=int,
+                           help="Override requested positive integer summary depths.")
+    p_compare.add_argument("--tables-only", action="store_true",
+                           help="Explicit A2 mode (also the default); HTML is not implemented.")
+    p_compare.add_argument("--overwrite", action="store_true",
+                           help="Replace only an intact owned A2 bundle containing no consumed inputs.")
+    p_compare.set_defaults(func=compare)
+
     # small check if a command / subparser has been passed to valpas.py
     # if not then the help will be printed (this is not standard
     # behaviour in argparse for what ever reason...)
@@ -314,6 +328,37 @@ def main():
     except ValueError as e:
         sys.exit(e)
     args.func(args)
+
+def compare(args):
+    """Manifest CLI delegates all science and persistence to the public API."""
+    from valpas.comparison import (ComparisonSettings, load_manifest, compare_results,
+                                   write_comparison)
+    try:
+        manifest = load_manifest(args.manifest)
+        resolved = manifest.settings.to_dict()
+        if args.pool is not None:
+            resolved["pool_policy"] = args.pool
+        if args.depths is not None:
+            resolved["depths"] = args.depths
+        result = compare_results(manifest, ComparisonSettings.from_dict(resolved))
+        destination = write_comparison(result, args.outdir, tables_only=True, overwrite=args.overwrite)
+        summary = result.materialize_table("dataset_summary")[0]
+        print(f"Comparison {result.comparison_id}: {summary['methods']} methods, "
+              f"{summary['configurations']} configurations, {summary['outputs']} outputs; "
+              f"{summary['included_queries']}/{summary['declared_queries']} queries; pool={summary['pool_policy']}.")
+        evaluable, excluded = 0, 0
+        for row in result.iter_table("agreement_summary"):
+            evaluable += row["evaluable_queries"]
+            excluded += row["excluded_queries"]
+        print(f"Controlled evaluable query/pair/depth records: {evaluable}; "
+              f"excluded from controlled summaries: {excluded}.")
+        for reason in sorted({w.reason for w in result.warnings}):
+            print("Warning: " + reason, file=sys.stderr)
+        print(f"Tables-only bundle: {destination} (no HTML report).")
+    except (ValueError, OSError) as exc:
+        print("compare: " + str(exc), file=sys.stderr)
+        raise SystemExit(2) from None
+
 
 # TODO: make this call the valpas_core function for associate to keep things
 #       neat and tidy. Currently the CLI and API have different behavior.

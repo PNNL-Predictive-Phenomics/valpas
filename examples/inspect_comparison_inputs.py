@@ -1,4 +1,4 @@
-"""A1 saved-input demo: no fitting, metrics, report or new CLI command.
+"""A1 saved-input demo: input inspection/export only, no fitting or metrics.
 
 From the repository: PYTHONPATH=src python3 examples/inspect_comparison_inputs.py
 Optionally pass a new destination directory to export/reload an input bundle.
@@ -32,7 +32,7 @@ def main():
         reloaded = load_input_bundle(destination)
         assert [o.pairs for o in reloaded.outputs] == [o.pairs for o in manifest.outputs]
         print("Full-precision input bundle reloaded:", destination)
-    print("A1 only: agreement metrics, recurrence, report and comparison CLI remain later phases.")
+    print("Input inspection only; compare_saved_results.py demonstrates A2 metrics and tables-only bundles.")
 
 
 if __name__ == "__main__":
