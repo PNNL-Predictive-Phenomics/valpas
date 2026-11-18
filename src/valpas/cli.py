@@ -302,17 +302,25 @@ def main():
     )
 
     p_compare = command_parsers.add_parser(
-        "compare", description="Compare saved outputs over all declared queries; A2 tables only, no training or HTML.")
-    p_compare.add_argument("--manifest", required=True, type=Path)
+        "compare", description="Compare saved outputs: offline HTML and complete tables, no training.")
+    source = p_compare.add_mutually_exclusive_group(required=True)
+    source.add_argument("--manifest", type=Path)
+    source.add_argument("--bundle", type=Path, help="Regenerate from a completed comparison bundle without original inputs.")
     p_compare.add_argument("--outdir", required=True, type=Path)
     p_compare.add_argument("--pool", choices=("strict", "common", "native_inspection"),
                            help="Override the manifest pool policy.")
     p_compare.add_argument("--depths", nargs="+", type=int,
                            help="Override requested positive integer summary depths.")
     p_compare.add_argument("--tables-only", action="store_true",
-                           help="Explicit A2 mode (also the default); HTML is not implemented.")
+                           help="Export complete tables without the HTML report.")
+    p_compare.add_argument("--report-query", action="append", help="Canonical query ID to embed; repeat for a subset.")
+    p_compare.add_argument("--pin-candidate", action="append", help="Canonical candidate ID to embed beyond top unions; repeatable.")
+    p_compare.add_argument("--max-interactive-depth", type=int)
+    p_compare.add_argument("--max-payload-bytes", type=int)
+    p_compare.add_argument("--omit-metadata", action="store_true", default=None,
+                           help="Omit optional metadata/profiles from HTML only; full bundle remains sensitive.")
     p_compare.add_argument("--overwrite", action="store_true",
-                           help="Replace only an intact owned A2 bundle containing no consumed inputs.")
+                           help="Replace only an intact owned comparison bundle containing no consumed inputs.")
     p_compare.set_defaults(func=compare)
 
     # small check if a command / subparser has been passed to valpas.py
@@ -331,17 +339,30 @@ def main():
 
 def compare(args):
     """Manifest CLI delegates all science and persistence to the public API."""
-    from valpas.comparison import (ComparisonSettings, load_manifest, compare_results,
-                                   write_comparison)
+    from valpas.comparison import (ComparisonSettings, ReportSettings, load_manifest, compare_results,
+                                   write_comparison, load_comparison_bundle)
     try:
-        manifest = load_manifest(args.manifest)
-        resolved = manifest.settings.to_dict()
-        if args.pool is not None:
-            resolved["pool_policy"] = args.pool
-        if args.depths is not None:
-            resolved["depths"] = args.depths
-        result = compare_results(manifest, ComparisonSettings.from_dict(resolved))
-        destination = write_comparison(result, args.outdir, tables_only=True, overwrite=args.overwrite)
+        if args.bundle:
+            if args.pool is not None or args.depths is not None:
+                raise ValueError("--bundle preserves analysis settings; use report options for re-export")
+            result = load_comparison_bundle(args.bundle)
+        else:
+            manifest = load_manifest(args.manifest)
+            resolved = manifest.settings.to_dict()
+            if args.pool is not None:
+                resolved["pool_policy"] = args.pool
+            if args.depths is not None:
+                resolved["depths"] = args.depths
+            result = compare_results(manifest, ComparisonSettings.from_dict(resolved))
+        report = (result.report_settings or ReportSettings()).to_dict()
+        for arg, key in (("report_query", "query_ids"), ("pin_candidate", "pinned_candidate_ids"),
+                         ("max_interactive_depth", "max_interactive_depth"),
+                         ("max_payload_bytes", "max_payload_bytes"), ("omit_metadata", "omit_metadata")):
+            value = getattr(args, arg)
+            if value is not None:
+                report[key] = value
+        destination = write_comparison(result, args.outdir, tables_only=args.tables_only,
+                                       overwrite=args.overwrite, report_settings=ReportSettings.from_dict(report))
         summary = result.materialize_table("dataset_summary")[0]
         print(f"Comparison {result.comparison_id}: {summary['methods']} methods, "
               f"{summary['configurations']} configurations, {summary['outputs']} outputs; "
@@ -354,7 +375,8 @@ def compare(args):
               f"excluded from controlled summaries: {excluded}.")
         for reason in sorted({w.reason for w in result.warnings}):
             print("Warning: " + reason, file=sys.stderr)
-        print(f"Tables-only bundle: {destination} (no HTML report).")
+        print(f"Tables-only bundle: {destination} (no HTML report)." if args.tables_only else
+              f"Offline report: {destination / 'report.html'} (open directly from disk); complete tables alongside.")
     except (ValueError, OSError) as exc:
         print("compare: " + str(exc), file=sys.stderr)
         raise SystemExit(2) from None

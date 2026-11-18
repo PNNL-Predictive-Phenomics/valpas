@@ -401,6 +401,8 @@ class ComparisonManifest:
     settings: ComparisonSettings
     compatibility: object
     source_fingerprints: tuple = ()
+    profiles: object = None
+    report_settings: object = None
 
 
 @dataclass(frozen=True)

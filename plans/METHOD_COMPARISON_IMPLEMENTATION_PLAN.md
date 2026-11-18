@@ -1,6 +1,6 @@
 # Implementation plan: within-dataset method comparison
 
-**Status:** A0, A1 and A2 implemented. A2 focused validation: **89 tests, 86 passed, 3 existing missing-PyTorch legacy import skips** (see records below). A2 is tables-only; A3 and B1–B3 remain unimplemented. A1 input bundles and A2 result bundles are distinct. Neither Release A nor Release B is complete.
+**Status:** A0–A3 implemented: Release A offline comparison workflow is usable. Focused validation: **134 tests, 131 passed, 3 existing missing-PyTorch legacy import skips**. Direct-file Chrome interaction passed. Wheel/sdist build verification is blocked by absent optional build tooling; copied-package resource lookup outside the workspace passed. **B1–B3 remain unfinished; Release B is not complete.** A1 input bundles and result bundles are distinct; new result bundles use v2 with A2 v1 reload support. See the A3 record below for evidence and limits.
 
 **Requirements:** [development handoff](valpas_method_comparison_development.md). This plan turns that handoff into implementation increments and acceptance gates; the handoff remains the scientific specification. Both Release A and Release B are in scope. This work does not depend on completing CLI autoencoder training support.
 
@@ -8,7 +8,7 @@
 
 Build a local workspace for inspecting saved nominations from the same dataset. It compares outputs, not fitted model objects, and must distinguish methods, configurations, and runs.
 
-**Overview-first workflow:** no target metabolite/protein is required up front. Compare all declared queries under the explicit pool policy, inspect overall/query summaries, then drill into selected queries. A2 exports these foundations for a later dashboard/browser; suggested future plots are not implementation commitments or claims of existing UI.
+**Overview-first workflow:** no target metabolite/protein is required up front. Compare all declared queries under the explicit pool policy, inspect overall/query summaries, then drill into selected queries. A3 implements output-pair agreement heatmap tiles and a depth chart with evaluable denominators, separate run recurrence, and query/candidate/profile drilldown.
 
 All increments preserve these invariants:
 
@@ -49,7 +49,7 @@ Implement the handoff's proposed contracts and API names in the new [comparison 
 
 Add narrowly scoped helpers for manifest loading, comparison-ready input export, and saved-bundle loading. The bundle loader is necessary for offline report regeneration, session validation, and figure export without original source paths. Finalize these helper names in A1 before documentation/examples depend on them.
 
-These are target contracts across phases, not a claim that all exist. A1/A2 implemented names are documented in the [schema/API reference](../docs/COMPARISON_SCHEMA_V1.md); profiles, references and figure APIs remain future work.
+These are target contracts across phases, not a claim that all exist. Implemented names are documented in the [schema/API reference](../docs/COMPARISON_SCHEMA_V1.md) and [Release A guide](../docs/COMPARISON_RELEASE_A.md). A3 adds validated profiles/report settings; reference and figure APIs remain future work.
 
 ### Internal representation and scaling
 
@@ -72,7 +72,7 @@ Browser depth/output/filter controls operate within the exported scope. Hiding a
 
 ### CLI surface
 
-The A2 [compare command](../src/valpas/cli.py:304) requires manifest and outdir, and supports pool policy, summary depths, tables-only export, and safe overwrite overrides. All resolved settings are recorded. Interactive depth controls belong to A3, not this tables-only CLI.
+The [compare command](../src/valpas/cli.py:304) accepts a manifest or saved result bundle and an output directory. A3 defaults to offline HTML plus full tables and supports report query/pin/depth/budget/metadata controls, tables-only export, source-free regeneration and safe overwrite. Manifest analysis pool/summary-depth overrides remain separate from report settings. All resolved settings are recorded.
 
 Add **export-query** for a saved comparison bundle with explicit query/candidate, layer, and output destination. Both commands delegate to the public API. Training configuration and the earlier autoencoder CLI proposal are separate concerns.
 
@@ -188,6 +188,17 @@ Deliverables:
 **Acceptance:** direct-file offline interaction works; displayed numbers match tables; filters do not change scientific denominators; no-profile mode is usable; malicious labels cannot execute; size-limit failures provide actionable alternatives.
 
 **Release A is usable here, but B1–B3 remain unfinished.**
+
+#### A3 implementation and validation record
+
+- Implemented standard-library [profile contracts](../src/valpas/comparison/profiles.py), [bounded report view](../src/valpas/comparison/browser.py), [versioned publication/reload](../src/valpas/comparison/report.py), and packaged vanilla [dashboard assets](../src/valpas/comparison/assets/dashboard.js). No heavy imports, models, scoring, remote loads or new mandatory dependencies.
+- HTML defaults on in API/CLI, with explicit tables-only. Whole-cohort overview survives report detail subsets. All ten A2 scientific tables and comparison identity remain unchanged by profiles/report settings. Optional profile tables retain complete values/coverage. Result schema v2 stores report settings, normalized profiles, report-view payload and HTML; v1 result reload is tested. Profile and report-view documents use independent v1 schemas.
+- Heatmap/depth selections, searchable/sortable queries, canonical candidate union/pins/search, output visibility and observed/imputed SVG plots are implemented. Original masks, exact alignment, extra-observation exclusions, unknown/missing/constant/near-empty disclosures and algorithm-layer relationships remain explicit. No links, spreadsheet-safe copies or B1/B2 features were added.
+- Default payload budget is 50 MiB of escaped JSON before HTML wrapping; oversized reports fail before publication without sampling, preserving existing bundles. Scope is explicit and does not change scientific pools. Metadata omission is HTML-only, not anonymization; complete bundles remain sensitive.
+- Python 3.12.3 focused suite: **134 tests, 131 passed, 3 existing torch-related skips**, including the preserved 22 single-modality tests and 23 new A3 tests. Tests cover mask/alignment failures, parity, exact IDs/security, source deletion, regeneration, corruption, budget rollback, CLI/API, same/cross-modality, fixture validation and outside-workspace resource lookup. Existing A2 assertions were changed only for HTML default and the newly supported result schema version.
+- **Actual Chrome 157.0.8103.80 direct-file headless interaction passed**, without server or installed automation dependencies, with external hostname resolution disabled and a connection-blocking document policy. Covered overview, chart drilldown, query/candidate search, sorting, depth/output controls, pins, scatter/profiles/hover data, malicious labels, no-profile mode, detail subsets and metadata omission. This is not cross-browser, pixel-level or accessibility certification; a manual checklist is in the [guide](../docs/COMPARISON_RELEASE_A.md).
+- Compilation, the runnable saved-comparison example and diff whitespace check passed. Resource loading from a copied package in an external temporary working directory passed. **Wheel/sdist build/install remains unverified:** build, hatchling, hatch-vcs and wheel are absent; no dependencies were installed. Packaging configuration includes source assets and the source-distribution guide/examples/fixtures. Sphinx rendering and full training tests were not run.
+- Limitations: JSON-only profile transport; payload built in memory before serialized-size check; whole-cohort report data scales with queries/output pairs/depths; no target-scale benchmark or production-performance claim. UI pins are transient, not portable sessions. B1–B3 stay incomplete.
 
 ### B1 — Sample metadata, grouping summaries, influence diagnostics
 

@@ -188,6 +188,7 @@ User guide
    :maxdepth: 1
 
    user_guide
+   comparison
 
 =============
 API Reference

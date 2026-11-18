@@ -25,4 +25,10 @@ For M02, Pearson's P02 cell is blank: **unscored, not zero and not worst-ranked*
 
 Pearson versus seed 42 therefore has common top-one overlap 0 and top-two overlap 1. Pearson versus seed 123 has common top-one overlap 1. A requested depth of five is bounded to two in this pool. Unavailable strict metrics are null, never zero.
 
-The A0 tests verify fixture integrity using independent standard-library calculations. Production A2 engine/bundle/CLI validation is kept in separate tests, preserving that independent reference. No HTML or measured-data profile is supplied by this fixture.
+The A0 tests verify fixture integrity using independent standard-library calculations. Production engine/bundle/CLI validation is kept in separate tests, preserving that independent reference. The original manifest remains a no-profile example.
+
+## A3 offline browser and optional synthetic profiles
+
+The [profile manifest](manifest-with-profiles.json) adds the [explicit JSON layers](profiles.json) without changing the original fixture or scores. These synthetic illustration values are **not the scoring layer** and explicitly declare a different relationship to every output. Two originally missing samples include one finite imputed value and one null; four jointly observed points remain. Duplicate display labels demonstrate canonical-ID disambiguation.
+
+Use either manifest with the [Release A CLI](../../../../docs/COMPARISON_RELEASE_A.md) to produce single-file offline HTML and complete tables. No-profile mode retains all agreement/rank functionality. Profile arrays are saved once per layer/feature and reload after source deletion. The [A3 tests](../../test_a3_report.py) and [real offline browser smoke](../../test_a3_browser.py) validate parity, masks, security, payload rejection and interaction.

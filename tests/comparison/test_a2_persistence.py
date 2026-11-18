@@ -50,7 +50,7 @@ class PersistenceCase(unittest.TestCase):
 
     def test_roundtrip_all_tables_and_exact_csv_cells(self):
         result = compare_results(load_manifest(FIXTURE / 'manifest.json'))
-        path = write_comparison(result, self.root / 'bundle')
+        path = write_comparison(result, self.root / 'bundle', tables_only=True)
         loaded = load_comparison_bundle(path)
         self.assert_tables_equal(result, loaded)
         self.assertEqual(result.source_fingerprints, loaded.source_fingerprints)
@@ -162,7 +162,7 @@ class PersistenceCase(unittest.TestCase):
             self.assertNotEqual(compare_results(base.outputs, settings).comparison_id, base.comparison_id)
 
     def test_completion_schema_inventory_and_table_corruption_rejected(self):
-        mutations = [lambda m: m.update(complete=False), lambda m: m.update(schema_version=2),
+        mutations = [lambda m: m.update(complete=False), lambda m: m.update(schema_version=999),
                      lambda m: m.update(software_version='unsupported-version'),
                      lambda m: m['normalized_inputs'][0]['descriptor'].update(data=None),
                      lambda m: m.update(kind='valpas-comparison-input'),

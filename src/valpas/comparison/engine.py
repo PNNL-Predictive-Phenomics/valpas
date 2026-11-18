@@ -150,14 +150,24 @@ class ComparisonResult:
     warnings: tuple
     summaries: object
 
+    profiles: object = None
+    report_settings: object = None
+
+    @property
+    def table_columns(self):
+        from .profiles import PROFILE_COLUMNS
+        return {**TABLE_COLUMNS, **(PROFILE_COLUMNS if self.profiles is not None else {})}
+
     @property
     def table_names(self):
-        return tuple(TABLE_COLUMNS)
+        return tuple(self.table_columns)
 
     def iter_table(self, name):
-        if name not in TABLE_COLUMNS:
+        if name not in self.table_columns:
             fail("table", "unknown table: " + str(name))
-        if name in self.summaries:
+        if name not in TABLE_COLUMNS:
+            yield from self.profiles.iter_table(name, self.dataset, self.outputs)
+        elif name in self.summaries:
             for row in self.summaries[name]:
                 yield thaw(row)
         else:
@@ -234,7 +244,7 @@ def _pool_size(output, pool, policy):
     return len(pool.active_orders[output.output_id]) if pool.native[output.output_id].certified else None
 
 
-def compare_results(inputs, settings=None, *, dataset=None):
+def compare_results(inputs, settings=None, *, dataset=None, profiles=None):
     """Compare >=2 saved outputs over all queries selected by the pool policy.
 
     A ComparisonManifest retains its dataset anchor and consumed manifest hash.
@@ -242,10 +252,13 @@ def compare_results(inputs, settings=None, *, dataset=None):
     an explicit dataset anchor is supplied. No target feature is required.
     """
     sources = ()
+    report_settings = None
     if isinstance(inputs, ComparisonManifest):
         settings = settings or inputs.settings
         dataset = inputs.dataset if dataset is None else dataset
         sources = inputs.source_fingerprints
+        profiles = inputs.profiles if profiles is None else profiles
+        report_settings = inputs.report_settings
         inputs = inputs.outputs
     outputs = tuple(sorted(inputs, key=lambda o: o.output_id))
     if len(outputs) < 2:
@@ -269,6 +282,12 @@ def compare_results(inputs, settings=None, *, dataset=None):
                 "dataset": _identity(dataset), "settings": resolved, "inputs": fingerprints}
     cid = "cmp-v1-" + hashlib.sha256(canonical_json(identity).encode("utf-8")).hexdigest()
     sources = tuple(sources) + tuple(freeze({**thaw(f), "output_id": o.output_id}) for o in outputs for f in o.source_fingerprints)
+    if profiles is not None:
+        from .profiles import ProfileData
+        if not isinstance(profiles, ProfileData):
+            fail("profiles", "expected validated ProfileData")
+        profiles.validate_binding(dataset, outputs)
+        sources += tuple(profiles.source_fingerprints)
     protected = tuple(sorted({f["path"] for f in sources} | {p for o in outputs for p in o.source_files}))
     # The dataset anchor duplicates output identity checks; do not add a
     # transport-dependent warning when an implicit anchor is persisted explicitly.
@@ -277,7 +296,7 @@ def compare_results(inputs, settings=None, *, dataset=None):
                               freeze(sources), protected, warnings, freeze({}))
     summaries = _summarize(result)
     return ComparisonResult(outputs, settings, dataset, report, cid, freeze(fingerprints),
-                            freeze(sources), protected, warnings, freeze(summaries))
+                            freeze(sources), protected, warnings, freeze(summaries), profiles, report_settings)
 
 
 def _summarize(result):

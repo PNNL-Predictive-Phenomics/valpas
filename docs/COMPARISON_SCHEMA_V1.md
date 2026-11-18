@@ -1,8 +1,8 @@
-# Saved-output comparison: schema v1 / phases A1–A2
+# Saved-output comparison: input/scientific schema v1 / Release A
 
-A1 provides validated inputs, compatibility, ranking and pools. A2 adds **comparison metrics, overview tables, normalized result bundles and a tables-only CLI**. No training, association scoring, checkpoint loading, network access or annotation lookup occurs. The implementation and public imports use only the standard library; root lazy exports and existing CLI behavior are preserved.
+A1 provides validated inputs, compatibility, ranking and pools. A2 adds comparison metrics, overview tables and normalized result bundles. A3 adds **offline HTML, optional original-mask profiles and source-free report regeneration**. Input/scientific schemas remain v1; new result bundles are v2, with A2 v1 reload support. See the [Release A quick start and profile/report contract](COMPARISON_RELEASE_A.md). No training, association scoring, checkpoint loading, network access or annotation lookup occurs. The implementation and public imports use only the standard library; root lazy exports and existing CLI behavior are preserved.
 
-**Overview first:** no target metabolite or protein is required. Compare all declared queries under the chosen pool policy, inspect dataset/query summaries, then select queries for detailed inspection. These tables are foundations for a future dashboard and query drilldown, not an implemented browser or a commitment to particular plots.
+**Overview first:** no target metabolite or protein is required. Compare all declared queries under the chosen pool policy, inspect dataset/query summaries and the offline agreement/recurrence dashboard, then select queries and candidates for detailed inspection. Report filters never redefine scientific pools.
 
 ## Public API
 
@@ -28,7 +28,7 @@ All names below are exported by [the comparison namespace](../src/valpas/compari
 | [compare_results()](../src/valpas/comparison/engine.py:238) | Accept a validated manifest or sequence of at least two normalized inputs, optional settings, and keyword dataset anchor. Two distinct runs of one configuration are valid. Return an immutable result over all queries under policy. |
 | [ComparisonResult](../src/valpas/comparison/engine.py:136) | Normalized inputs, settings, identity, fingerprints, warnings and compact summaries. Complete detail tables are generated query-by-query, not retained as expanded tables. |
 | [iter_table()](../src/valpas/comparison/engine.py:157) / [materialize_table()](../src/valpas/comparison/engine.py:167) | Iterate detached row dictionaries by table name; materialization defaults to at most 10,000 rows and errors rather than silently truncating. |
-| [write_comparison()](../src/valpas/comparison/report.py:220) | Accept a result and destination; tables-only defaults true, overwrite defaults false. Publish normalized inputs and complete scientific tables. HTML requests are rejected. |
+| [write_comparison()](../src/valpas/comparison/report.py:282) | Accept a result and destination; HTML plus complete tables is default, overwrite defaults false. Optional validated report settings control detail scope and payload limits, not analysis. Explicit tables-only remains supported. |
 | [load_comparison_bundle()](../src/valpas/comparison/report.py:180) | Validate A2 completion, schemas, checksums, normalized identity and exact table parity. Reconstruct the result without original files or models. |
 
 Returned records also include [CompatibilityReport](../src/valpas/comparison/models.py), [RankView](../src/valpas/comparison/models.py), [Exclusion](../src/valpas/comparison/models.py), [QueryPool](../src/valpas/comparison/models.py) and [PoolResult](../src/valpas/comparison/models.py). Descriptors, nested metadata, pairs and returned scientific mappings are detached immutable mappings/tuples.
@@ -37,7 +37,7 @@ Run [the A2 comparison example](../examples/compare_saved_results.py) from a sou
 
 ## Manifest and strictness
 
-The top-level JSON object requires exactly: schema_version (integer 1, not boolean), dataset, outputs (nonempty array), settings (object). Other sections are rejected in A1, including future profiles/references/report options; they are not silently accepted as implemented.
+The top-level JSON object requires: schema_version (integer 1, not boolean), dataset, outputs (nonempty array), settings (object). A3 permits optional profiles and report sections, validated under the [Release A contract](COMPARISON_RELEASE_A.md). References and other unsupported sections remain rejected, not silently accepted as implemented.
 
 All contract objects reject unknown keys, including nested identity, namespace, evidence, completeness certificates, input options, settings and attestations. JSON duplicate keys and nonstandard NaN/Infinity constants are errors. Scientific parameters/preprocessing are intentionally **open finite-JSON metadata maps**, not executable algorithm settings: arbitrary method-specific keys are preserved, not applied or claimed to be validated against a training API. Non-seed maps may not contain seed/random_seed/random_state at any nesting level.
 
@@ -148,6 +148,18 @@ Common intersects query identities and per-query eligible scorable candidate ide
 
 Native inspection preserves independent universes and reports controlled unavailable with “different search spaces; descriptive only.” Unknown omissions remain explicit. A2 reports descriptive pairwise Jaccard and directional shared fractions only when both native lists are certified; it never invents a common overlap denominator.
 
+## Single modality: protein abundance or gene expression alone
+
+No modality split or second omics layer is required. Compare **at least two saved association-score/rank outputs** from the same protein-abundance dataset or the same gene-expression dataset (different methods/configurations, or distinct runs of one configuration). An abundance/expression measurement matrix alone is not a comparison input: A1–A2 do not compute associations or train models.
+
+- Declare the **same namespace on both axes**, in the manifest dataset and every output identity. A namespace has exactly two nonempty, case-sensitive strings: [`id` and `modality`](../src/valpas/comparison/models.py:121). For example, use ID “protein-feature-ids-v1” with modality “proteomics” on both axes, or ID “gene-feature-ids-v1” with modality “transcriptomics” on both axes. These are user-declared strings, not an inferred or enumerated vocabulary. Equality requires **both fields**; extra namespace fields such as species/version/label are rejected. Entity IDs must also match exactly to identify a self edge. Display labels, provenance and training-feature metadata are not part of the self-edge predicate; dataset/source evidence, observation set, context and namespaces still undergo separate cross-output compatibility validation. Supply the full descriptor metadata described above; shared-configuration runs require identical complete non-seed metadata and distinct run IDs.
+- Declare labeled query/candidate axes and an explicit [`orientation`](../src/valpas/comparison/models.py:194), even for an N × N square matrix: “query_rows_candidate_columns” or “candidate_rows_query_columns”. Labels permit axis reordering, but square shape cannot detect an incorrectly declared transpose. Same-namespace rectangular query/candidate subsets also work; strict mode requires equal query sets and per-query eligible candidate sets **across outputs**, not equality of the two axes within an output. Common mode intersects the declared query/scorable candidate pools.
+- [`exclude_self`](../src/valpas/comparison/models.py:264) defaults to true. For a fully scored same-namespace N × N matrix, each query has N−1 ranked candidates and effective depth is at most N−1 (smaller when scores/candidates are missing). Diagonals remain visible with self-edge exclusion status and no active rank; setting this option false permits scored self pairs. **Both directional nominations are preserved:** A → B in A's ranking and B → A in B's ranking are distinct, even for symmetric scores; there is no global undirected deduplication. Signed scores remain unchanged under absolute-value ranking.
+- Missing off-diagonal scores need an explicit missing policy. Strict mode makes affected-query controlled metrics unavailable when scorable sets differ; common mode removes that candidate for that query and reranks, without automatically removing the reciprocal nomination. Recurrence uses all declared runs in its configuration denominator, never a reduced denominator for missing runs.
+- Prefer full saved matrices or the detached [`from_association_result()` adapter](../src/valpas/comparison/adapters.py:379), which accepts labeled pandas values/counts with explicit axis selections, including a single-modality result whose second omic is absent. It does not call legacy save/list methods, infer metadata, mutate the source, or import the result class. Declare count semantics when counts exist. For a known symmetric legacy triangular score/count export, opt into [`symmetric`](../src/valpas/comparison/adapters.py:242) expansion with equal axis sets/namespaces and declared unscored blanks; otherwise the omitted reverse scores stay missing. Expansion restores reported reciprocals, not lost precision or dropped axes.
+
+[Single-modality regression tests](../tests/comparison/test_single_modality.py) exercise protein-only and gene-only signed square outputs, rectangular subsets, missing scores/runs, exact namespace identity, explicit transposes/reordering, legacy symmetry, pandas structural adaptation, hand-calculated metric denominators, full A1/A2 bundle roundtrips and saved-CSV CLI manifests. The four-entity, three-output square case retains 48 full candidate rows (36 ranked off-diagonal rows and 12 excluded diagonal rows); requested depth 9 becomes 3. These are deterministic saved-output checks, **not evidence of real training or biological correctness**. A3 HTML/browser remains unimplemented.
+
 ## Detached input bundles and safety
 
 The exporter writes generated numeric JSON member names, a portable [manifest](../tests/comparison/fixtures/demo-01/manifest.json)-shaped descriptor, and an input-bundle marker with schema, ownership kind, completion flag and SHA-256 inventory. Float serialization roundtrips Python binary float values, including signed zero; there is no legacy five-decimal formatting. Full available pair records, status/eligibility metadata, supplied ranks, configuration and attestations survive reload. Original representation and missing semantics are retained. Legacy precision warnings are regenerated on reload.
@@ -193,7 +205,7 @@ Publication writes to a temporary sibling and writes completion last, then publi
 
 ## CLI and example workflow
 
-The [compare command](../src/valpas/cli.py:304) accepts required manifest/outdir, optional pool and positive-integer depths overrides, explicit tables-only (also the default), and safe overwrite. It calls the public loader, engine and writer; resolved overrides are persisted. Failures exit nonzero with field/reason/remediation rather than proceeding with partial scientific results. No target-query argument is required.
+The [compare command](../src/valpas/cli.py:304) accepts an input manifest or saved result bundle, required outdir, report scope/pin/depth/budget controls, optional manifest analysis pool/depth overrides, explicit tables-only, and safe overwrite. HTML is the default. It calls the public loader, engine and writer; resolved overrides are persisted. Failures exit nonzero with field/reason/remediation rather than proceeding with partial scientific results. No target-query argument is required. See the [Release A guide](COMPARISON_RELEASE_A.md) for all options and regeneration.
 
 From a source checkout, run the following command against the [demo manifest](../tests/comparison/fixtures/demo-01/manifest.json), choosing a new output directory:
 
@@ -201,12 +213,12 @@ From a source checkout, run the following command against the [demo manifest](..
 PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest.json --outdir demo-comparison --pool common --depths 1 2 5 --tables-only
 ```
 
-The [Python example](../examples/compare_saved_results.py) prints the overview before detail and checks roundtrip parity. Begin with dataset/query/agreement summaries, then inspect coverage, exclusions, pairwise agreement and separate run recurrence. No HTML is generated.
+The [Python example](../examples/compare_saved_results.py) prints the overview before detail, writes HTML and checks roundtrip parity. Begin with dataset/query/agreement summaries, then inspect coverage, exclusions, pairwise agreement and separate run recurrence. The explicit tables-only command above omits HTML.
 
 ## Phase boundary and limitations
 
-- A2 provides metrics, normalized tables-only bundles and CLI/API; it does not complete Release A or Release B.
-- A3 HTML/browser/basic profiles, B1 diagnostics, B2 reference/session/figure features and export-query command, and B3 production export hooks/packaging/target-scale checks remain unimplemented. No placeholder APIs for those phases are exported.
+- A3 completes the Release A offline browser/basic-profile workflow; B1–B3 remain unfinished.
+- B1 diagnostics, B2 reference/session/figure features and export-query command, and B3 production export hooks/target-scale checks remain unimplemented. No placeholder APIs for those phases are exported. Build verification is blocked when optional build tooling is absent; packaged resources are exercised from a copied package outside the workspace.
 - NumPy loading is deliberately omitted; all required representations work with JSON/CSV/TSV and standard-library code.
 - The adapter reads structural labeled matrices; it does not introspect omics objects to guess namespaces or provenance. It requires explicit metadata and selections.
 - File loaders materialize parsed input contents and complete inputs use per-pair Python records. A2 processes detail tables one query at a time and streams export/reload validation; compact summaries scale with query/output-pair/depth counts. No giant expanded rank/exclusion/recurrence table is retained. A 20-query × 100-candidate × 3-output smoke test verifies 6,000 full-rank rows and streamed write/reload, not target-scale performance. The B3 1,000 × 5,000 × 8 measurement and compact input storage remain future work.

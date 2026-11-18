@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "layers": [
+    {
+      "layer_id": "measured",
+      "dataset": {
+        "dataset_id": "demo-01",
+        "observation_ids": [
+          "S01",
+          "S02",
+          "S03",
+          "S04",
+          "S05",
+          "S06"
+        ],
+        "query_namespace": {
+          "id": "demo-metabolites",
+          "modality": "metabolomics"
+        },
+        "candidate_namespace": {
+          "id": "demo-proteins",
+          "modality": "proteomics"
+        },
+        "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+        "dataset_evidence": {
+          "type": "attestation",
+          "source": "synthetic:valpas:a0:demo-01",
+          "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+          "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+        }
+      },
+      "orientation": "feature_rows_observation_columns",
+      "observation_ids": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06"
+      ],
+      "units": "synthetic abundance",
+      "transform": "none",
+      "provenance": "Synthetic values, not the scoring layer",
+      "raw_unimputed": false,
+      "mask_source": "explicit_original",
+      "subset_extra_observations": false,
+      "algorithm_layers": {
+        "ae-seed-123": "different",
+        "ae-seed-42": "different",
+        "pearson-run": "different"
+      },
+      "features": [
+        {
+          "namespace": {
+            "id": "demo-metabolites",
+            "modality": "metabolomics"
+          },
+          "feature_id": "M01",
+          "label": "Shared label",
+          "annotations": "synthetic annotation",
+          "values": [
+            1,
+            2,
+            99,
+            4,
+            null,
+            6
+          ],
+          "observed": [
+            true,
+            true,
+            false,
+            true,
+            false,
+            true
+          ]
+        },
+        {
+          "namespace": {
+            "id": "demo-metabolites",
+            "modality": "metabolomics"
+          },
+          "feature_id": "M02",
+          "label": "Shared label",
+          "annotations": "synthetic annotation",
+          "values": [
+            1,
+            2,
+            99,
+            4,
+            null,
+            6
+          ],
+          "observed": [
+            true,
+            true,
+            false,
+            true,
+            false,
+            true
+          ]
+        },
+        {
+          "namespace": {
+            "id": "demo-proteins",
+            "modality": "proteomics"
+          },
+          "feature_id": "P01",
+          "label": "Shared label",
+          "annotations": "synthetic annotation",
+          "values": [
+            1,
+            2,
+            99,
+            4,
+            null,
+            6
+          ],
+          "observed": [
+            true,
+            true,
+            false,
+            true,
+            false,
+            true
+          ]
+        },
+        {
+          "namespace": {
+            "id": "demo-proteins",
+            "modality": "proteomics"
+          },
+          "feature_id": "P02",
+          "label": "Shared label",
+          "annotations": "synthetic annotation",
+          "values": [
+            1,
+            2,
+            99,
+            4,
+            null,
+            6
+          ],
+          "observed": [
+            true,
+            true,
+            false,
+            true,
+            false,
+            true
+          ]
+        },
+        {
+          "namespace": {
+            "id": "demo-proteins",
+            "modality": "proteomics"
+          },
+          "feature_id": "P03",
+          "label": "Shared label",
+          "annotations": "synthetic annotation",
+          "values": [
+            1,
+            2,
+            99,
+            4,
+            null,
+            6
+          ],
+          "observed": [
+            true,
+            true,
+            false,
+            true,
+            false,
+            true
+          ]
+        }
+      ]
+    }
+  ]
+}

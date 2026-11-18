@@ -1,8 +1,8 @@
-"""A2 overview-first saved-output comparison; no target feature or training.
+"""Release A overview-first saved-output comparison; no target feature or training.
 
 From a source checkout:
     PYTHONPATH=src python3 examples/compare_saved_results.py
-Optionally supply a NEW output directory to retain the tables-only bundle.
+Optionally supply a NEW output directory to retain the offline HTML and tables.
 Without a destination, a temporary bundle is written/reloaded and cleaned up.
 The source-checkout fixture is not claimed as an installed B3 package asset.
 """
@@ -34,14 +34,15 @@ def demonstrate(destination, policy):
     print("Agreement is not correctness or a best-method recommendation.")
     for issue in result.warnings:
         print("Warning:", issue.output_id, issue.reason)
-    path = write_comparison(result, destination, tables_only=True)
+    path = write_comparison(result, destination)
     restored = load_comparison_bundle(path)
     assert restored.comparison_id == result.comparison_id
     for name in result.table_names:
         assert list(restored.iter_table(name)) == list(result.iter_table(name)), name
     print("All ten scientific tables reproduce from normalized saved values:", path)
     print("CSV data cells are JSON encoded; large detail tables are gzip compressed.")
-    print("A2 tables only: no HTML, profiles, diagnostics, references, sessions or figures.")
+    print("Open directly from disk:", path / "report.html")
+    print("This example has no profiles. B1/B2 diagnostics, references, sessions and figures remain unfinished.")
 
 
 def main():

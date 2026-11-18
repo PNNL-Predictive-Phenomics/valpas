@@ -1,0 +1,371 @@
+{
+  "schema_version": 1,
+  "dataset": {
+    "dataset_id": "demo-01",
+    "observation_ids": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06"
+    ],
+    "query_namespace": {
+      "id": "demo-metabolites",
+      "modality": "metabolomics"
+    },
+    "candidate_namespace": {
+      "id": "demo-proteins",
+      "modality": "proteomics"
+    },
+    "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+    "dataset_evidence": {
+      "type": "attestation",
+      "source": "synthetic:valpas:a0:demo-01",
+      "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+      "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+    }
+  },
+  "outputs": [
+    {
+      "schema_version": 1,
+      "output_id": "pearson-run",
+      "method_id": "pearson",
+      "configuration_id": "pearson-base",
+      "run_id": "pearson-run",
+      "seed": null,
+      "label": "pearson-run",
+      "identity": {
+        "dataset_id": "demo-01",
+        "observation_ids": [
+          "S01",
+          "S02",
+          "S03",
+          "S04",
+          "S05",
+          "S06"
+        ],
+        "query_namespace": {
+          "id": "demo-metabolites",
+          "modality": "metabolomics"
+        },
+        "candidate_namespace": {
+          "id": "demo-proteins",
+          "modality": "proteomics"
+        },
+        "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+        "dataset_evidence": {
+          "type": "attestation",
+          "source": "synthetic:valpas:a0:demo-01",
+          "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+          "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+        }
+      },
+      "configuration": {
+        "parameters": {
+          "missing_values": "pairwise_complete",
+          "minimum_joint_observations": 3
+        },
+        "preprocessing": {
+          "transform": "none",
+          "imputation": "none"
+        },
+        "score_semantics": "signed_pearson_correlation",
+        "supervision": "none",
+        "observation_selection": "all_declared_observations",
+        "training_features": {
+          "namespace": {
+            "id": "demo-combined-features",
+            "modality": "multiomics"
+          },
+          "ids": [
+            "M01",
+            "M02",
+            "P01",
+            "P02",
+            "P03"
+          ]
+        }
+      },
+      "provenance": {
+        "software": "hand-authored A0 fixture",
+        "source": "synthetic:valpas:a0:demo-01",
+        "limitations": "Illustrative scores, not measured correlations or trained model outputs. Configuration records describe hypothetical runs only. This is test scaffolding, not the A1 manifest schema."
+      },
+      "query_ids": [
+        "M01",
+        "M02"
+      ],
+      "candidate_ids": [
+        "P01",
+        "P02",
+        "P03"
+      ],
+      "orientation": "query_rows_candidate_columns",
+      "representation": "score_matrix",
+      "ranking_policy": "absolute_descending",
+      "tie_policy": "canonical_candidate_id_unicode_ascending",
+      "completeness": {
+        "kind": "complete"
+      },
+      "missing_policy": {
+        "blank": "unscored",
+        "nan": "reject",
+        "absent": "reject"
+      },
+      "data": {
+        "format": "csv",
+        "path": "pearson-run.csv"
+      }
+    },
+    {
+      "schema_version": 1,
+      "output_id": "ae-seed-42",
+      "method_id": "autoencoder",
+      "configuration_id": "ae-base",
+      "run_id": "ae-seed-42",
+      "seed": 42,
+      "label": "ae-seed-42",
+      "identity": {
+        "dataset_id": "demo-01",
+        "observation_ids": [
+          "S01",
+          "S02",
+          "S03",
+          "S04",
+          "S05",
+          "S06"
+        ],
+        "query_namespace": {
+          "id": "demo-metabolites",
+          "modality": "metabolomics"
+        },
+        "candidate_namespace": {
+          "id": "demo-proteins",
+          "modality": "proteomics"
+        },
+        "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+        "dataset_evidence": {
+          "type": "attestation",
+          "source": "synthetic:valpas:a0:demo-01",
+          "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+          "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+        }
+      },
+      "configuration": {
+        "parameters": {
+          "protein_embedding_dim": 16,
+          "sample_embedding_dim": 8,
+          "hidden_dims": [
+            32,
+            16
+          ],
+          "epochs": 3,
+          "learning_rate": 0.001,
+          "mask_probability": 0.15,
+          "scaling_method": "robust",
+          "device": "cpu",
+          "validation_split": 0.2,
+          "early_stopping_patience": 0,
+          "min_delta": 1e-05,
+          "contrastive_args": null,
+          "modality_split": 3,
+          "use_vae": false,
+          "cross_modal_mask_ratio": 0.0,
+          "kl_weight": 0.001,
+          "norm_reg_weight": 0.0,
+          "curriculum_masking": null,
+          "row_mask_ratio": 0.0,
+          "cosine_aux_weight": 0.0,
+          "cosine_aux_args": null,
+          "cross_attention_args": null,
+          "extra_kwargs": {}
+        },
+        "preprocessing": {
+          "scaling_method": "robust",
+          "imputation": "none"
+        },
+        "score_semantics": "protein_embedding_cosine_similarity",
+        "supervision": "none",
+        "observation_selection": "all_declared_observations",
+        "training_features": {
+          "namespace": {
+            "id": "demo-combined-features",
+            "modality": "multiomics"
+          },
+          "ids": [
+            "P01",
+            "P02",
+            "P03",
+            "M01",
+            "M02"
+          ]
+        }
+      },
+      "provenance": {
+        "software": "hand-authored A0 fixture",
+        "source": "synthetic:valpas:a0:demo-01",
+        "limitations": "Illustrative scores, not measured correlations or trained model outputs. Configuration records describe hypothetical runs only. This is test scaffolding, not the A1 manifest schema."
+      },
+      "query_ids": [
+        "M01",
+        "M02"
+      ],
+      "candidate_ids": [
+        "P01",
+        "P02",
+        "P03"
+      ],
+      "orientation": "query_rows_candidate_columns",
+      "representation": "score_matrix",
+      "ranking_policy": "native_descending",
+      "tie_policy": "canonical_candidate_id_unicode_ascending",
+      "completeness": {
+        "kind": "complete"
+      },
+      "missing_policy": {
+        "blank": "unscored",
+        "nan": "reject",
+        "absent": "reject"
+      },
+      "data": {
+        "format": "csv",
+        "path": "ae-seed-42.csv"
+      }
+    },
+    {
+      "schema_version": 1,
+      "output_id": "ae-seed-123",
+      "method_id": "autoencoder",
+      "configuration_id": "ae-base",
+      "run_id": "ae-seed-123",
+      "seed": 123,
+      "label": "ae-seed-123",
+      "identity": {
+        "dataset_id": "demo-01",
+        "observation_ids": [
+          "S01",
+          "S02",
+          "S03",
+          "S04",
+          "S05",
+          "S06"
+        ],
+        "query_namespace": {
+          "id": "demo-metabolites",
+          "modality": "metabolomics"
+        },
+        "candidate_namespace": {
+          "id": "demo-proteins",
+          "modality": "proteomics"
+        },
+        "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+        "dataset_evidence": {
+          "type": "attestation",
+          "source": "synthetic:valpas:a0:demo-01",
+          "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+          "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+        }
+      },
+      "configuration": {
+        "parameters": {
+          "protein_embedding_dim": 16,
+          "sample_embedding_dim": 8,
+          "hidden_dims": [
+            32,
+            16
+          ],
+          "epochs": 3,
+          "learning_rate": 0.001,
+          "mask_probability": 0.15,
+          "scaling_method": "robust",
+          "device": "cpu",
+          "validation_split": 0.2,
+          "early_stopping_patience": 0,
+          "min_delta": 1e-05,
+          "contrastive_args": null,
+          "modality_split": 3,
+          "use_vae": false,
+          "cross_modal_mask_ratio": 0.0,
+          "kl_weight": 0.001,
+          "norm_reg_weight": 0.0,
+          "curriculum_masking": null,
+          "row_mask_ratio": 0.0,
+          "cosine_aux_weight": 0.0,
+          "cosine_aux_args": null,
+          "cross_attention_args": null,
+          "extra_kwargs": {}
+        },
+        "preprocessing": {
+          "scaling_method": "robust",
+          "imputation": "none"
+        },
+        "score_semantics": "protein_embedding_cosine_similarity",
+        "supervision": "none",
+        "observation_selection": "all_declared_observations",
+        "training_features": {
+          "namespace": {
+            "id": "demo-combined-features",
+            "modality": "multiomics"
+          },
+          "ids": [
+            "P01",
+            "P02",
+            "P03",
+            "M01",
+            "M02"
+          ]
+        }
+      },
+      "provenance": {
+        "software": "hand-authored A0 fixture",
+        "source": "synthetic:valpas:a0:demo-01",
+        "limitations": "Illustrative scores, not measured correlations or trained model outputs. Configuration records describe hypothetical runs only. This is test scaffolding, not the A1 manifest schema."
+      },
+      "query_ids": [
+        "M01",
+        "M02"
+      ],
+      "candidate_ids": [
+        "P01",
+        "P02",
+        "P03"
+      ],
+      "orientation": "query_rows_candidate_columns",
+      "representation": "score_matrix",
+      "ranking_policy": "native_descending",
+      "tie_policy": "canonical_candidate_id_unicode_ascending",
+      "completeness": {
+        "kind": "complete"
+      },
+      "missing_policy": {
+        "blank": "unscored",
+        "nan": "reject",
+        "absent": "reject"
+      },
+      "data": {
+        "format": "csv",
+        "path": "ae-seed-123.csv"
+      }
+    }
+  ],
+  "settings": {
+    "pool_policy": "strict",
+    "exclude_self": true,
+    "depths": [
+      5,
+      10,
+      20
+    ],
+    "attestations": []
+  },
+  "profiles": {
+    "path": "profiles.json"
+  },
+  "report": {
+    "max_interactive_depth": 5,
+    "pinned_candidate_ids": [
+      "P03"
+    ]
+  }
+}

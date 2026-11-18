@@ -362,7 +362,7 @@ def load_manifest(path):
         fail("manifest", "expected a local JSON manifest file")
     content, fingerprint = _read_fingerprinted(path, "manifest")
     data = _json(content, "manifest")
-    keys(data, ("schema_version", "dataset", "outputs", "settings"), field="manifest")
+    keys(data, ("schema_version", "dataset", "outputs", "settings"), ("profiles", "report"), field="manifest")
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         fail("schema_version", "unsupported version")
     validate_identity(data["dataset"])
@@ -373,7 +373,13 @@ def load_manifest(path):
     from .compatibility import validate_compatibility
     report = validate_compatibility(outputs, settings, dataset=data["dataset"])
     from .models import freeze
-    return ComparisonManifest(freeze(data["dataset"]), outputs, settings, report, freeze((fingerprint,)))
+    from .profiles import load_profile_data
+    from .browser import ReportSettings
+    profiles = load_profile_data(data["profiles"], base_dir=path.parent) if "profiles" in data else None
+    if profiles is not None:
+        profiles.validate_binding(data["dataset"], outputs)
+    report_settings = ReportSettings.from_dict(data.get("report", {}))
+    return ComparisonManifest(freeze(data["dataset"]), outputs, settings, report, freeze((fingerprint,)), profiles, report_settings)
 
 
 def from_association_result(result, descriptor, *, query_axis, query_ids, candidate_ids):

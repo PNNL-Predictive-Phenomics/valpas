@@ -4,6 +4,8 @@ VaLPAS (Variation-Leveraged Phenomic Association Study) identifies associations 
 
 This guide is the central user-facing reference for selecting a method, preparing inputs, configuring the autoencoder, and interpreting outputs. For API signatures, see the [online API reference](https://pnnl-predictive-phenomics.github.io/valpas/). For an interactive walkthrough, see the [demonstration notebook](../notebooks/valpas_demonstration.ipynb).
 
+For comparing **saved outputs without training**, start with the [Release A offline comparison guide](COMPARISON_RELEASE_A.md). It provides CLI-first no-profile and profile-enabled examples, an overview-first browser, scope limits, complete scientific exports and source-free regeneration. No target query, server or network is required.
+
 ## Contents
 
 - [Installation](#installation)

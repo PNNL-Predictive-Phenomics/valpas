@@ -120,7 +120,7 @@ Run the test suite with:
 pytest
 ```
 
-## Saved-output comparison (A2, tables only)
+## Saved-output comparison (Release A: offline browser and tables)
 
 Compare two or more saved outputs—including two runs of one configuration—without training, scoring, checkpoints or network access. The lightweight [comparison API and schema](docs/COMPARISON_SCHEMA_V1.md) now provide full available ranks, coverage/exclusions, output-pair agreement, separate run recurrence, and dataset/query summaries. **No target metabolite or protein is required up front:** compare all declared queries under an explicit pool policy, inspect the overview, then select queries for detail.
 
@@ -128,12 +128,14 @@ Run the [saved-comparison example](examples/compare_saved_results.py), or use th
 
 ```sh
 PYTHONPATH=src python3 examples/compare_saved_results.py
-PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest.json --outdir demo-comparison --pool common --depths 1 2 5 --tables-only
+PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest.json --outdir demo-comparison --pool common --depths 1 2 5
 ```
 
 The result bundle retains normalized saved values, stable content/settings identity, source fingerprints and complete machine-readable tables. It reloads without original sources/models. CSV data cells are JSON encoded; large detail tables are compressed. Existing destinations are refused by default; explicit overwrite is restricted to intact owned result bundles containing no consumed inputs or foreign files. The [A1 input inspection/export example](examples/inspect_comparison_inputs.py) remains available separately.
 
-**A2 does not generate HTML.** Offline browsing/basic profiles (A3), diagnostics, references, sessions and figures (B phases) remain future work. Agreement is not correctness; seed recurrence is not biological replication. Neither release is complete. Existing association and training workflows are unchanged, and B3 target-scale performance remains unverified.
+Open the generated single-file HTML directly from disk: no server, network or browser filesystem permission is needed. The [Release A quick start](docs/COMPARISON_RELEASE_A.md) covers overview heatmaps/depth charts, separate recurrence, searchable query/candidate drilldown, optional original-mask profiles, 50 MiB report limits, metadata omission and source-free regeneration. HTML is now the default; explicit tables-only remains available. Use the [profile-enabled manifest](tests/comparison/fixtures/demo-01/manifest-with-profiles.json) for synthetic profile examples.
+
+Agreement is not correctness; seed recurrence is not biological replication. B1–B3 diagnostics, references, sessions, publication figures, production hooks and target-scale validation remain unfinished. Existing association and training workflows are unchanged.
 
 ## Troubleshooting
 

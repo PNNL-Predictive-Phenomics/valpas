@@ -57,7 +57,17 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "src/valpas/_version.py"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/valpas"]
+
 [tool.hatch.build.targets.sdist]
 include = [
     "/src",
+    "/README.md",
+    "/LICENSE",
+    "/docs/COMPARISON_RELEASE_A.md",
+    "/docs/COMPARISON_SCHEMA_V1.md",
+    "/examples/compare_saved_results.py",
+    "/examples/inspect_comparison_inputs.py",
+    "/tests/comparison/fixtures/demo-01",
 ]

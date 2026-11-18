@@ -52,7 +52,9 @@ class CliCase(unittest.TestCase):
         loader.assert_called_once_with(FIXTURE / 'manifest.json')
         engine.assert_called_once()
         writer.assert_called_once()
-        self.assertEqual(writer.call_args.kwargs, {'tables_only': True, 'overwrite': False})
+        self.assertFalse(writer.call_args.kwargs['tables_only'])
+        self.assertFalse(writer.call_args.kwargs['overwrite'])
+        self.assertEqual(writer.call_args.kwargs['report_settings'].max_interactive_depth, 50)
 
     def test_cli_failures_nonzero_actionable_without_tracebacks(self):
         empty = json.loads((FIXTURE / 'manifest.json').read_text())
