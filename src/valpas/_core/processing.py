@@ -67,8 +67,8 @@ def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
 
     Notes
     -----
-    NA values in the DataFrame passed to the function will automatically
-    be cast to 'False' / 0.
+    Missing values (including input zeros) remain missing in the returned
+    floating-point truth table; they are not treated as observed absences.
 
     Thresholding is done relative to the values recorded in the rows,
     i.e.
@@ -102,7 +102,7 @@ def _threshold_df(df: pd.DataFrame, threshold_rel: float=0.5) -> pd.DataFrame:
     df_ret = (
         df
         .ge(s_thresh, axis='index') # check if cell satisfies the threshold
-        .astype(int) # casts the boolean returned by `.gt()` to int(0,1)
+        .astype(float) # 0/1 with a dtype that can also preserve missing values
         )
     df_ret.mask(df.isna(), df, inplace=True)
 
