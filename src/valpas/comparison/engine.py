@@ -7,7 +7,7 @@ from collections import Counter
 
 from valpas import __version__
 from .models import (ComparisonManifest, ComparisonSettings, fail, freeze, thaw,
-                     integer)
+                     integer, validate_b1)
 from .compatibility import validate_compatibility, _iter_pools
 from .ranking import rank_output
 
@@ -152,11 +152,18 @@ class ComparisonResult:
 
     profiles: object = None
     report_settings: object = None
+    sample_metadata: object = None
+    diagnostic_requests: tuple = ()
+
+    def __post_init__(self):
+        object.__setattr__(self, "diagnostic_requests", validate_b1(
+            self.dataset, self.outputs, self.profiles, self.sample_metadata, self.diagnostic_requests))
 
     @property
     def table_columns(self):
         from .profiles import PROFILE_COLUMNS
-        return {**TABLE_COLUMNS, **(PROFILE_COLUMNS if self.profiles is not None else {})}
+        return {**TABLE_COLUMNS, **(PROFILE_COLUMNS if self.profiles is not None else {}),
+                **b1_columns(self.sample_metadata is not None, self.diagnostic_requests)}
 
     @property
     def table_names(self):
@@ -165,7 +172,11 @@ class ComparisonResult:
     def iter_table(self, name):
         if name not in self.table_columns:
             fail("table", "unknown table: " + str(name))
-        if name not in TABLE_COLUMNS:
+        if name == "sample_metadata":
+            yield from self.sample_metadata.iter_table(self.dataset)
+        elif name in ("diagnostics", "group_summaries"):
+            yield from self._iter_diagnostics(name)
+        elif name not in TABLE_COLUMNS:
             yield from self.profiles.iter_table(name, self.dataset, self.outputs)
         elif name in self.summaries:
             for row in self.summaries[name]:
@@ -173,6 +184,30 @@ class ComparisonResult:
         else:
             for table, row in self.iter_detail_tables({name}):
                 yield row
+
+    def _iter_diagnostics(self, name):
+        from .diagnostics import covariance_diagnostic, group_summary
+        from .profiles import feature_key
+        layers = {layer["layer_id"]: layer for layer in self.profiles.layers}
+        seen = set()
+        for request in self.diagnostic_requests:
+            layer = layers[request.layer_id]
+            if name == "diagnostics":
+                scope = {k: getattr(request, k) for k in
+                         ("query_id", "candidate_id", "layer_id", "h", "omission")}
+                yield {**scope, "result": covariance_diagnostic(layer, self.dataset,
+                    request.query_id, request.candidate_id, h=request.h, omission=request.omission)}
+            elif request.group_field is not None:
+                for role, fid in (("query", request.query_id), ("candidate", request.candidate_id)):
+                    ns = self.dataset[role + "_namespace"]
+                    key = (request.layer_id, feature_key(ns, fid), request.group_field, request.include_fraction)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    yield {"layer_id": request.layer_id, "namespace": thaw(ns), "feature_id": fid,
+                           "field": request.group_field, "include_fraction": request.include_fraction,
+                           "result": group_summary(layer, self.dataset, self.sample_metadata, ns, fid,
+                               request.group_field, include_fraction=request.include_fraction)}
 
     def materialize_table(self, name, *, max_rows=10000):
         integer(max_rows, "max_rows", minimum=1)
@@ -244,12 +279,16 @@ def _pool_size(output, pool, policy):
     return len(pool.active_orders[output.output_id]) if pool.native[output.output_id].certified else None
 
 
-def compare_results(inputs, settings=None, *, dataset=None, profiles=None):
+def compare_results(inputs, settings=None, *, dataset=None, profiles=None,
+                    sample_metadata=None, diagnostic_requests=()):
     """Compare >=2 saved outputs over all queries selected by the pool policy.
 
     A ComparisonManifest retains its dataset anchor and consumed manifest hash.
     Passing a sequence instead uses the first canonical output's identity unless
     an explicit dataset anchor is supplied. No target feature is required.
+    Metadata and requested diagnostics are descriptive, excluded from identity
+    and scientific tables. The default empty tuple inherits manifest requests;
+    an explicit empty list clears them. No diagnostics are computed eagerly.
     """
     sources = ()
     report_settings = None
@@ -259,6 +298,8 @@ def compare_results(inputs, settings=None, *, dataset=None, profiles=None):
         sources = inputs.source_fingerprints
         profiles = inputs.profiles if profiles is None else profiles
         report_settings = inputs.report_settings
+        sample_metadata = inputs.sample_metadata if sample_metadata is None else sample_metadata
+        diagnostic_requests = inputs.diagnostic_requests if diagnostic_requests == () else diagnostic_requests
         inputs = inputs.outputs
     outputs = tuple(sorted(inputs, key=lambda o: o.output_id))
     if len(outputs) < 2:
@@ -288,6 +329,9 @@ def compare_results(inputs, settings=None, *, dataset=None, profiles=None):
             fail("profiles", "expected validated ProfileData")
         profiles.validate_binding(dataset, outputs)
         sources += tuple(profiles.source_fingerprints)
+    diagnostic_requests = validate_b1(dataset, outputs, profiles, sample_metadata, diagnostic_requests)
+    if sample_metadata is not None:
+        sources += tuple(sample_metadata.source_fingerprints)
     protected = tuple(sorted({f["path"] for f in sources} | {p for o in outputs for p in o.source_files}))
     # The dataset anchor duplicates output identity checks; do not add a
     # transport-dependent warning when an implicit anchor is persisted explicitly.
@@ -296,7 +340,8 @@ def compare_results(inputs, settings=None, *, dataset=None, profiles=None):
                               freeze(sources), protected, warnings, freeze({}))
     summaries = _summarize(result)
     return ComparisonResult(outputs, settings, dataset, report, cid, freeze(fingerprints),
-                            freeze(sources), protected, warnings, freeze(summaries), profiles, report_settings)
+                            freeze(sources), protected, warnings, freeze(summaries), profiles, report_settings,
+                            sample_metadata, diagnostic_requests)
 
 
 def _summarize(result):
@@ -359,6 +404,23 @@ def _summarize(result):
             "outputs": len(outputs), "declared_queries": len(union_q), "included_queries": len(active_queries),
             "excluded_queries": excluded_queries, "identity_status": result.compatibility.identity_status,
             "observation_count": len(result.dataset["observation_ids"]) if result.dataset["observation_ids"] is not None else None}]}
+
+
+# Descriptive B1 tables are opt-in and never expand the all-pair universe.
+B1_COLUMNS = {
+    "sample_metadata": "observation_id field field_type value status in_required_cohort".split(),
+    "diagnostics": "query_id candidate_id layer_id h omission result".split(),
+    "group_summaries": "layer_id namespace feature_id field include_fraction result".split(),
+}
+
+
+def b1_columns(has_metadata, requests):
+    names = (["sample_metadata"] if has_metadata else [])
+    if requests:
+        names.append("diagnostics")
+    if any(r.group_field is not None for r in requests):
+        names.append("group_summaries")
+    return {name: B1_COLUMNS[name] for name in names}
 
 
 # Ordered columns are part of the v1 table contract. JSON cells preserve exact

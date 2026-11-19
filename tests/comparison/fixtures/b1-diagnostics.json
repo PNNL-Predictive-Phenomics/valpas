@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "description": "Hand-calculated observed-only diagnostics. Sample covariance uses n-1. Products are centered on the joint cohort; omission recenters. Unicode ties use code-point order, not locale or UTF-16 order.",
+  "cases": [
+    {
+      "name": "influential_recenter",
+      "observation_ids": ["s01", "s02", "s03", "s04", "s05"],
+      "x": [0, 1, 2, 3, 9], "y": [0, 1, 2, 3, 9],
+      "h": 1, "omission": true,
+      "calculation": "Joint mean 3; squared deviations 9+4+1+0+36=50. Remove s05: mean 1.5 and squared deviations sum 5, not the unrecentered sum 14.",
+      "expected": {
+        "status": "available", "reason": null, "joint_observed_count": 5,
+        "products": [9, 4, 1, 0, 36], "absolute_shares": [0.18, 0.08, 0.02, 0, 0.72],
+        "absolute_product_sum": 50, "selected_observation_ids": ["s05"], "effective_h": 1, "largest_h_share": 0.72,
+        "original": {"count": 5, "mean_x": 3, "mean_y": 3, "covariance": 12.5, "correlation": 1, "status": "available", "reason": null},
+        "remaining": {"count": 4, "mean_x": 1.5, "mean_y": 1.5, "covariance": 1.6666666666666667, "correlation": 1, "status": "available", "reason": null},
+        "omitted_observation_ids": ["s05"], "retained_observation_ids": ["s01", "s02", "s03", "s04"]
+      }
+    },
+    {
+      "name": "unicode_tie",
+      "observation_ids": ["😀", "", "a", "Z"],
+      "x": [-1, 1, -1, 1], "y": [-1, 1, -1, 1],
+      "h": 3, "omission": true,
+      "calculation": "All products are 1; Unicode order is Z, a, U+E000, U+1F600. One retained point is insufficient.",
+      "expected": {
+        "status": "available", "reason": null, "joint_observed_count": 4,
+        "products": [1, 1, 1, 1], "absolute_shares": [0.25, 0.25, 0.25, 0.25],
+        "absolute_product_sum": 4, "selected_observation_ids": ["Z", "a", ""], "effective_h": 3, "largest_h_share": 0.75,
+        "original": {"count": 4, "mean_x": 0, "mean_y": 0, "covariance": 1.3333333333333333, "correlation": 1},
+        "remaining": {"count": 1, "covariance": null, "correlation": null, "status": "unavailable", "reason": "insufficient_observations"},
+        "omitted_observation_ids": ["Z", "a", ""], "retained_observation_ids": ["😀"]
+      }
+    },
+    {
+      "name": "signed_products",
+      "observation_ids": ["s01", "s02", "s03", "s04"],
+      "x": [0, 1, 2, 3], "y": [0, 2, 1, 3], "h": 1, "omission": false,
+      "calculation": "Means 1.5; signed sum 4, absolute sum 5, each sum of squared deviations 5. Covariance 4/3; correlation 4/5.",
+      "expected": {
+        "status": "available", "reason": null, "joint_observed_count": 4,
+        "products": [2.25, -0.25, -0.25, 2.25], "absolute_shares": [0.45, 0.05, 0.05, 0.45],
+        "absolute_product_sum": 5, "selected_observation_ids": ["s01"], "effective_h": 1, "largest_h_share": 0.45,
+        "original": {"count": 4, "mean_x": 1.5, "mean_y": 1.5, "covariance": 1.3333333333333333, "correlation": 0.8},
+        "remaining": {"count": null, "status": "unavailable", "reason": "not_requested"},
+        "omitted_observation_ids": [], "retained_observation_ids": ["s01", "s02", "s03", "s04"]
+      }
+    },
+    {
+      "name": "constant",
+      "observation_ids": ["s01", "s02", "s03"],
+      "x": [2, 2, 2], "y": [1, 2, 3], "h": 5, "omission": true,
+      "expected": {
+        "status": "unavailable", "reason": "zero_absolute_product_sum", "joint_observed_count": 3,
+        "products": [0, 0, 0], "absolute_shares": [null, null, null], "absolute_product_sum": 0,
+        "selected_observation_ids": [], "effective_h": 0, "largest_h_share": null,
+        "original": {"count": 3, "mean_x": 2, "mean_y": 2, "covariance": 0, "correlation": null, "covariance_status": "available", "correlation_status": "unavailable", "correlation_reason": "zero_variance"},
+        "remaining": {"count": 3, "status": "unavailable", "reason": "zero_absolute_product_sum"},
+        "omitted_observation_ids": [], "retained_observation_ids": ["s01", "s02", "s03"]
+      }
+    },
+    {
+      "name": "zero_products_nonconstant",
+      "observation_ids": ["s01", "s02", "s03", "s04"],
+      "x": [-1, 0, 1, 0], "y": [0, -1, 0, 1], "h": 5, "omission": false,
+      "expected": {
+        "status": "unavailable", "reason": "zero_absolute_product_sum", "joint_observed_count": 4,
+        "products": [0, 0, 0, 0], "absolute_shares": [null, null, null, null], "absolute_product_sum": 0,
+        "selected_observation_ids": [], "effective_h": 0, "largest_h_share": null,
+        "original": {"count": 4, "mean_x": 0, "mean_y": 0, "covariance": 0, "correlation": 0, "correlation_status": "available"}
+      }
+    }
+  ],
+  "group_case": {
+    "case": "influential_recenter", "field": "condition", "values": ["A", "A", "B", "B", "C"],
+    "calculation": "Total SS 50. Between SS = 2*(0.5-3)^2 + 2*(2.5-3)^2 + (9-3)^2 = 49.",
+    "expected": {
+      "status": "available", "reason": null, "required_count": 5, "known_group_count": 5,
+      "observed_finite_count": 5, "included_count": 5,
+      "groups": [{"group": "A", "count": 2, "mean": 0.5}, {"group": "B", "count": 2, "mean": 2.5}, {"group": "C", "count": 1, "mean": 9}],
+      "total_ss": 50, "between_group_ss": 49, "between_group_fraction": 0.98, "fraction_status": "available", "fraction_reason": null
+    }
+  }
+}

@@ -1,4 +1,4 @@
-"""A2 tables-only comparison bundles. No HTML, figures, or model execution."""
+"""Versioned, self-contained saved-output bundles; no model execution."""
 from contextlib import ExitStack
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
@@ -15,7 +15,7 @@ from valpas import __version__
 from .adapters import _json, _read
 from .bundles import _write_json
 from .engine import (ComparisonResult, POLICY_VERSIONS, TABLE_COLUMNS,
-                     canonical_json, compare_results, normalized_descriptor)
+                     canonical_json, compare_results, normalized_descriptor, b1_columns)
 from .models import (ComparisonInput, ComparisonSettings, Issue, PairValue,
                      fail, freeze, keys, thaw)
 
@@ -29,8 +29,28 @@ from .profiles import ProfileData, PROFILE_COLUMNS
 from .browser import ReportSettings, render_report, safe_json
 
 
+from .diagnostics import SampleMetadata, DiagnosticRequest
+
+
+B1_SCHEMA = {
+    "sample_metadata": {
+        "null": "JSON null is missing metadata (absent record, absent field or explicit null); status is missing/available",
+        "units": "descriptive categorical strings or continuous values as supplied; no coercion or inferred units",
+        "status": "available includes the empty categorical string; in_required_cohort=false marks explicit extra observations"},
+    "diagnostics": {
+        "null": "Nested result nulls mean unavailable/not requested; consult reason and independent original/remaining covariance/correlation statuses",
+        "units": "descriptive observed-data products and sample covariance: query-unit times candidate-unit; means: layer units; shares/correlation: unitless; counts/h: observations",
+        "status": "result.status/reason describe influence availability; products retain signed values and absolute shares; omission recenters retained observations; not model attribution"},
+    "group_summaries": {
+        "null": "Nested result nulls mean unavailable/not requested, never zero; consult status/reason and fraction_status/fraction_reason",
+        "units": "descriptive observed-value means: layer units; sums of squares: squared layer units; between_group_fraction: unitless; counts: observations",
+        "status": "result.status/reason describe group means; fraction has independent availability; missing-group and not-observed-finite exclusions are disjoint; not model attribution"},
+}
+
+
 def table_schema(columns):
-    return {name: {**TABLE_SCHEMA["coverage"], "columns": cols} for name, cols in columns.items()}
+    return {name: {**TABLE_SCHEMA["coverage"], **B1_SCHEMA.get(name, {}), "columns": cols}
+            for name, cols in columns.items()}
 
 
 LONG_TABLES = {"candidate_ranks", "run_recurrence", "exclusions", "profile_values"}
@@ -46,8 +66,12 @@ Use valpas.comparison.load_comparison_bundle to regenerate scientific tables
 without original paths or models. This is a comparison-result bundle, NOT an
 A1 input bundle. Open report.html directly from disk when present; no server or
 network needed. Optional profiles are saved once in profiles.json and complete
-profile tables. Report subsets never change full scientific tables. No B1/B2
-reference analysis, diagnostics or session state. Agreement is not correctness;
+profile tables. Sample metadata is saved once in sample_metadata.json when present.
+B1 diagnostic tables cover only explicit requests, with nested products, exclusions
+and reasons; group summaries are deduplicated per feature/layer/field/fraction scope.
+Browser diagnostics are on demand, independent of requested exports. These describe
+observed data, never model attribution. Report subsets never change full scientific
+tables. No reference analysis or session state. Agreement is not correctness;
 seed runs are not biological replicates. Native inspection is descriptive only.
 All declared queries are compared under the explicit pool policy. No target
 metabolite/protein is required. Canonical exports retain sensitive IDs/metadata
@@ -107,6 +131,8 @@ def _write_payload(result, staging, tables_only=False, report_settings=None):
         report["payload"] = record
     if result.profiles is not None:
         _write_json(staging / "profiles.json", result.profiles.to_dict())
+    if result.sample_metadata is not None:
+        _write_json(staging / "sample_metadata.json", result.sample_metadata.to_dict())
     normalized = []
     for i, output in enumerate(result.outputs):
         filename = f"normalized-{i:04d}.jsonl.gz"
@@ -119,12 +145,14 @@ def _write_payload(result, staging, tables_only=False, report_settings=None):
     with (staging / "README.md").open("x", encoding="utf-8") as handle:
         handle.write(README)
     inventory = {p.name: {"sha256": _digest(p), "size_bytes": p.stat().st_size} for p in sorted(staging.iterdir())}
-    _write_json(staging / MARKER, {"schema_version": 2, "kind": KIND, "complete": True,
+    _write_json(staging / MARKER, {"schema_version": 3, "kind": KIND, "complete": True,
         "comparison_id": result.comparison_id, "created_at": datetime.now(timezone.utc).isoformat(),
         "software_version": __version__, "policy_versions": POLICY_VERSIONS,
         "settings": result.settings.to_dict(), "dataset": thaw(result.dataset),
         "scope": {"analysis": "all_declared_queries_under_pool_policy", "tables_only": tables_only, "html": not tables_only},
         "report": report,
+        "b1": {"sample_metadata": result.sample_metadata is not None,
+               "diagnostic_requests": [r.to_dict() for r in result.diagnostic_requests]},
         "normalized_inputs": normalized, "input_fingerprints": thaw(result.input_fingerprints),
         "source_fingerprints": thaw(result.source_fingerprints),
         "warnings": [asdict(w) for w in result.warnings], "table_schema": table_schema(result.table_columns),
@@ -142,29 +170,43 @@ def _checked_metadata(directory):
     keys(m, ("schema_version", "kind", "complete", "comparison_id", "created_at", "software_version",
              "policy_versions", "settings", "dataset", "scope", "normalized_inputs", "input_fingerprints",
              "source_fingerprints", "warnings", "table_schema", "tables", "inventory"),
-         ("report",) if m.get("schema_version") == 2 else (), field="bundle")
-    if type(m["schema_version"]) is not int or m["schema_version"] not in (1, 2) or m["kind"] != KIND or m["complete"] is not True:
+         ("report", "b1") if m.get("schema_version") in (2, 3) else ("b1",), field="bundle")
+    if type(m["schema_version"]) is not int or m["schema_version"] not in (1, 2, 3) or m["kind"] != KIND or m["complete"] is not True:
         fail("bundle", "not a completed supported comparison-result bundle", remediation="Use load_input_bundle for A1 input bundles; regenerate incomplete comparison bundles.")
     columns = dict(TABLE_COLUMNS)
-    if m["schema_version"] == 2:
+    if m["schema_version"] >= 2:
         keys(m.get("report"), ("settings", "profiles", "payload"), field="bundle.report")
         ReportSettings.from_dict(m["report"]["settings"])
         if type(m["report"]["profiles"]) is not bool:
             fail("bundle.report", "profiles must be boolean")
         if m["report"]["profiles"]:
             columns.update(PROFILE_COLUMNS)
+    if m["schema_version"] == 3:
+        keys(m.get("b1"), ("sample_metadata", "diagnostic_requests"), field="bundle.b1")
+        if type(m["b1"]["sample_metadata"]) is not bool or not isinstance(m["b1"]["diagnostic_requests"], list):
+            fail("bundle.b1", "expected metadata boolean and normalized request list")
+        requests = tuple(DiagnosticRequest.from_dict(r) for r in m["b1"]["diagnostic_requests"])
+        if [r.to_dict() for r in requests] != m["b1"]["diagnostic_requests"]:
+            fail("bundle.b1", "requests must include normalized defaults")
+        columns.update(b1_columns(m["b1"]["sample_metadata"], requests))
+    elif "b1" in m and m["b1"] != {"sample_metadata": False, "diagnostic_requests": []}:
+        # Accept an empty extension on synthetic legacy fixtures, never B1 data
+        # masquerading as an older schema. Genuine A2/A3 bundles have no b1 key.
+        fail("bundle.b1", "B1 data requires schema version 3")
     if m["software_version"] != __version__ or m["policy_versions"] != POLICY_VERSIONS or m["table_schema"] != table_schema(columns):
         fail("bundle.schema", "unsupported policy versions or table schema")
     scope = m["scope"]
     keys(scope, ("analysis", "tables_only", "html"), field="bundle.scope")
     if scope["analysis"] != "all_declared_queries_under_pool_policy" or type(scope["html"]) is not bool or type(scope["tables_only"]) is not bool or scope["html"] == scope["tables_only"] or (m["schema_version"] == 1 and scope["html"]):
         fail("bundle.scope", "unsupported analysis/report scope")
-    if m["schema_version"] == 2 and (m["report"]["payload"] is not None) != scope["html"]:
+    if m["schema_version"] >= 2 and (m["report"]["payload"] is not None) != scope["html"]:
         fail("bundle.report", "payload presence differs from scope")
     if not isinstance(m["normalized_inputs"], list) or len(m["normalized_inputs"]) < 2:
         fail("bundle.normalized_inputs", "at least two normalized outputs required")
     named = {"README.md"}
-    if m["schema_version"] == 2:
+    if m["schema_version"] == 3 and m["b1"]["sample_metadata"]:
+        named.add("sample_metadata.json")
+    if m["schema_version"] >= 2:
         if m["report"]["profiles"]:
             named.add("profiles.json")
         if scope["html"]:
@@ -222,7 +264,7 @@ def _validate_tables(result, directory, metadata):
 
 
 def load_comparison_bundle(directory):
-    """Reload normalized v1/v2 results with completion/inventory/schema/parity checks.
+    """Reload normalized v1/v2/v3 with completion/inventory/schema/parity checks.
 
     Original source paths are provenance only and are never opened. Reading the
     normalized values recomputes saved-value ranks/metrics, not associations.
@@ -247,11 +289,17 @@ def load_comparison_bundle(directory):
             outputs.append(ComparisonInput(d, pairs, tuple(Issue(**w) for w in item["warnings"])))
         profiles = None
         report_settings = None
-        if m["schema_version"] == 2:
+        if m["schema_version"] >= 2:
             report_settings = ReportSettings.from_dict(m["report"]["settings"])
             if m["report"]["profiles"]:
                 profiles = ProfileData.from_dict(_json(_read(directory / "profiles.json"), "bundle.profiles"))
-        result = compare_results(outputs, ComparisonSettings.from_dict(m["settings"]), dataset=m["dataset"], profiles=profiles)
+        metadata, requests = None, ()
+        if m["schema_version"] == 3:
+            if m["b1"]["sample_metadata"]:
+                metadata = SampleMetadata.from_dict(_json(_read(directory / "sample_metadata.json"), "bundle.sample_metadata"))
+            requests = tuple(DiagnosticRequest.from_dict(r) for r in m["b1"]["diagnostic_requests"])
+        result = compare_results(outputs, ComparisonSettings.from_dict(m["settings"]), dataset=m["dataset"],
+                                 profiles=profiles, sample_metadata=metadata, diagnostic_requests=requests)
         result = replace(result, report_settings=report_settings)
         if result.comparison_id != m["comparison_id"] or thaw(result.input_fingerprints) != m["input_fingerprints"]:
             fail("bundle.comparison_id", "normalized content/settings identity mismatch (including software/policy version)")
@@ -259,9 +307,12 @@ def load_comparison_bundle(directory):
             fail("bundle.warnings", "warnings differ from normalized metadata")
         _validate_tables(result, directory, m)
         if m["scope"]["html"]:
-            html, payload, record = render_report(result, report_settings)
-            if record != m["report"]["payload"] or (directory / "report_payload.json").read_text(encoding="utf-8") != safe_json(payload) or (directory / "report.html").read_text(encoding="utf-8") != html:
-                fail("bundle.report", "report differs from normalized saved values/settings")
+            if m["schema_version"] == 2:
+                _validate_legacy_report(result, directory, m, report_settings)
+            else:
+                html, payload, record = render_report(result, report_settings)
+                if record != m["report"]["payload"] or (directory / "report_payload.json").read_text(encoding="utf-8") != safe_json(payload) or (directory / "report.html").read_text(encoding="utf-8") != html:
+                    fail("bundle.report", "report differs from normalized saved values/settings")
         # Prevent overwrite of a bundle actively supplying this result, even
         # though the original pre-export paths are not needed for reproduction.
         protected = tuple(str(p.resolve()) for p in directory.iterdir())
@@ -270,6 +321,37 @@ def load_comparison_bundle(directory):
         if hasattr(exc, "issue"):
             raise
         fail("bundle", "cannot reload comparison bundle: " + str(exc), remediation="Use an intact completed comparison bundle or regenerate from saved inputs.")
+
+
+def _legacy_payload_projection(payload):
+    """A3 payload shape; only the known additive B1 presentation changes removed."""
+    payload = thaw(payload)
+    if payload.pop("sample_metadata", None) is not None:
+        fail("bundle.report", "legacy report cannot contain B1 metadata")
+    payload["omissions"] = [s.replace("; sample metadata;", ";") for s in payload["omissions"]]
+    return payload
+
+
+def _validate_legacy_report(result, directory, metadata, settings):
+    """Old assets have verified inventory hashes, not current-asset byte parity.
+
+    Independently validate their stored/embedded payload against normalized A3
+    science and settings. Regeneration deliberately uses the current assets.
+    Do not render the new payload here: its extra bytes may exceed an old budget.
+    """
+    from .browser import build_report_payload
+    raw = (directory / "report_payload.json").read_text(encoding="utf-8")
+    actual = _json(raw, "bundle.report")
+    expected = build_report_payload(result, settings)
+    data = raw.encode("utf-8")
+    record = {"payload_bytes": len(data), "payload_sha256": hashlib.sha256(data).hexdigest()}
+    html = (directory / "report.html").read_text(encoding="utf-8")
+    opening = '<script id="comparison-data" type="application/json">'
+    embedded = html.split(opening)
+    if (record != metadata["report"]["payload"] or len(data) > settings.max_payload_bytes or
+            canonical_json(_legacy_payload_projection(actual)) != canonical_json(_legacy_payload_projection(expected)) or
+            len(embedded) != 2 or embedded[1].split("</script>", 1)[0] != safe_json(actual)):
+        fail("bundle.report", "report differs from normalized saved values/settings")
 
 
 def write_comparison(result, destination, *, tables_only=False, overwrite=False, report_settings=None):

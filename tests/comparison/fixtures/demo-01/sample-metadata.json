@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "dataset": {
+    "dataset_id": "demo-01",
+    "observation_ids": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06"
+    ],
+    "query_namespace": {
+      "id": "demo-metabolites",
+      "modality": "metabolomics"
+    },
+    "candidate_namespace": {
+      "id": "demo-proteins",
+      "modality": "proteomics"
+    },
+    "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+    "dataset_evidence": {
+      "type": "attestation",
+      "source": "synthetic:valpas:a0:demo-01",
+      "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+      "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+    }
+  },
+  "fields": {
+    "condition": "categorical",
+    "batch": "categorical",
+    "genotype": "categorical",
+    "time_hours": "continuous"
+  },
+  "records": [
+    {
+      "observation_id": "S01",
+      "values": {
+        "condition": "control",
+        "batch": "plate-01",
+        "genotype": "WT",
+        "time_hours": 0
+      }
+    },
+    {
+      "observation_id": "S02",
+      "values": {
+        "condition": "control",
+        "batch": "plate-02",
+        "genotype": "WT",
+        "time_hours": 2
+      }
+    },
+    {
+      "observation_id": "S03",
+      "values": {
+        "condition": "stress",
+        "batch": "plate-01",
+        "genotype": "delta-regulator",
+        "time_hours": 4
+      }
+    },
+    {
+      "observation_id": "S04",
+      "values": {
+        "condition": "stress",
+        "batch": "plate-02",
+        "genotype": null,
+        "time_hours": 6
+      }
+    },
+    {
+      "observation_id": "S05",
+      "values": {
+        "batch": "plate-02",
+        "genotype": "delta-regulator"
+      }
+    }
+  ],
+  "subset_extra_observations": false
+}

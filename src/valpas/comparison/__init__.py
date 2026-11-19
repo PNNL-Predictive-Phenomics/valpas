@@ -13,6 +13,8 @@ from .engine import ComparisonResult, compare_results
 from .report import write_comparison, load_comparison_bundle
 from .browser import ReportSettings
 from .profiles import ProfileData, load_profile_data
+from .diagnostics import (SampleMetadata, DiagnosticRequest, load_sample_metadata,
+                          group_summary, covariance_diagnostic)
 
 __all__ = [
     "SCHEMA_VERSION", "TIE_POLICY", "ComparisonInput", "ComparisonManifest",
@@ -23,4 +25,5 @@ __all__ = [
     "build_pools", "rank_output", "top_list", "export_comparison_inputs",
     "load_input_bundle", "ComparisonResult", "compare_results",
     "write_comparison", "load_comparison_bundle", "ReportSettings", "ProfileData", "load_profile_data",
+    "SampleMetadata", "DiagnosticRequest", "load_sample_metadata", "group_summary", "covariance_diagnostic",
 ]

@@ -144,9 +144,11 @@ def build_report_payload(result, settings=None):
                "summaries": summaries, "coverage": coverage, "agreement": agreement, "run_groups": run_groups,
                "query_ids": queries, "all_query_ids": all_queries, "details": details,
                "layers": layers, "feature_coverage": feature_coverage,
+               "sample_metadata": (result.sample_metadata.to_dict()
+                                   if result.sample_metadata is not None and not settings.omit_metadata else None),
                "omissions": [], "sensitive_data_warning": "Local does not mean anonymized. Canonical IDs, scores, configuration and any included sample values may be sensitive. Full bundle retains original metadata; share only the HTML if using metadata omission."}
     if settings.omit_metadata:
-        payload["omissions"] = ["HTML only: output labels/provenance; dataset context/evidence text and observation IDs; configuration values/difference values; profiles including feature labels/annotations/sample IDs/values; attestation statements. Complete bundle is NOT redacted."]
+        payload["omissions"] = ["HTML only: output labels/provenance; dataset context/evidence text and observation IDs; configuration values/difference values; profiles including feature labels/annotations/sample IDs/values; sample metadata; attestation statements. Complete bundle is NOT redacted."]
         payload["dataset"] = {k: v for k, v in payload["dataset"].items() if k in ("dataset_id", "query_namespace", "candidate_namespace")}
         payload["analysis_settings"]["attestations"] = "omitted from HTML"
         for row in summaries["outputs"]:

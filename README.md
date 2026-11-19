@@ -120,7 +120,7 @@ Run the test suite with:
 pytest
 ```
 
-## Saved-output comparison (Release A: offline browser and tables)
+## Saved-output comparison (Release A workflow + B1 diagnostics)
 
 Compare two or more saved outputs—including two runs of one configuration—without training, scoring, checkpoints or network access. The lightweight [comparison API and schema](docs/COMPARISON_SCHEMA_V1.md) now provide full available ranks, coverage/exclusions, output-pair agreement, separate run recurrence, and dataset/query summaries. **No target metabolite or protein is required up front:** compare all declared queries under an explicit pool policy, inspect the overview, then select queries for detail.
 
@@ -135,7 +135,13 @@ The result bundle retains normalized saved values, stable content/settings ident
 
 Open the generated single-file HTML directly from disk: no server, network or browser filesystem permission is needed. The [Release A quick start](docs/COMPARISON_RELEASE_A.md) covers overview heatmaps/depth charts, separate recurrence, searchable query/candidate drilldown, optional original-mask profiles, 50 MiB report limits, metadata omission and source-free regeneration. HTML is now the default; explicit tables-only remains available. Use the [profile-enabled manifest](tests/comparison/fixtures/demo-01/manifest-with-profiles.json) for synthetic profile examples.
 
-Agreement is not correctness; seed recurrence is not biological replication. B1–B3 diagnostics, references, sessions, publication figures, production hooks and target-scale validation remain unfinished. Existing association and training workflows are unchanged.
+B1 adds optional exact-ID sample metadata (categorical/continuous coloring and explicit display ordering), marginal observed-value group summaries, joint-centered covariance products and an explicit recentered omission preview. Use the separate [B1 manifest](tests/comparison/fixtures/demo-01/manifest-with-b1.json) and [hand-calculated fixture guide](tests/comparison/fixtures/demo-01/README.md); the runnable example now defaults to this fixture. Its single requested diagnostic pair does not restrict the all-query overview. Browser diagnostics are on demand for embedded pairs; exported diagnostics cover only explicit requests. Colors, ordering and diagnostics never change scientific identity, saved scores or ranks and do not imply causality, model attribution, retraining or new association scoring.
+
+New result bundles use schema v3; A2 v1/A3 v2 reload remains supported only with the same software/policy versions. The [schema reference](docs/COMPARISON_SCHEMA_V1.md) documents exact metadata/request APIs, nested JSON table cells, null/status meanings and legacy HTML checks. Metadata is included in the report payload budget. Metadata omission is **HTML-only**; full bundles retain sensitive IDs, profiles, metadata and diagnostic tables.
+
+Agreement is not correctness; seed recurrence is not biological replication. B1 is implemented; B2/B3 references, sessions, publication figures, production hooks and target-scale validation remain unfinished. Neither release is declared finally complete for the modified B1 tree. Existing association and training workflows are unchanged.
+
+For repeatable wheel/sdist builds, fresh full-dependency installs, source-free CLI regeneration and direct-file browser checks, run the [distribution validator](docs/DISTRIBUTION_VALIDATION.md). Browser assets ship in wheels; comparison guides, examples and demo inputs ship in source distributions, not as installed wheel data.
 
 ## Troubleshooting
 

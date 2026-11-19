@@ -403,6 +403,46 @@ class ComparisonManifest:
     source_fingerprints: tuple = ()
     profiles: object = None
     report_settings: object = None
+    sample_metadata: object = None
+    diagnostic_requests: tuple = ()
+
+    def __post_init__(self):
+        object.__setattr__(self, "diagnostic_requests", validate_b1(
+            self.dataset, self.outputs, self.profiles, self.sample_metadata, self.diagnostic_requests))
+
+
+def validate_b1(dataset, outputs, profiles, sample_metadata, diagnostic_requests):
+    """Validate descriptive scope against canonical axes, not available profile rows.
+
+    Missing features/masks remain diagnostic availability reasons, not invalid
+    requests. Namespace descriptors are explicit {id, modality} maps.
+    """
+    from .diagnostics import SampleMetadata, DiagnosticRequest
+    if sample_metadata is not None:
+        if not isinstance(sample_metadata, SampleMetadata):
+            fail("sample_metadata", "expected validated SampleMetadata")
+        sample_metadata.validate_binding(dataset, outputs)
+    if not isinstance(diagnostic_requests, (list, tuple)):
+        fail("diagnostic_requests", "expected an explicit request list")
+    requests = tuple(r if isinstance(r, DiagnosticRequest) else DiagnosticRequest.from_dict(r)
+                     for r in diagnostic_requests)
+    if requests and profiles is None:
+        fail("diagnostic_requests", "requests require profiles")
+    if requests:
+        layers = {layer["layer_id"] for layer in profiles.layers}
+        queries = {q for output in outputs for q in output.query_ids}
+        candidates = {c for output in outputs for c in output.candidate_ids}
+        for request in requests:
+            if request.query_id not in queries:
+                fail("diagnostic_requests.query_id", "unknown canonical query ID")
+            if request.candidate_id not in candidates:
+                fail("diagnostic_requests.candidate_id", "unknown canonical candidate ID")
+            if request.layer_id not in layers:
+                fail("diagnostic_requests.layer_id", "unknown profile layer ID")
+            if request.group_field is not None and (sample_metadata is None or
+                    sample_metadata.fields.get(request.group_field) != "categorical"):
+                fail("diagnostic_requests.group_field", "requested group requires a categorical sample metadata field")
+    return requests
 
 
 @dataclass(frozen=True)

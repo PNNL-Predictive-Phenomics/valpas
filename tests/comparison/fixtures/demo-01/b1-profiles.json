@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "layers": [
+    {
+      "layer_id": "b1-observed",
+      "dataset": {
+        "dataset_id": "demo-01",
+        "observation_ids": [
+          "S01",
+          "S02",
+          "S03",
+          "S04",
+          "S05",
+          "S06"
+        ],
+        "query_namespace": {
+          "id": "demo-metabolites",
+          "modality": "metabolomics"
+        },
+        "candidate_namespace": {
+          "id": "demo-proteins",
+          "modality": "proteomics"
+        },
+        "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+        "dataset_evidence": {
+          "type": "attestation",
+          "source": "synthetic:valpas:a0:demo-01",
+          "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+          "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+        }
+      },
+      "orientation": "feature_rows_observation_columns",
+      "observation_ids": [
+        "S01",
+        "S02",
+        "S03",
+        "S04",
+        "S05",
+        "S06"
+      ],
+      "units": "synthetic abundance",
+      "transform": "none",
+      "provenance": "Hand-calculable synthetic B1 illustration; not measurements used to derive the saved scores. The historical score-only dataset binding is retained exactly.",
+      "raw_unimputed": false,
+      "mask_source": "explicit_original",
+      "subset_extra_observations": false,
+      "algorithm_layers": {
+        "ae-seed-123": "different",
+        "ae-seed-42": "different",
+        "pearson-run": "different"
+      },
+      "features": [
+        {
+          "namespace": {
+            "id": "demo-metabolites",
+            "modality": "metabolomics"
+          },
+          "feature_id": "M01",
+          "label": "Synthetic M01",
+          "annotations": "Illustration only; no causal or model-attribution interpretation.",
+          "values": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            14
+          ],
+          "observed": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        },
+        {
+          "namespace": {
+            "id": "demo-metabolites",
+            "modality": "metabolomics"
+          },
+          "feature_id": "M02",
+          "label": "Synthetic M02",
+          "annotations": "Illustration only; no causal or model-attribution interpretation.",
+          "values": [
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "observed": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        },
+        {
+          "namespace": {
+            "id": "demo-proteins",
+            "modality": "proteomics"
+          },
+          "feature_id": "P01",
+          "label": "Synthetic P01",
+          "annotations": "Illustration only; no causal or model-attribution interpretation.",
+          "values": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            14
+          ],
+          "observed": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        },
+        {
+          "namespace": {
+            "id": "demo-proteins",
+            "modality": "proteomics"
+          },
+          "feature_id": "P02",
+          "label": "Synthetic P02",
+          "annotations": "Illustration only; no causal or model-attribution interpretation.",
+          "values": [
+            0,
+            1,
+            99,
+            3,
+            null,
+            14
+          ],
+          "observed": [
+            true,
+            true,
+            false,
+            true,
+            false,
+            true
+          ]
+        },
+        {
+          "namespace": {
+            "id": "demo-proteins",
+            "modality": "proteomics"
+          },
+          "feature_id": "P03",
+          "label": "Synthetic P03",
+          "annotations": "Illustration only; no causal or model-attribution interpretation.",
+          "values": [
+            0,
+            2,
+            1,
+            3,
+            4,
+            14
+          ],
+          "observed": [
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+          ]
+        }
+      ]
+    }
+  ]
+}

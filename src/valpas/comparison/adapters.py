@@ -362,7 +362,8 @@ def load_manifest(path):
         fail("manifest", "expected a local JSON manifest file")
     content, fingerprint = _read_fingerprinted(path, "manifest")
     data = _json(content, "manifest")
-    keys(data, ("schema_version", "dataset", "outputs", "settings"), ("profiles", "report"), field="manifest")
+    keys(data, ("schema_version", "dataset", "outputs", "settings"),
+         ("profiles", "report", "sample_metadata", "diagnostic_requests"), field="manifest")
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         fail("schema_version", "unsupported version")
     validate_identity(data["dataset"])
@@ -379,7 +380,14 @@ def load_manifest(path):
     if profiles is not None:
         profiles.validate_binding(data["dataset"], outputs)
     report_settings = ReportSettings.from_dict(data.get("report", {}))
-    return ComparisonManifest(freeze(data["dataset"]), outputs, settings, report, freeze((fingerprint,)), profiles, report_settings)
+    from .diagnostics import load_sample_metadata, DiagnosticRequest
+    metadata = load_sample_metadata(data["sample_metadata"], base_dir=path.parent) if "sample_metadata" in data else None
+    requests = data.get("diagnostic_requests", [])
+    if not isinstance(requests, list):
+        fail("diagnostic_requests", "expected an explicit request list")
+    requests = tuple(DiagnosticRequest.from_dict(r) for r in requests)
+    return ComparisonManifest(freeze(data["dataset"]), outputs, settings, report,
+                              freeze((fingerprint,)), profiles, report_settings, metadata, requests)
 
 
 def from_association_result(result, descriptor, *, query_axis, query_ids, candidate_ids):
