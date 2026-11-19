@@ -396,6 +396,16 @@ class AssociationResult():
 
         return edgelist
 
+    def export_comparison(self, destination, descriptor, *, query_axis, settings=None):
+        """Write an opt-in full-precision sidecar without mutating this result.
+
+        Explicit descriptor identity/orientation is required. Call before legacy
+        save/as_list, which can discard information. No analysis is rerun.
+        """
+        from ...comparison import export_association_result
+        return export_association_result(self, destination, descriptor,
+                                         query_axis=query_axis, settings=settings)
+
     def save(
             self,
             file_handle: str | PathLike | Path | TextIOBase,

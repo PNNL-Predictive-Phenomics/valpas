@@ -70,6 +70,10 @@ def main():
     # to the subparsers of 'associate'
     p_associate_shared_args = argparse.ArgumentParser(add_help=False)
     p_associate_shared_args.add_argument(
+        "--comparison-export", metavar="REQUEST_JSON",
+        help="Opt-in comparison input sidecar request; explicit identity, axes and new destination."
+    )
+    p_associate_shared_args.add_argument(
         "-a", "--association_type",
         dest="ASSOCIATION_TYPE",
         choices=(
@@ -424,6 +428,16 @@ def associate(args):
     from valpas.io import import_experiments
     from valpas._core.processing import combine_results
 
+    comparison_request = getattr(args, "comparison_export", None)
+    if comparison_request is not None:
+        from valpas.comparison.production import load_export_request, validate_legacy_destination
+        comparison_request = load_export_request(comparison_request)
+        validate_legacy_destination(comparison_request, args.OUTFILE)
+    # The legacy CLI omits required subset keys. Supply explicit no-subset
+    # settings only for this opt-in path; preserve existing default behavior.
+    comparison_kwargs = ({"subset_args": {"nconds": None, "percentage": None, "keep_conds": []}}
+                         if comparison_request is not None else {})
+
     if args.csv:
         file_type = 'csv'
     elif args.xlsx:
@@ -475,6 +489,7 @@ def associate(args):
         threshold = None
         thresholded = False
 
+    experiment_count = len(experiments)
     if len(experiments) == 1:
         experiment = experiments.pop()
 
@@ -486,7 +501,8 @@ def associate(args):
         try:
             result = experiment.associate(
                 metric=args.ASSOCIATION_TYPE,
-                thresholded=thresholded
+                thresholded=thresholded,
+                **comparison_kwargs
             )
         except ValueError:
             sys.exit(
@@ -515,7 +531,8 @@ def associate(args):
             try:
                 result = cross_experiment.associate(
                     metric=args.ASSOCIATION_TYPE,
-                    thresholded=thresholded
+                    thresholded=thresholded,
+                    **comparison_kwargs
                 )
             except ValueError:
                 sys.exit(
@@ -529,6 +546,7 @@ def associate(args):
                     result = experiment.associate(
                         metric=args.ASSOCIATION_TYPE,
                         thresholded=thresholded,
+                        **comparison_kwargs
                     )
                 except ValueError:
                     sys.exit(
@@ -546,6 +564,24 @@ def associate(args):
             "Cross Experiment assocations for more than 2 experiments is"
             "currently not supported."
             )
+
+    if comparison_request is not None:
+        from valpas.comparison.production import export_requested_result
+        # Post-normalization combines separate results; do not invent a cohort.
+        cohort = None
+        if experiment_count == 1 or args.NORMALIZATION != "post":
+            actual = cross_experiment if 'cross_experiment' in locals() else experiment
+            cohort = list(actual.measurements.index)
+        export_requested_result(result, comparison_request, observation_ids=cohort,
+                                method=args.ASSOCIATION_TYPE, transform_clr=False,
+                                thresholded=thresholded,
+                                preprocessing={"valpas_cli": {
+                                    "zero_to_missing": True,
+                                    "filter_cutoff": args.FILTER_CUTOFF,
+                                    "threshold": threshold,
+                                    "normalize_inputs": experiment_count == 2 and args.NORMALIZATION == "pre",
+                                    "combine_result_mean": experiment_count == 2 and args.NORMALIZATION == "post",
+                                }})
 
     result.save(
         file_handle=args.OUTFILE,

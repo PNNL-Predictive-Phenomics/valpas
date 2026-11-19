@@ -291,9 +291,9 @@ Deliverable 6 is implemented: public full-result/saved-bundle SVG/PDF export wit
 - **Artifact/documentation boundary:** tested wheels/sdist precede the validation handoff and this final README/workflow/user-guide/plan update. They contain the validated implementation, harness, fixtures and then-current guides, not these final docs. No rebuild is needed or performed for docs-only finalization; documentation CLI smoke/static checks are separate evidence, not installed-artifact revalidation. Parent final review follows this documentation report.
 - **Still unverified/out of scope:** B3 opt-in production metadata capture/export hooks and the 1,000 × 5,000 × 8 elapsed-time/peak-memory benchmark; other OS/Python/browser combinations, manual visual/accessibility certification, Sphinx and broad training suites. Synthetic evidence is not biological validation. No full Release B/project-complete claim.
 
-### B3 — Production boundaries, packaging, documentation, final validation (unfinished)
+### B3 — Production boundaries, packaging, documentation, final validation (DONE; scale limit recorded)
 
-B2 now supplies the documented saved-data workflow, synthetic example, installed packaging and actual offline browser evidence for this scope (deliverables 3–5 and part of 7 below). This does **not** complete B3: opt-in production capture/export integration, its focused regressions and target-scale elapsed-time/peak-memory validation remain future.
+Production hooks, regressions, CLI-first documentation and the bounded scale measurement are implemented. The [B3 validation record](B3_VALIDATION_HANDOFF.md) records final artifact/browser results and limitations. The 1,000 × 5,000 × 8 dense run stopped during loading at the 600-second budget (5.05 GiB sampled peak RSS), not a completed target-scale comparison. This phase records measured limits rather than asserting an unachieved performance target.
 
 Deliverables:
 

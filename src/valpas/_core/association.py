@@ -56,6 +56,7 @@ def calculate_association(
         learncorr_args: dict={},
         autoencoder_args: dict={},
         subset_args: dict={},
+        *, comparison_export=None,
     ) -> AssociationResult:
     """
     Universal wrapper function that can be called to calculate any of
@@ -107,6 +108,10 @@ def calculate_association(
         ValueError that is passed along from
         ``valpas.utils.data_handling.prep_single_experiment()``
     """
+
+    if comparison_export is not None:
+        from ..comparison.production import load_export_request
+        comparison_export = load_export_request(comparison_export)
 
     # Subset the input measurements first?
     if subset_args['nconds'] or subset_args['percentage'] or subset_args['keep_conds']:
@@ -217,6 +222,13 @@ def calculate_association(
         analysis_results=analysis_results
     )
 
+    if comparison_export is not None:
+        from ..comparison.production import export_requested_result
+        # A loaded score matrix does not establish which observations made it.
+        export_requested_result(
+            result, comparison_export,
+            observation_ids=(list(experiment.measurements.index) if method != "load_sim" else None),
+            method=method, transform_clr=transform_clr, thresholded=thresholded)
     return result
 
 def count_vals_in_association(a: ArrayLike, b: ArrayLike) -> int:

@@ -1,4 +1,6 @@
-# Release A / B1 / B2 distribution validation
+# Release A / Release B distribution validation
+
+B3 additionally verifies installed production-module bytes and runs the real tiny Pearson/Spearman sidecar example against each wheel outside the checkout. The example exports before legacy save, checks full-precision signed values and captured metadata, then generates a comparison from combined saved sidecars. Production guide, example and bounded benchmark tool are required in the sdist. See the [B3 evidence record](../plans/B3_VALIDATION_HANDOFF.md) and [production/scale guide](COMPARISON_PRODUCTION.md).
 
 Run the standard-library [validator](../tools/validate_distribution.py) with Python 3.12+ from a checkout (or an extracted source distribution):
 
@@ -6,7 +8,7 @@ Run the standard-library [validator](../tools/validate_distribution.py) with Pyt
 python3 tools/validate_distribution.py
 ```
 
-This is a **full dependency install**, not an editable or dependency-free smoke. It downloads the build frontend, isolated PEP 517 backend requirements, and all wheel-declared dependencies, including PyTorch. Allow several GB of temporary disk space and a network connection to PyPI. It never installs into the invoking Python environment and never trains, scores new associations, loads checkpoints, or runs GPU jobs. An existing Chrome/Chromium is required; it does not download a browser. Select a nonstandard browser with the validator's `--chrome` option.
+This is a **full dependency install**, not an editable or dependency-free smoke. It downloads the build frontend, isolated PEP 517 backend requirements, and all wheel-declared dependencies, including PyTorch. Allow several GB of temporary disk space and a network connection to PyPI. It never installs into the invoking Python environment, trains models, loads checkpoints or runs GPU jobs. B3 calculates tiny synthetic Pearson and Spearman matrices to exercise the production boundary; saved-output comparison/export itself does not rescore. An existing Chrome/Chromium is required; it does not download a browser. Select a nonstandard browser with the validator's `--chrome` option.
 
 ## What the gate checks
 
@@ -76,4 +78,4 @@ Harness tests exercise environment sanitization, archive safety/content requirem
 
 Network or resolver failure is a failed validation, recorded with its exact command/log; it is not full-install success. Sphinx rendering, training suites, remaining B3 production integration, target-scale performance, cross-platform Python support and manual visual/accessibility review remain separate gates. Run the full comparison source suite and packaging harness in a full-dependency interpreter before/after builds; report exact counts and skips. These intentionally source-oriented runs do not replace installed checks. Top-level model-training/performance tests are outside this distribution gate. B2 acceptance requires actual evidence; the presence of this harness is not itself completion evidence.
 
-**Current B2 gate: passed; B2 DONE.** The [integrated handoff](../plans/B2_VALIDATION_HANDOFF.md) records **232 full-dependency comparison tests, zero skips; 22 harness tests; 88 installed validation commands; 10 actual Chrome cases across both wheels**. This successful run used retained isolated full-dependency environments, **not fresh dependency resolution**. Artifact hashes/version and exact inventories remain in that immutable chronological record. The tested artifacts precede final README/workflow/user-guide/plan edits; no rebuild was needed or performed for documentation-only finalization. B3 production metadata capture/export integration and target-scale validation remain future; full Release B/project completion is not claimed.
+**Historical B2 gate: passed.** The [integrated handoff](../plans/B2_VALIDATION_HANDOFF.md) retains its counts, hashes and artifact chronology. The [B3 validation record](../plans/B3_VALIDATION_HANDOFF.md) records the final rebuilt-artifact gate, added production example and bounded target-scale measurement. Retained isolated full-dependency environments are **not fresh dependency resolution**. A loading timeout at target scale is not a completed comparison or a passing performance target.

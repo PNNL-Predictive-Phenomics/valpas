@@ -120,7 +120,7 @@ Run the test suite with:
 pytest
 ```
 
-## Saved-output comparison (B2 complete)
+## Saved-output comparison
 
 Compare two or more saved outputs—including two runs of one configuration—without training, scoring, checkpoints or network access. The lightweight [comparison API and schema](docs/COMPARISON_SCHEMA_V1.md) now provide full available ranks, coverage/exclusions, output-pair agreement, separate run recurrence, and dataset/query summaries. **No target metabolite or protein is required up front:** compare all declared queries under an explicit pool policy, inspect the overview, then select queries for detail.
 
@@ -144,7 +144,7 @@ New result bundles use schema v3; A2 v1/A3 v2 reload remains supported only with
 
 Agreement is not correctness; seed recurrence is not biological replication. Reference-supported fraction is not biological precision; endpoints stay separate and display filtering never changes nominations or denominators. Metadata omission is HTML-only: full bundles retain references and optional sessions as well as profiles/metadata. Notes and rationales may be sensitive.
 
-**B2 is DONE; B3 production metadata capture/export integration and target-scale validation remain future. The full Release B/project is not complete.** [Integrated validation](plans/B2_VALIDATION_HANDOFF.md) passed **232 full-dependency comparison tests (zero skips), 22 harness tests, 88 installed validation commands and 10 actual Chrome cases across both wheels**. The wheels used retained isolated full-dependency environments, **not fresh dependency resolution**. Those tested artifacts predate this documentation finalization; no rebuild was performed for these documentation-only changes. Existing association and training workflows are unchanged.
+**B3 adds opt-in production sidecars** before mutating legacy export, truthful metadata capture and an executable [production example](examples/export_comparison_sidecar.py). Follow the [CLI-first production guide](docs/COMPARISON_PRODUCTION.md); existing default association and training behavior is unchanged. The bounded 1,000-query × 5,000-candidate × 8-output benchmark stopped during loading at 600.545 seconds and 5.05 GiB sampled peak RSS: target-scale comparison did **not** complete. See the [B3 validation record](plans/B3_VALIDATION_HANDOFF.md) for final packaging/browser evidence and limitations; the [B2 record](plans/B2_VALIDATION_HANDOFF.md) remains historical evidence.
 
 For repeatable wheel/sdist builds, fresh full-dependency installs, source-free CLI regeneration and direct-file browser checks, run the [distribution validator](docs/DISTRIBUTION_VALIDATION.md). Browser assets ship in wheels; comparison guides, examples and demo inputs ship in source distributions, not as installed wheel data.
 

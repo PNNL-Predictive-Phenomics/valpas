@@ -1,0 +1,1722 @@
+{
+  "status": "passed",
+  "started_at": "2026-11-19T23:10:37.285559+00:00",
+  "finished_at": "2026-11-19T23:12:35.533002+00:00",
+  "platform": "macOS-26.7.2-arm64-arm-64bit",
+  "chrome_version": "Google Chrome 157.0.8103.80",
+  "git_head": "b310a8cdc3ee5ab4c1e6927dd02101d7ec79dc79",
+  "fresh_dependency_installation": false,
+  "build_isolation": false,
+  "workspace": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5",
+  "retained_environment_root": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102",
+  "artifacts": {
+    "checkout_wheel": {
+      "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-dist/valpas-1.0.1.dev31+gb310a8cdc.d20261119-py3-none-any.whl",
+      "sha256": "ecd3ce482ad1eb0436eb1863de37b080f05574e752e1f018ec3325050815339d",
+      "size_bytes": 219820,
+      "version": "1.0.1.dev31+gb310a8cdc.d20261119"
+    },
+    "sdist": {
+      "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-dist/valpas-1.0.1.dev31+gb310a8cdc.d20261119.tar.gz",
+      "sha256": "4cdbc80e89325786053d5b27252b33fa86d2255c29d2a4843e9fcc6310660c21",
+      "size_bytes": 283710,
+      "version": "1.0.1.dev31+gb310a8cdc.d20261119"
+    },
+    "sdist_wheel": {
+      "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-dist/valpas-1.0.1.dev31+gb310a8cdc.d20261119-py3-none-any.whl",
+      "sha256": "ecd3ce482ad1eb0436eb1863de37b080f05574e752e1f018ec3325050815339d",
+      "size_bytes": 219820,
+      "version": "1.0.1.dev31+gb310a8cdc.d20261119"
+    }
+  },
+  "commands": [
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--version"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.579
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.025
+    },
+    {
+      "argv": [
+        "git",
+        "status",
+        "--porcelain=v1"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.05
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--binary",
+        "HEAD"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.088
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/build-env/bin/python",
+        "-I",
+        "-c",
+        "import build, hatchling, hatch_vcs; print('retained tooling available')"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.134
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/build-env/bin/python",
+        "-I",
+        "-m",
+        "pip",
+        "list",
+        "--format=json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.746
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/build-env/bin/python",
+        "-I",
+        "-m",
+        "build",
+        "--no-isolation",
+        "--wheel",
+        "--sdist",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-dist",
+        "/Users/d3p620/lib/valpas"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.858
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/build-env/bin/python",
+        "-I",
+        "-m",
+        "build",
+        "--no-isolation",
+        "--wheel",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-dist",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/extracted/valpas-1.0.1.dev31+gb310a8cdc.d20261119"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.564
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "pip",
+        "install",
+        "--no-deps",
+        "--force-reinstall",
+        "--report",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel-pip-install.json",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-dist/valpas-1.0.1.dev31+gb310a8cdc.d20261119-py3-none-any.whl"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 2.287
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.624
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "pip",
+        "list",
+        "--format=json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.462
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "environment",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-dist/valpas-1.0.1.dev31+gb310a8cdc.d20261119-py3-none-any.whl",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/environment.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.294
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.507
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.05
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "valpas.cli",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.049
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "export-query",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.048
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "valpas.cli",
+        "export-query",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.046
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/installed-examples/examples/compare_saved_results.py"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.252
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/installed-examples/examples/inspect_comparison_inputs.py"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.082
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/installed-examples/examples/export_comparison_sidecar.py"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 16.991
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/inputs/manifest-with-profiles.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/html",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.129
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/inputs/manifest-with-profiles.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/tables",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5",
+        "--tables-only"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.138
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/inputs/manifest.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/no-profile",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.24
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/inputs/manifest-with-b1.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b1-html",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.132
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/inputs/manifest-with-b1.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b1-tables",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5",
+        "--tables-only"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.139
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/inputs/manifest-with-b2.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-html",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.45
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/inputs/manifest-with-b2.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-tables",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5",
+        "--tables-only"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.181
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/reference-inputs/manifest.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/reference-only"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.404
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "session",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/session-api.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.057
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/inputs/manifest-with-b1.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b1-hostile",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.244
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/html",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/html-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.241
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/tables",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/tables-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.184
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b1-html",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b1-html-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.236
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b1-tables",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b1-tables-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.184
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-html",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-html-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.83
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-tables",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-tables-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.5
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-session",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-session-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.931
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-session-tables",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-session-tables-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.567
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/reference-only",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/reference-only-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.096
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "export-query",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-session-regenerated",
+        "--query",
+        "M01",
+        "--candidate",
+        "P01",
+        "--layer",
+        "b1-observed",
+        "--color",
+        "condition",
+        "--group",
+        "condition",
+        "--h",
+        "1",
+        "--omission",
+        "--output",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/cli-figure.svg"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.164
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/valpas",
+        "export-query",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-session-regenerated",
+        "--query",
+        "M01",
+        "--candidate",
+        "P01",
+        "--layer",
+        "b1-observed",
+        "--color",
+        "condition",
+        "--group",
+        "condition",
+        "--h",
+        "1",
+        "--omission",
+        "--output",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/cli-figure.pdf"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 2.123
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "bundles",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/bundles.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 5.485
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "figures",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/figures.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.806
+    },
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--user-data-dir=/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser/chrome",
+        "--dump-dom",
+        "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser/standalone.html"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.97
+    },
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--user-data-dir=/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b1/chrome",
+        "--dump-dom",
+        "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b1/standalone.html"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.045
+    },
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--user-data-dir=/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-hostile/chrome",
+        "--dump-dom",
+        "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-hostile/standalone.html"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.025
+    },
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--user-data-dir=/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-no-profile/chrome",
+        "--dump-dom",
+        "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-no-profile/standalone.html"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.085
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_browser.py",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/b2-session-regenerated",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 2.289
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/checkout-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "legacy",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/legacy.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 5.04
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "pip",
+        "install",
+        "--no-deps",
+        "--force-reinstall",
+        "--report",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel-pip-install.json",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-dist/valpas-1.0.1.dev31+gb310a8cdc.d20261119-py3-none-any.whl"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 3.144
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.618
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "pip",
+        "list",
+        "--format=json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.512
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "environment",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-dist/valpas-1.0.1.dev31+gb310a8cdc.d20261119-py3-none-any.whl",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/environment.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.247
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.341
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.04
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "valpas.cli",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.044
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "export-query",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.076
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "-m",
+        "valpas.cli",
+        "export-query",
+        "--help"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.039
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/installed-examples/examples/compare_saved_results.py"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.234
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/installed-examples/examples/inspect_comparison_inputs.py"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.13
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/installed-examples/examples/export_comparison_sidecar.py"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 23.684
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/inputs/manifest-with-profiles.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/html",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.135
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/inputs/manifest-with-profiles.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/tables",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5",
+        "--tables-only"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.131
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/inputs/manifest.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/no-profile",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.242
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/inputs/manifest-with-b1.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b1-html",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.189
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/inputs/manifest-with-b1.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b1-tables",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5",
+        "--tables-only"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.129
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/inputs/manifest-with-b2.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-html",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.45
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/inputs/manifest-with-b2.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-tables",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5",
+        "--tables-only"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.183
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/reference-inputs/manifest.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/reference-only"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.397
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "session",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/session-api.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.157
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--manifest",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/inputs/manifest-with-b1.json",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b1-hostile",
+        "--pool",
+        "common",
+        "--depths",
+        "1",
+        "2",
+        "5"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.187
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/html",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/html-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.239
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/tables",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/tables-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.248
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b1-html",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b1-html-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.296
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b1-tables",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b1-tables-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.236
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-html",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-html-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.879
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-tables",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-tables-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.618
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-session",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-session-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.929
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-session-tables",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-session-tables-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.512
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "compare",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/reference-only",
+        "--outdir",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/reference-only-regenerated"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.882
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "export-query",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-session-regenerated",
+        "--query",
+        "M01",
+        "--candidate",
+        "P01",
+        "--layer",
+        "b1-observed",
+        "--color",
+        "condition",
+        "--group",
+        "condition",
+        "--h",
+        "1",
+        "--omission",
+        "--output",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/cli-figure.svg"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.095
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/valpas",
+        "export-query",
+        "--bundle",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-session-regenerated",
+        "--query",
+        "M01",
+        "--candidate",
+        "P01",
+        "--layer",
+        "b1-observed",
+        "--color",
+        "condition",
+        "--group",
+        "condition",
+        "--h",
+        "1",
+        "--omission",
+        "--output",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/cli-figure.pdf"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 2.42
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "bundles",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/bundles.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 5.231
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "figures",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/figures.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.745
+    },
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--user-data-dir=/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser/chrome",
+        "--dump-dom",
+        "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser/standalone.html"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.491
+    },
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--user-data-dir=/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b1/chrome",
+        "--dump-dom",
+        "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b1/standalone.html"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 1.036
+    },
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--user-data-dir=/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-hostile/chrome",
+        "--dump-dom",
+        "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-hostile/standalone.html"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.997
+    },
+    {
+      "argv": [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "--headless",
+        "--disable-gpu",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--host-resolver-rules=MAP * ~NOTFOUND",
+        "--user-data-dir=/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-no-profile/chrome",
+        "--dump-dom",
+        "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-no-profile/standalone.html"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 0.983
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_browser.py",
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/b2-session-regenerated",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 2.17
+    },
+    {
+      "argv": [
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102/sdist-wheel-env/bin/python",
+        "-I",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/distribution_smoke.py",
+        "legacy",
+        "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/legacy.json"
+      ],
+      "status": "passed",
+      "returncode": 0,
+      "elapsed_seconds": 5.275
+    }
+  ],
+  "checks": {
+    "checkout-wheel": {
+      "installed_examples": {
+        "compare_saved_results.py": {
+          "status": "passed",
+          "script_sha256": "a4144ea399973f44624c0801dc671264c6f20d9cf5cd240b0a1e98867ad82c1e",
+          "command_log": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/logs/018.log"
+        },
+        "inspect_comparison_inputs.py": {
+          "status": "passed",
+          "script_sha256": "840a2d5807c34865d3e130c5e2d70292701f764f7738ed3d83773f9d5b53165b",
+          "command_log": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/logs/019.log"
+        },
+        "export_comparison_sidecar.py": {
+          "status": "passed",
+          "script_sha256": "7a2781d8a8cc00c57609a90ca2a04e6911ab51273c22e220c5dc92212d880db9",
+          "command_log": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/logs/020.log"
+        }
+      },
+      "figures": {
+        "api-svg": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/api-figure.svg",
+          "sha256": "56b684fbfe64109c1adbaab6441421502dacf7dbb4931b65f7751e7c9854dd9e",
+          "bytes": 53148
+        },
+        "cli-svg": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/cli-figure.svg",
+          "sha256": "74fc02f80ba45bc45b2318cc6fd436c32b026cfd21b22c04aa838d39004eaa03",
+          "bytes": 53148
+        },
+        "api-pdf": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/api-figure.pdf",
+          "sha256": "60c58bc97e24a77ea2c4cb652817bfa7e4e99696d8533b1a4614fb39206eafb7",
+          "bytes": 39666
+        },
+        "cli-pdf": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/cli-figure.pdf",
+          "sha256": "54770f7f8a846442635630261348705c388703e48c260c76353ad1b6f375323a",
+          "bytes": 39666
+        },
+        "decision-svg": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/decision-figure.svg",
+          "sha256": "c7e2cd0bec86ff96d720897b91afd8f65a57cda5f1af3f0595ad71c712d5fa56"
+        }
+      },
+      "inputs_removed_before_regeneration": true,
+      "browser": {
+        "a3": {
+          "status": "passed",
+          "case": "a3",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser/standalone.html",
+          "report_sha256": "cec9bfc08e206225902c30e18d5b5e2413823f9b94dd06ac835a2dc677576c01",
+          "probe_sha256": "1959df6fb85939d494c5e92b049be79d14b08046a5ec52d61f5e3836fd823c9a",
+          "actions": [
+            "heat drilldown",
+            "search/sort",
+            "pins",
+            "depth/output visibility",
+            "profiles/masks/hovers"
+          ],
+          "transport": "file://; hostname resolution disabled; report CSP connect-src none",
+          "probe": "disposable HTML copy with appended interaction assertions"
+        },
+        "b1": {
+          "status": "passed",
+          "case": "b1",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b1/standalone.html",
+          "report_sha256": "053a997700a696906f29fb2584e240e387116a742595dbb1bc9baa451216e673",
+          "probe_sha256": "797d7443330d256405dfaa8e5df2775002d84064b2508c25a4adb930d99e1179",
+          "actions": [
+            "categorical/continuous color",
+            "missing metadata",
+            "dataset/ID/metadata order",
+            "condition groups",
+            "fraction toggle",
+            "h/omission/reset/invalid h",
+            "installed Python diagnostic parity",
+            "unchanged ranks/overview/payload",
+            "inert hostile text"
+          ],
+          "transport": "file://; hostname resolution disabled; report CSP connect-src none",
+          "probe": "disposable HTML copy with appended interaction assertions"
+        },
+        "hostile": {
+          "status": "passed",
+          "case": "hostile",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-hostile/standalone.html",
+          "report_sha256": "8db4eee442012db9c21502db57e437c90d0e8f20c8f1f05e39c3ae99df8595f0",
+          "probe_sha256": "339a99a1905232f651e8c6ee12e7577f61498ffe62cc99cf3f1cdebfa6fc502f",
+          "actions": [
+            "categorical/continuous color",
+            "missing metadata",
+            "dataset/ID/metadata order",
+            "condition groups",
+            "fraction toggle",
+            "h/omission/reset/invalid h",
+            "installed Python diagnostic parity",
+            "unchanged ranks/overview/payload",
+            "inert hostile text"
+          ],
+          "transport": "file://; hostname resolution disabled; report CSP connect-src none",
+          "probe": "disposable HTML copy with appended interaction assertions"
+        },
+        "no-profile": {
+          "status": "passed",
+          "case": "no-profile",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-no-profile/standalone.html",
+          "report_sha256": "b13f941e522c2c2464356d7636589bb6ca5fc7e20fd65b3abc2130f9537cd12e",
+          "probe_sha256": "d28f6b6034ced48fe3d5de0bdd526451a29380f6510f4c61ddb31f4a893e0dee",
+          "actions": [
+            "select M01/P01",
+            "no-profile reason/no fallback"
+          ],
+          "transport": "file://; hostname resolution disabled; report CSP connect-src none",
+          "probe": "disposable HTML copy with appended interaction assertions"
+        },
+        "b2": {
+          "status": "passed",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2/standalone.html",
+          "report_sha256": "4217afad1f16dc3b940b3a773b68e6473b8a547a901169db8c365d905d82c46e",
+          "transport": "file://; external hostname resolution disabled; CSP connect-src none; local CDP only",
+          "actions": [
+            "independent reference filters/rank and denominator invariant",
+            "initial session restore",
+            "three user decisions including query abstention",
+            "hostile notes inert",
+            "actual session/shortlist/CSV downloads",
+            "actual file imports twice and exact restore",
+            "atomic tampered-file rejection",
+            "actual SVG download; Python and Chrome XML parse; masks/caption"
+          ],
+          "files": {
+            "session-original": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2/session-original.json",
+              "sha256": "13114ac2a707521356b4748034ee683928d10f938365e59380bf329b8efa018c"
+            },
+            "shortlist-original": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2/shortlist-original.json",
+              "sha256": "01c6b175bc2742df453d9a6302d0993e884994403e7f74b26d64fef50b19a734"
+            },
+            "shortlist-spreadsheet": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2/shortlist-spreadsheet.csv",
+              "sha256": "42cb3f1096710a1b261a6aa5e123898ccce95831ddc7290c6f3b8a88416b77cc"
+            },
+            "session-restored": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2/session-restored.json",
+              "sha256": "13114ac2a707521356b4748034ee683928d10f938365e59380bf329b8efa018c"
+            },
+            "shortlist-restored": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2/shortlist-restored.json",
+              "sha256": "01c6b175bc2742df453d9a6302d0993e884994403e7f74b26d64fef50b19a734"
+            },
+            "browser-figure": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/checkout-wheel/browser-b2/browser-figure.svg",
+              "sha256": "246e70bbbe40ba512a03113b201ea3859ff2fcce2e6a9f0fde6b52aa566a1696",
+              "bytes": 35166
+            }
+          },
+          "decision_count": 5
+        }
+      },
+      "legacy": {
+        "status": "passed",
+        "exports": {
+          "autoencoder": "valpas._core.autoencoder",
+          "confidence_evaluation": "valpas.confidence_evaluation",
+          "AnnotationList": "valpas._core.classes.annotations",
+          "AnalysisResults": "valpas._core.classes.results",
+          "AssociationResult": "valpas._core.classes.results",
+          "Omic": "valpas._core.classes.omics",
+          "OmicMeasurement": "valpas._core.classes.omics",
+          "SingleExperiment": "valpas._core.classes.experiments",
+          "CrossExperiment": "valpas._core.classes.experiments"
+        },
+        "torch_version": "2.15.0",
+        "training_performed": false
+      }
+    },
+    "sdist-wheel": {
+      "installed_examples": {
+        "compare_saved_results.py": {
+          "status": "passed",
+          "script_sha256": "a4144ea399973f44624c0801dc671264c6f20d9cf5cd240b0a1e98867ad82c1e",
+          "command_log": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/logs/059.log"
+        },
+        "inspect_comparison_inputs.py": {
+          "status": "passed",
+          "script_sha256": "840a2d5807c34865d3e130c5e2d70292701f764f7738ed3d83773f9d5b53165b",
+          "command_log": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/logs/060.log"
+        },
+        "export_comparison_sidecar.py": {
+          "status": "passed",
+          "script_sha256": "7a2781d8a8cc00c57609a90ca2a04e6911ab51273c22e220c5dc92212d880db9",
+          "command_log": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/logs/061.log"
+        }
+      },
+      "figures": {
+        "api-svg": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/api-figure.svg",
+          "sha256": "c634864d0a3a67d1437ed93653d71f5b5aa0a047fe3fb0bc5a1715fcc184e7d1",
+          "bytes": 53148
+        },
+        "cli-svg": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/cli-figure.svg",
+          "sha256": "e0c8c1225af8e5ea983c019353ebd91c88777963955045b017e355c03c25d6b4",
+          "bytes": 53148
+        },
+        "api-pdf": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/api-figure.pdf",
+          "sha256": "b43bdd66c0d19a5cded6a711ba887bd1a4f00a742d83ef99e70b659ba860a25a",
+          "bytes": 39666
+        },
+        "cli-pdf": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/cli-figure.pdf",
+          "sha256": "9e0b7823821a571c8b36fbf4319c6ca52e7e8410ff8ef565c0325938576caae9",
+          "bytes": 39666
+        },
+        "decision-svg": {
+          "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/decision-figure.svg",
+          "sha256": "d14d1bb8d4ed17fe4969ba9f624de02d1b8b4aeb714546b4d879833120cd1a68"
+        }
+      },
+      "inputs_removed_before_regeneration": true,
+      "browser": {
+        "a3": {
+          "status": "passed",
+          "case": "a3",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser/standalone.html",
+          "report_sha256": "cec9bfc08e206225902c30e18d5b5e2413823f9b94dd06ac835a2dc677576c01",
+          "probe_sha256": "1959df6fb85939d494c5e92b049be79d14b08046a5ec52d61f5e3836fd823c9a",
+          "actions": [
+            "heat drilldown",
+            "search/sort",
+            "pins",
+            "depth/output visibility",
+            "profiles/masks/hovers"
+          ],
+          "transport": "file://; hostname resolution disabled; report CSP connect-src none",
+          "probe": "disposable HTML copy with appended interaction assertions"
+        },
+        "b1": {
+          "status": "passed",
+          "case": "b1",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b1/standalone.html",
+          "report_sha256": "053a997700a696906f29fb2584e240e387116a742595dbb1bc9baa451216e673",
+          "probe_sha256": "797d7443330d256405dfaa8e5df2775002d84064b2508c25a4adb930d99e1179",
+          "actions": [
+            "categorical/continuous color",
+            "missing metadata",
+            "dataset/ID/metadata order",
+            "condition groups",
+            "fraction toggle",
+            "h/omission/reset/invalid h",
+            "installed Python diagnostic parity",
+            "unchanged ranks/overview/payload",
+            "inert hostile text"
+          ],
+          "transport": "file://; hostname resolution disabled; report CSP connect-src none",
+          "probe": "disposable HTML copy with appended interaction assertions"
+        },
+        "hostile": {
+          "status": "passed",
+          "case": "hostile",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-hostile/standalone.html",
+          "report_sha256": "8db4eee442012db9c21502db57e437c90d0e8f20c8f1f05e39c3ae99df8595f0",
+          "probe_sha256": "339a99a1905232f651e8c6ee12e7577f61498ffe62cc99cf3f1cdebfa6fc502f",
+          "actions": [
+            "categorical/continuous color",
+            "missing metadata",
+            "dataset/ID/metadata order",
+            "condition groups",
+            "fraction toggle",
+            "h/omission/reset/invalid h",
+            "installed Python diagnostic parity",
+            "unchanged ranks/overview/payload",
+            "inert hostile text"
+          ],
+          "transport": "file://; hostname resolution disabled; report CSP connect-src none",
+          "probe": "disposable HTML copy with appended interaction assertions"
+        },
+        "no-profile": {
+          "status": "passed",
+          "case": "no-profile",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-no-profile/standalone.html",
+          "report_sha256": "b13f941e522c2c2464356d7636589bb6ca5fc7e20fd65b3abc2130f9537cd12e",
+          "probe_sha256": "d28f6b6034ced48fe3d5de0bdd526451a29380f6510f4c61ddb31f4a893e0dee",
+          "actions": [
+            "select M01/P01",
+            "no-profile reason/no fallback"
+          ],
+          "transport": "file://; hostname resolution disabled; report CSP connect-src none",
+          "probe": "disposable HTML copy with appended interaction assertions"
+        },
+        "b2": {
+          "status": "passed",
+          "uri": "file:///private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2/standalone.html",
+          "report_sha256": "4217afad1f16dc3b940b3a773b68e6473b8a547a901169db8c365d905d82c46e",
+          "transport": "file://; external hostname resolution disabled; CSP connect-src none; local CDP only",
+          "actions": [
+            "independent reference filters/rank and denominator invariant",
+            "initial session restore",
+            "three user decisions including query abstention",
+            "hostile notes inert",
+            "actual session/shortlist/CSV downloads",
+            "actual file imports twice and exact restore",
+            "atomic tampered-file rejection",
+            "actual SVG download; Python and Chrome XML parse; masks/caption"
+          ],
+          "files": {
+            "session-original": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2/session-original.json",
+              "sha256": "187a3e18d4199d492fb207eae849f4e14c547599b89c229d28d8c915fc0f2b18"
+            },
+            "shortlist-original": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2/shortlist-original.json",
+              "sha256": "7b5d1fcd5816fec8333f4bad65d9c91972c5a8424554a1f18abb5fb2dc0fb223"
+            },
+            "shortlist-spreadsheet": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2/shortlist-spreadsheet.csv",
+              "sha256": "3407f0b818605e13428b74ec261afc31bd15ed989d9cccedf83a40d240c37868"
+            },
+            "session-restored": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2/session-restored.json",
+              "sha256": "187a3e18d4199d492fb207eae849f4e14c547599b89c229d28d8c915fc0f2b18"
+            },
+            "shortlist-restored": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2/shortlist-restored.json",
+              "sha256": "7b5d1fcd5816fec8333f4bad65d9c91972c5a8424554a1f18abb5fb2dc0fb223"
+            },
+            "browser-figure": {
+              "path": "/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-ex_bttr5/sdist-wheel/browser-b2/browser-figure.svg",
+              "sha256": "246e70bbbe40ba512a03113b201ea3859ff2fcce2e6a9f0fde6b52aa566a1696",
+              "bytes": 35166
+            }
+          },
+          "decision_count": 5
+        }
+      },
+      "legacy": {
+        "status": "passed",
+        "exports": {
+          "autoencoder": "valpas._core.autoencoder",
+          "confidence_evaluation": "valpas.confidence_evaluation",
+          "AnnotationList": "valpas._core.classes.annotations",
+          "AnalysisResults": "valpas._core.classes.results",
+          "AssociationResult": "valpas._core.classes.results",
+          "Omic": "valpas._core.classes.omics",
+          "OmicMeasurement": "valpas._core.classes.omics",
+          "SingleExperiment": "valpas._core.classes.experiments",
+          "CrossExperiment": "valpas._core.classes.experiments"
+        },
+        "torch_version": "2.15.0",
+        "training_performed": false
+      }
+    }
+  },
+  "packaged_documentation_matches_checkout": true
+}

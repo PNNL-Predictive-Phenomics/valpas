@@ -54,7 +54,7 @@ def environment(wheel):
             require(data == archive.read("valpas/comparison/assets/" + name), "installed asset differs: " + name)
             assets[name] = hashlib.sha256(data).hexdigest()
         modules = {}
-        for name in ("reference", "session", "figures"):
+        for name in ("reference", "session", "figures", "production"):
             installed = importlib.import_module("valpas.comparison." + name)
             path = Path(installed.__file__).resolve()
             require(path.is_relative_to(root), "B2 module outside venv")

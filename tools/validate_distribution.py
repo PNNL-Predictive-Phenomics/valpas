@@ -25,7 +25,7 @@ import traceback
 import zipfile
 
 ASSETS = ("dashboard.css", "dashboard.js", "sessions.js", "shell.html")
-MODULES = ("reference.py", "session.py", "figures.py")
+MODULES = ("reference.py", "session.py", "figures.py", "production.py")
 B2_FIXTURE_FILES = ("README.md", "manifest.json", "references.json", "query-groups.json")
 SDIST_FILES = (
     "pyproject.toml", "README.md", "LICENSE", "PKG-INFO",
@@ -34,6 +34,8 @@ SDIST_FILES = (
     "examples/inspect_comparison_inputs.py", "tools/validate_distribution.py",
     "tools/distribution_smoke.py", "tools/distribution_browser.py",
     "tests/comparison/chrome_cdp.py", "docs/COMPARISON_FIGURES.md",
+    "docs/COMPARISON_PRODUCTION.md", "examples/export_comparison_sidecar.py",
+    "tools/benchmark_comparison.py",
 )
 FIXTURE_FILES = (
     "README.md", "manifest.json", "manifest-with-profiles.json", "profiles.json",
@@ -355,7 +357,7 @@ def validate_install(runner, label, wheel, fixture, helper, chrome, reuse=None):
     (examples / "examples").mkdir(parents=True)
     shutil.copytree(fixture, examples / "tests/comparison/fixtures/demo-01")
     example_checks = {}
-    for name in ("compare_saved_results.py", "inspect_comparison_inputs.py"):
+    for name in ("compare_saved_results.py", "inspect_comparison_inputs.py", "export_comparison_sidecar.py"):
         script = examples / "examples" / name
         shutil.copy2(fixture.parents[3] / "examples" / name, script)
         runner.run([python, "-I", script], cwd=examples)

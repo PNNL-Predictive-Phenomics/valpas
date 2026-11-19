@@ -9,6 +9,7 @@ from .adapters import load_comparison_input, load_manifest, from_association_res
 from .compatibility import validate_compatibility, build_pools
 from .ranking import rank_output, top_list
 from .bundles import export_comparison_inputs, load_input_bundle
+from .production import export_association_result, load_export_request
 from .engine import ComparisonResult, compare_results
 from .report import write_comparison, load_comparison_bundle
 from .browser import ReportSettings
@@ -23,7 +24,7 @@ from .reference import (ReferenceData, QueryGroups, load_reference_data, load_qu
 from .session import Session, Shortlist, load_session, load_shortlist, session_content_id
 
 __all__ = [
-    "export_query_figure",
+    "export_query_figure", "export_association_result", "load_export_request",
     "Session", "Shortlist", "load_session", "load_shortlist", "session_content_id",
     "SCHEMA_VERSION", "TIE_POLICY", "ComparisonInput", "ComparisonManifest",
     "ComparisonSettings", "ComparisonValidationError", "CompatibilityReport",

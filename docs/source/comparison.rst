@@ -192,4 +192,26 @@ not fresh dependency resolution. Those artifacts predate this documentation
 finalization; no rebuild was performed for these docs-only changes. Historical
 slice handoffs retain their earlier counts/status. No target-scale, other
 OS/Python/browser matrix, manual visual/accessibility certification, Sphinx build
-or broad training-suite claim is made. B3 production integration remains future.
+or broad training-suite claim is made by that historical B2 record.
+
+B3 production integration
+-------------------------
+
+The `CLI-first production guide <https://github.com/PNNL-Predictive-Phenomics/valpas/blob/main/docs/COMPARISON_PRODUCTION.md>`_
+explains opt-in sidecar requests, explicit identity/orientation, known versus
+unknown provenance, full-precision export before legacy mutation, and independent
+publication failures. Run the shipped production example from the source
+archive against an installed wheel; it calculates tiny synthetic Pearson and
+Spearman matrices, never trains, then compares the exported saved values offline.
+
+The public ``export_association_result`` also adapts existing labeled results
+without fitting again. ``AssociationResult.export_comparison`` is a convenience
+wrapper; calculation and file-based association entry points accept the optional
+keyword-only ``comparison_export`` request. Legacy defaults are unchanged.
+
+The `B3 validation record <https://github.com/PNNL-Predictive-Phenomics/valpas/blob/main/plans/B3_VALIDATION_HANDOFF.md>`_
+records final integration evidence. The bounded 1,000 × 5,000 × 8 dense run stopped
+during loading at 600.545 seconds and 5.05 GiB sampled peak RSS; full comparison,
+report generation and full bundle writing were not validated at that size.
+Browser scope bounds do not bound full input memory. This is a measured limitation,
+not a passing performance target.

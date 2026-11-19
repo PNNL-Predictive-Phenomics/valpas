@@ -95,6 +95,7 @@ def associate(
         'normalize_pairs': False,
         'extrapolate_confidence': False,
     },
+    *, comparison_export=None,
 ):
     """
     Establishes association values between items (e.g., proteins, lipids, or metabolites).
@@ -130,6 +131,10 @@ def associate(
     Returns:
         result: Computed associations as a DataFrame or saves to the outfile.
     """
+    if comparison_export is not None:
+        from .comparison.production import load_export_request, validate_legacy_destination
+        comparison_export = load_export_request(comparison_export)
+        validate_legacy_destination(comparison_export, outfile)
     sheet_names = [sheet] if sheet else None
     if sheet2:
         sheet_names = sheet_names + [sheet2] if sheet_names is not None else [sheet2]
@@ -202,6 +207,13 @@ def associate(
             raise ValueError(f"Normalization mode '{normalization}' not supported.")
     else:
         raise NotImplementedError("Cross-experiment associations for more than 2 experiments not supported.")
+
+    if comparison_export is not None:
+        from .comparison.production import export_requested_result
+        # This boundary can include combined results. Only the calculation
+        # boundary itself captures the post-subsetting observation cohort.
+        export_requested_result(result, comparison_export, method=association_type,
+                                transform_clr=transform_clr, thresholded=thresholded)
 
     # handle incorporation of annotations
     if annotation_file:

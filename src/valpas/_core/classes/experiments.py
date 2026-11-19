@@ -91,7 +91,8 @@ class Experiment():
             transform_clr: bool=False,
             learncorr_args: dict={},
             autoencoder_args: dict={},
-            subset_args: dict={}
+            subset_args: dict={},
+            *, comparison_export=None,
             ) -> AssociationResult:
         """
         Function that calculates association values for the Experiment.
@@ -132,7 +133,8 @@ class Experiment():
             transform_clr=transform_clr,
             learncorr_args=learncorr_args,
             autoencoder_args=autoencoder_args,
-            subset_args=subset_args
+            subset_args=subset_args,
+            **({"comparison_export": comparison_export} if comparison_export is not None else {})
             )
 
 class SingleExperiment(Experiment):

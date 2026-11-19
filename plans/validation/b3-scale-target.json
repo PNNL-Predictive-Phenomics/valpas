@@ -1,0 +1,23 @@
+{
+  "dimensions": [
+    1000,
+    5000,
+    8
+  ],
+  "pair_count": 40000000,
+  "max_rss_mib": 6144,
+  "timeout_seconds": 600.0,
+  "platform": "macOS-26.7.2-arm64-arm-64bit",
+  "python": "3.12.3 (main, Mar  1 2026, 11:36:18) [Clang 17.0.0 (clang-1700.4.4.1)]",
+  "scope": "dense CSV load, full comparison summaries, two-query report payload; no full bundle write",
+  "status": "bounded_stop",
+  "worker_log": "",
+  "last_progress": {
+    "stage": "load_manifest",
+    "elapsed_seconds": 19.301477500004694
+  },
+  "stop_reason": "time_limit",
+  "returncode": -15,
+  "elapsed_seconds": 600.545442875009,
+  "sampled_peak_rss_bytes": 5418418176
+}

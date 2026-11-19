@@ -1,0 +1,26 @@
+{
+  "dimensions": [
+    4,
+    20,
+    2
+  ],
+  "pair_count": 160,
+  "max_rss_mib": 6144,
+  "timeout_seconds": 600,
+  "platform": "macOS-26.7.2-arm64-arm-64bit",
+  "python": "3.12.3 (main, Mar  1 2026, 11:36:18) [Clang 17.0.0 (clang-1700.4.4.1)]",
+  "scope": "dense CSV load, full comparison summaries, two-query report payload; no full bundle write",
+  "status": "passed",
+  "worker_log": "",
+  "last_progress": {
+    "stage": "completed",
+    "elapsed_seconds": 0.0380843750317581,
+    "comparison_id": "cmp-v1-40c2b4ad5c5be26eed40a67e7feffc1b0bf137086b7237169e1693c59f5f1d30",
+    "report_payload_bytes": 645294,
+    "worker_peak_rss_bytes": 29589504
+  },
+  "stop_reason": null,
+  "returncode": 0,
+  "elapsed_seconds": 0.5386160409543663,
+  "sampled_peak_rss_bytes": 24543232
+}

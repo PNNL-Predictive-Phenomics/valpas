@@ -4,7 +4,7 @@ VaLPAS (Variation-Leveraged Phenomic Association Study) identifies associations 
 
 This guide is the central user-facing reference for selecting a method, preparing inputs, configuring the autoencoder, and interpreting outputs. For API signatures, see the [online API reference](https://pnnl-predictive-phenomics.github.io/valpas/). For an interactive walkthrough, see the [demonstration notebook](../notebooks/valpas_demonstration.ipynb).
 
-For comparing **saved outputs without training**, start with the [complete B2 offline comparison guide](COMPARISON_RELEASE_A.md) (historical filename retained). It covers the combined demo, overview-first inspection, references, portable decisions, SVG/PDF figures and source-free regeneration. No target query, server or network is required. B2 is DONE; B3 production metadata capture/export integration and target-scale validation remain future, not full Release B/project completion.
+For comparing **saved outputs without training**, start with the [offline comparison guide](COMPARISON_RELEASE_A.md) (historical filename retained). It covers the combined demo, overview-first inspection, references, portable decisions, SVG/PDF figures and source-free regeneration. No target query, server or network is required. The [B3 production guide](COMPARISON_PRODUCTION.md) adds opt-in sidecars, truthful metadata capture and explicit measured scale limitations.
 
 ## Contents
 
@@ -130,6 +130,10 @@ PYTHONPATH=src python3 -m valpas.cli compare --bundle demo-b2 --outdir regenerat
 New result bundles use v3 with strict optional schema-v1 reference/session extensions; input/scientific schemas remain v1. Reload of v1/v2/v3 is same-software/policy only, not migration. The [schema reference](COMPARISON_SCHEMA_V1.md) covers exact metadata contracts, table inventories and authoritative binding checks. Metadata omission is **HTML-only**, not anonymization: full bundles retain IDs, profiles, metadata, references and optional sessions. Omitted HTML with an attached initial session is rejected; detach explicitly. Notes entered afterward still appear in downloads. No browser storage, automatic writes or network; hashes detect corruption, not authentication. Keep matching HTML/bundle with session JSON and inspect downloads before sharing.
 
 [Integrated validation](../plans/B2_VALIDATION_HANDOFF.md) passed **232 full-dependency comparison tests (zero skips), 22 harness tests, 88 installed commands and 10 actual Chrome cases across both wheels**. These were retained isolated full-dependency environments, not fresh dependency resolution. Tested artifacts precede this documentation finalization; no docs-only rebuild was performed. Target-scale performance, production capture/export hooks and full Release B completion remain outside B2.
+
+### Opt-in comparison-ready production export
+
+The [B3 production guide](COMPARISON_PRODUCTION.md) explains the optional sidecar request, explicit identity/orientation, full-precision export before legacy mutation, actual versus unknown provenance, and independent failure behavior. Run the [synthetic production example](../examples/export_comparison_sidecar.py) from a checkout or extracted sdist. The [saved-output workflow](COMPARISON_RELEASE_A.md) then covers overview-first inspection, profiles, reference limits, decisions, sessions and figures. Dense target-scale loading remains limited; see the measured bounded-stop record rather than assuming browser scope bounds input memory.
 
 ### CLI scope and autoencoders
 

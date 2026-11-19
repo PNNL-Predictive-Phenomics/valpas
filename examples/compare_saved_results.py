@@ -82,7 +82,8 @@ def demonstrate(destination, policy):
     print("Open directly from disk:", path / "report.html")
     print("Browser: select M01/P01, set largest h to 1, explicitly preview omission, group by condition.")
     print("Color/order are display-only. No causality, retraining, scoring or rank changes.")
-    print("B2/B3 references, sessions, figures and final integration remain unfinished.")
+    print("For references, sessions and figures use manifest-with-b2.json and the saved-output guide.")
+    print("For opt-in production export use export_comparison_sidecar.py; see the documented dense-scale limit.")
 
 
 def main():
