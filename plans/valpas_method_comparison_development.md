@@ -1,6 +1,8 @@
 # VaLPAS within-dataset method comparison: development handoff
 
-**Status:** implementation plan, not implemented. Written 2026-11-16 after targeted read-only inspection of the sibling VaLPAS repository. This document is sufficient context for a separate development session; the paper analyses need not be rerun.
+**Original status (2026-11-16):** implementation plan, not implemented. Written after targeted read-only inspection of the sibling VaLPAS repository. This document remains the original scientific specification; the paper analyses need not be rerun.
+
+**Current implementation pointer (2026-11-19):** A0–A3, B1 and **B2 are DONE**, with integrated validation recorded in the [implementation plan](METHOD_COMPARISON_IMPLEMENTATION_PLAN.md#integrated-b2-completion-record--2026-11-19) and [B2 validation handoff](B2_VALIDATION_HANDOFF.md). The [current CLI-first workflow](../docs/COMPARISON_RELEASE_A.md) uses the combined B2 demo. B3 production metadata capture/export integration and target-scale validation remain future; full Release B/project completion is not claimed. The specification below is preserved, not rewritten as a retrospective implementation description.
 
 **Development target:** the standalone VaLPAS package, currently located at [the sibling repository](../../valpas/README.md), not the paper repository's vendored copy. Source links below are relative to this document. Proposed source paths are recommendations, not claims that those files already exist.
 

@@ -205,7 +205,10 @@ window.valpasDiagnostics = (() => {
   const data = JSON.parse(document.getElementById('comparison-data').textContent);
   const app = document.getElementById('app');
   app.replaceChildren();
-  const state = {depth: Math.min(10, data.report_settings.max_interactive_depth), query: null, candidate: null, pair: null, search: '', candidateSearch: '', hidden: new Set(), pins: new Set(data.report_settings.pinned_candidate_ids)};
+  const portable = window.valpasSessions(data);
+  const state = {...portable.clone(data.session_contract.default_view), hidden: new Set(), pins: new Set(data.report_settings.pinned_candidate_ids)};
+  let decisions = [], sessionNotes = '';
+  const snapshot = () => portable.clone({...state, hidden: [...state.hidden], pins: [...state.pins]});
   const text = value => value === null || value === undefined ? 'unavailable / not applicable' : typeof value === 'object' ? JSON.stringify(value) : String(value);
   function el(tag, content, parent, cls) {
     const n = document.createElement(tag);
@@ -248,18 +251,44 @@ window.valpasDiagnostics = (() => {
   depth.addEventListener('change', () => {const v = Number(depth.value); if(Number.isInteger(v) && v >= 1 && v <= data.report_settings.max_interactive_depth) {state.depth = v; renderOverview(); renderQueries(); renderWorkspace();}});
   el('p', `Details: ${data.query_ids.length}/${data.all_query_ids.length} queries; maximum interactive depth ${data.report_settings.max_interactive_depth}. Whole-cohort summaries and full saved tables are independent of this scope. Filters/hidden outputs never change pools or denominators.`, controls);
   const visibility = el('details', null, controls); el('summary', 'Display outputs (does not redefine analysis)', visibility);
-  data.summaries.outputs.forEach(o => {const l = el('label', `${o.label} [${o.output_id}; ${o.method_id}/${o.configuration_id}/${o.run_id}] `, visibility), c = el('input', null, l); c.type='checkbox'; c.checked=true; c.addEventListener('change', () => {if(c.checked) state.hidden.delete(o.output_id); else state.hidden.add(o.output_id); renderOverview(); renderWorkspace();});});
+  data.summaries.outputs.forEach(o => {const l = el('label', `${o.label} [${o.output_id}; ${o.method_id}/${o.configuration_id}/${o.run_id}] `, visibility), c = el('input', null, l); c.type='checkbox'; c.checked=true; c.dataset.outputId=o.output_id; c.addEventListener('change', () => {if(c.checked) state.hidden.delete(o.output_id); else state.hidden.add(o.output_id); renderOverview(); renderWorkspace();});});
   const overview = section('2 · Whole-cohort output-pair agreement');
   const recurrence = section('3 · Run recurrence — separate from method agreement');
   const queries = section('4 · Query browser');
   const searchLabel = el('label', 'Search canonical ID, label, modality or available annotation ', queries), search = el('input', null, searchLabel); search.type='search'; search.id='query-search';
-  search.addEventListener('input', () => {state.search=search.value.toLowerCase(); renderQueries();});
+  search.addEventListener('input', () => {state.search=search.value; renderQueries();});
+  const queryOrder=el('select',null,el('label','Portable query order ',queries));queryOrder.id='query-order';
+  [['id_asc','Canonical ID ascending'],['id_desc','Canonical ID descending']].forEach(([v,t])=>{const o=el('option',t,queryOrder);o.value=v;});
+  queryOrder.addEventListener('change',()=>{state.queryOrder=queryOrder.value;renderQueries();});
   button('Clear chart selection', queries, () => {state.pair=null; renderQueries();});
   const queryRows = el('div', null, queries);
   const workspace = section('5 · Query → candidates → measured profiles');
+  const referencePanel = section('6 · Source-specific reference evidence');
+  const refs = data.references;
+  state.referenceEndpoint = refs ? refs.endpoints[0].endpoint_id : null;
+  state.evidenceFilter = 'all';
+  function renderReferences() {
+    referencePanel.replaceChildren(); el('h2', '6 · Source-specific reference evidence', referencePanel);
+    el('p', 'Reference support is incomplete, not biological validation. Unsupported by a source does not mean a biological negative. Pathway co-membership is not direct reaction evidence. Outputs/runs are never pooled as biological replication.', referencePanel, 'notice');
+    if (!refs) {el('p', data.reference_provenance_hash ? 'Reference metadata omitted from HTML; full bundle retains it.' : 'No reference evidence supplied; reference assessment is unavailable, not zero.', referencePanel); return;}
+    el('p', refs.scope, referencePanel);
+    const l = el('label', 'Independent source/version/evidence endpoint ', referencePanel), s = el('select', null, l); s.id = 'reference-endpoint';
+    refs.endpoints.forEach(e => {const o = el('option', `${e.endpoint_id} · ${e.source} / ${e.version} · ${e.evidence_type} / ${e.support_class}`, s); o.value = e.endpoint_id;});
+    s.value = state.referenceEndpoint;
+    s.addEventListener('change', () => {state.referenceEndpoint = s.value; renderReferences(); renderWorkspace();});
+    const endpoint = refs.endpoints.find(e => e.endpoint_id === state.referenceEndpoint);
+    detail('Endpoint coverage and explicit reference universe', endpoint, referencePanel);
+    el('p', `Weighting: ${refs.weighting}. All-assessed includes assessed zero/unreachable queries when a metric is evaluable. Reachable requires known reachable support > 0. Each metric reports its own denominator and exclusions; strata are 0, 1, 2–5, 6+.`, referencePanel);
+    const rows = refs.summary.filter(r => r.endpoint_id === state.referenceEndpoint && r.requested_depth === state.depth);
+    table(rows.filter(r => r.opportunity_stratum === 'all'), referencePanel, null,
+      ['output_id','cohort','metric','weighting','mean','assessed_queries','eligible_queries','evaluable_queries','aggregation_denominator','evaluable_groups','status']);
+    detail('All strata, group means, included features and exclusions (full cohort)', rows, referencePanel);
+    table(refs.recovery.filter(r => r.endpoint_id === state.referenceEndpoint && r.requested_depth === state.depth), referencePanel, r => selectQuery(r.query_id));
+  }
   const visiblePair = r => !state.hidden.has(r.left_output_id) && !state.hidden.has(r.right_output_id);
   function selectPair(row) {state.pair=[row.left_output_id,row.right_output_id]; renderQueries(); queries.scrollIntoView({block:'start'});}
   function renderOverview() {
+    renderReferences();
     overview.replaceChildren(); el('h2', '2 · Whole-cohort output-pair agreement', overview);
     el('p', 'Heatmap tiles show median controlled overlap and evaluable / declared queries. Select a tile to inspect its query-level values. Gray means unavailable, not zero. Outputs and runs are never collapsed.', overview);
     const heat = el('div', null, overview, 'heat');
@@ -285,7 +314,7 @@ window.valpasDiagnostics = (() => {
     queryRows.replaceChildren();
     const pairRows = state.pair ? data.agreement.filter(r=>r.requested_depth===state.depth && r.left_output_id===state.pair[0] && r.right_output_id===state.pair[1]) : null;
     if(state.pair) el('p',`Selected output pair: ${state.pair.join(' × ')}`,queryRows,'notice');
-    const rows=data.summaries.query_summary.filter(r=>r.requested_depth===state.depth && searchable(r.query_id,qns).includes(state.search)).map(r=>{const p=pairRows && pairRows.find(v=>v.query_id===r.query_id); return {query_id:r.query_id,display:label(r.query_id,qns),detail_scope:data.query_ids.includes(r.query_id)?'embedded':'outside embedded detail scope',...r,...(state.pair?{pair_overlap:p?p.overlap_fraction:null,pair_status:p?p.status:'excluded',pair_reason:p?p.reason:r.reason}: {})};});
+    const rows=data.summaries.query_summary.filter(r=>r.requested_depth===state.depth && searchable(r.query_id,qns).includes(state.search.toLowerCase())).map(r=>{const p=pairRows && pairRows.find(v=>v.query_id===r.query_id); return {query_id:r.query_id,display:label(r.query_id,qns),detail_scope:data.query_ids.includes(r.query_id)?'embedded':'outside embedded detail scope',...r,...(state.pair?{pair_overlap:p?p.overlap_fraction:null,pair_status:p?p.status:'excluded',pair_reason:p?p.reason:r.reason}: {})};}).sort((a,b)=>codePointOrder(a.query_id,b.query_id)*(state.queryOrder==='id_asc'?1:-1));
     el('p',`${rows.length} matching queries. Select any row; click column headings to sort. Search covers only embedded labels/annotations. A missing match is not evidence of absence; re-export with explicit query IDs or pinned candidate IDs.`,queryRows);
     table(rows,queryRows,r=>selectQuery(r.query_id));
   }
@@ -300,18 +329,38 @@ window.valpasDiagnostics = (() => {
     detail('Agreement: requested/effective depths, lists and denominators',d.agreement.filter(r=>r.requested_depth===state.depth),workspace);
     detail('Top-list availability (all outputs, fixed pools)',d.tops.filter(r=>r.requested_depth===state.depth),workspace);
     const l=el('label','Find candidate by ID, label, modality or annotation ',workspace), input=el('input',null,l); input.type='search'; input.id='candidate-search'; input.value=state.candidateSearch;
+    let evidenceSelect = null;
+    if (refs) {
+      el('p', `Evidence display endpoint: ${state.referenceEndpoint}. Display filtering does not change nominations, ranks, pools, recovery or summary denominators.`, workspace, 'notice');
+      const label = el('label', 'Evidence display filter ', workspace);
+      evidenceSelect = el('select', null, label); evidenceSelect.id = 'evidence-filter';
+      [['all','All nominations (default)'],['supported','Reference-supported display rows'],['unsupported','Assessed, unsupported-by-source display rows']].forEach(([value, title]) => {const option = el('option', title, evidenceSelect); option.value = value;});
+      evidenceSelect.value = state.evidenceFilter;
+      detail('Query reference evaluation (fixed full pools)', refs.recovery.filter(r => r.query_id === state.query && r.endpoint_id === state.referenceEndpoint && r.requested_depth === state.depth), workspace);
+    }
+    function evidenceStatus(c) {
+      if (!refs) return 'unassessed';
+      const e = refs.endpoints.find(e => e.endpoint_id === state.referenceEndpoint);
+      if (!e.assessed_query_ids.includes(state.query)) return 'unassessed';
+      if (!e.candidate_universe.includes(c)) return 'outside_reference_universe';
+      return refs.evidence.some(r => r.query_id === state.query && r.candidate_id === c && r.endpoint_id === state.referenceEndpoint) ? 'supported' : 'unsupported_by_source';
+    }
+    const candidateOrder=el('select',null,el('label','Portable candidate order ',workspace));candidateOrder.id='candidate-order';
+    [['id_asc','Canonical ID ascending'],['id_desc','Canonical ID descending']].forEach(([v,t])=>{const o=el('option',t,candidateOrder);o.value=v;});candidateOrder.value=state.candidateOrder;
+    candidateOrder.addEventListener('change',()=>{state.candidateOrder=candidateOrder.value;candidates();});
     const list=el('div',null,workspace), profile=el('div',null,workspace);
     function candidates() {
       list.replaceChildren();
       const union=new Set(state.pins);
       d.tops.filter(r=>r.requested_depth===state.depth).forEach(r=>(r.candidate_ids||[]).forEach(c=>union.add(c)));
       const needle=state.candidateSearch.toLowerCase();
-      const ids=d.candidate_ids.filter(c=>needle?searchable(c,cns).includes(needle):union.has(c));
+      const ids=d.candidate_ids.filter(c=>(needle?searchable(c,cns).includes(needle):union.has(c)) && (!refs || state.evidenceFilter === 'all' || evidenceStatus(c) === (state.evidenceFilter === 'supported' ? 'supported' : 'unsupported_by_source')));
       el('p',`${ids.length} candidates shown; ${d.candidate_ids.length} embedded. Default order: canonical ID, not consensus rank. Search can reveal candidates embedded at other depths. No match: outside scope or absent; re-export pinned IDs. Hidden outputs do not change this union.`,list);
-      const rows=ids.map(c=>({candidate_id:c,display:label(c,cns),pinned:state.pins.has(c)}));
+      const rows=ids.sort((a,b)=>codePointOrder(a,b)*(state.candidateOrder==='id_asc'?1:-1)).map(c=>({candidate_id:c,display:label(c,cns),pinned:state.pins.has(c),...(refs ? {reference_status:evidenceStatus(c)} : {})}));
       table(rows,list,r=>{state.candidate=r.candidate_id; showCandidate();});
     }
     input.addEventListener('input',()=>{state.candidateSearch=input.value;candidates();});
+    if (evidenceSelect) evidenceSelect.addEventListener('change', () => {state.evidenceFilter = evidenceSelect.value; candidates();});
     function showCandidate() {
       profile.replaceChildren(); if(!state.candidate)return;
       const c=state.candidate; el('h3',label(c,cns),profile);
@@ -319,9 +368,14 @@ window.valpasDiagnostics = (() => {
       el('p','Signed scores retain native output semantics; do not compare score magnitudes across methods. Missing ranks are not zero.',profile);
       table(d.ranks.filter(r=>r.candidate_id===c&&!state.hidden.has(r.output_id)),profile);
       detail('Sparse absent-record statuses (not fabricated ranks)',d.omissions.filter(r=>r.candidate_id===c),profile);
+      if (refs) {
+        el('p', `Reference status: ${evidenceStatus(c)}; endpoint ${state.referenceEndpoint}. Not a biological negative or probability of correctness.`, profile);
+        detail('One-to-many source evidence records (pair support counted once)', refs.evidence.filter(r => r.query_id === state.query && r.candidate_id === c && r.endpoint_id === state.referenceEndpoint), profile);
+      }
       detail('Candidate run recurrence and expected/evaluable runs',d.recurrence.filter(r=>r.candidate_id===c&&r.requested_depth===state.depth),profile);
       if(!data.layers.length)el('p','No profile layers embedded (not supplied or explicitly omitted). Rankings remain usable; profile evidence is unavailable.',profile,'notice');
-      data.layers.forEach(layer=>renderProfile(layer,d,c,profile));
+      if(data.layers.length){const s=el('select',null,el('label','Profile layer ',profile));s.id='profile-layer';const all=el('option','All layers',s);all.value='';data.layers.forEach((layer,i)=>{const o=el('option',layer.layer_id,s);o.value=String(i);});s.value=state.selectedLayer===null?'':String(data.layers.findIndex(l=>l.layer_id===state.selectedLayer));s.addEventListener('change',()=>{state.selectedLayer=s.value===''?null:data.layers[Number(s.value)].layer_id;showCandidate();});}
+      data.layers.filter(layer=>state.selectedLayer===null||state.selectedLayer===layer.layer_id).forEach(layer=>renderProfile(layer,d,c,profile));
     }
     candidates(); showCandidate();
   }
@@ -338,6 +392,7 @@ window.valpasDiagnostics = (() => {
     return x.length-y.length;
   }
   function renderProfile(layer,d,c,parent){
+    const saved=state.layers.find(l=>l.layer_id===layer.layer_id);
     const box=el('section',null,parent,'profile-layer');el('h3',`Measurement layer: ${layer.layer_id}`,box);
     el('p',`Units: ${layer.units}; transform: ${layer.transform}; mask: ${layer.mask_source}; provenance: ${layer.provenance}`,box);
     detail('Relationship to algorithm layers (not attribution)',layer.algorithm_layers,box);
@@ -361,13 +416,17 @@ window.valpasDiagnostics = (() => {
     const diagnostics=el('div',null,box,'covariance-diagnostics');
     el('h4','Joint-centered covariance contributions',diagnostics);
     const h=el('input',null,el('label','Largest absolute products h ',diagnostics),'diagnostic-h');h.type='number';h.min='1';h.step='1';h.value='5';
-    let omission=false;
+    color.value=saved.color===null?'':String(fields.indexOf(saved.color));
+    group.value=saved.group===null?'':String(categorical.indexOf(saved.group));
+    order.value=saved.order;fraction.checked=saved.include_fraction;h.value=String(saved.h);
+    let omission=saved.omission;
     const omit=button('Preview omission and recenter remaining pairs',diagnostics,()=>{omission=true;renderDiagnostic();});omit.className='omission-preview';
     button('Clear omission preview',diagnostics,()=>{omission=false;renderDiagnostic();});
     const diagnosticRows=el('div',null,diagnostics,'diagnostic-results');
     function renderDiagnostic(){
-      if(!Number.isInteger(Number(h.value))||Number(h.value)<1)return;
+      if(!Number.isSafeInteger(Number(h.value))||Number(h.value)<1)return;
       diagnosticRows.replaceChildren();
+      saved.h=Number(h.value);saved.omission=omission;
       const result=window.valpasDiagnostics.covarianceDiagnostic(layer,data.dataset,state.query,c,{h:Number(h.value),omission});
       el('p',`Status: ${result.status}; reason: ${text(result.reason)}. Joint observed: ${text(result.joint_observed_count)} / ${result.required_observation_ids.length}; excluded: ${result.excluded_observation_ids.length}. Selected: ${result.effective_h}; largest-h absolute-product share: ${text(result.largest_h_share)}.`,diagnosticRows,'diagnostic-status');
       el('p',`Signed products use joint-sample means. Sample covariance uses n−1. Omission preview: ${omission?'requested; retained pairs are recentered':'not requested'}.`,diagnosticRows);
@@ -376,7 +435,7 @@ window.valpasDiagnostics = (() => {
       table([{cohort:'original',...result.original},{cohort:'remaining (explicit omission)',...result.remaining}],diagnosticRows);
       detail('Exact covariance diagnostic, masks, exclusions and retained IDs',result,diagnosticRows).className='diagnostic-exact';
     }
-    h.addEventListener('change',()=>{const n=Number(h.value);if(!Number.isInteger(n)||n<1){h.setCustomValidity('Enter an integer of at least 1.');omit.disabled=true;return;}h.setCustomValidity('');omit.disabled=false;omission=false;renderDiagnostic();});
+    h.addEventListener('change',()=>{const n=Number(h.value);if(!Number.isSafeInteger(n)||n<1){h.setCustomValidity('Enter an exact integer from 1 to 9007199254740991.');omit.disabled=true;return;}h.setCustomValidity('');omit.disabled=false;omission=false;renderDiagnostic();});
     function renderGroups(){
       groups.replaceChildren();
       if(group.value===''){el('p','Select a categorical grouping to describe each feature separately on its observed finite values. Missing groups take precedence in disjoint exclusion counts.',groups);return;}
@@ -428,10 +487,92 @@ window.valpasDiagnostics = (() => {
       const ys=scale(all,195,40), positions=new Map(displayOrder.map((sid,i)=>[sid,i]));
       [['query',q,'observed'],['candidate',f,'candidate']].forEach(([role,feature,cls])=>{[false,true].forEach(imputed=>{p[role+(imputed?'_unobserved_indices':'_indices')].forEach(i=>{const x=60+positions.get(layer.observation_ids[i])*610/Math.max(1,displayOrder.length-1);const n=shape('circle',{cx:x,cy:ys(feature.values[i]),r:imputed?5:3.5,class:imputed?'imputed':cls,'data-profile-role':role},s);decorate(n,i,imputed);title(n,`${layer.observation_ids[i]}: ${feature.feature_id}=${feature.values[i]}; ${imputed?'originally unobserved / imputed':'observed'}; ${hover(layer.observation_ids[i])}`);});});});
     }
-    color.addEventListener('change',renderPlots);order.addEventListener('change',renderPlots);
-    group.addEventListener('change',renderGroups);fraction.addEventListener('change',renderGroups);
+    color.addEventListener('change',()=>{saved.color=color.value===''?null:fields[Number(color.value)];renderPlots();});
+    order.addEventListener('change',()=>{saved.order=order.value;renderPlots();});
+    group.addEventListener('change',()=>{saved.group=group.value===''?null:categorical[Number(group.value)];renderGroups();});
+    fraction.addEventListener('change',()=>{saved.include_fraction=fraction.checked;renderGroups();});
     renderPlots();renderGroups();renderDiagnostic();
+    el('p','Explicit SVG download exports only this embedded query/candidate/layer and current display settings. It is a browser rendering, not identical to Python SVG/PDF. Inspect the caption, notes and annotations before sharing; use export-query on the full bundle for features outside this bounded report.',box,'notice');
+    const exportStatus=el('p','',box,'figure-status');
+    const exportButton=button('Download this query figure (SVG)',box,()=>{
+      try {
+        const p=d.profiles.find(r=>r.layer_id===layer.layer_id&&r.candidate_id===c);
+        if(!p||p.reason&&p.reason!=='no_jointly_observed_finite_values')throw Error('Profiles unavailable; supply complete features, cohort and original masks in a new bundle.');
+        const features=[[qns,state.query,'query'],[cns,c,'candidate']].map(([ns,id,role])=>({role,...layer.features.find(f=>f.feature_id===id&&nsEqual(f.namespace,ns))}));
+        const diagnostic=window.valpasDiagnostics.covarianceDiagnostic(layer,data.dataset,state.query,c,{h:saved.h,omission:saved.omission});
+        const caption=[
+          'VaLPAS browser SVG; bounded embedded scope only. Not identical to Python vector rendering.',
+          `Comparison: ${data.comparison_id}; content: ${data.session_content_id}`,
+          `Query: ${state.query}; namespace: ${JSON.stringify(qns)}`,
+          `Candidate: ${c}; namespace: ${JSON.stringify(cns)}`,
+          `Layer: ${layer.layer_id}; units: ${layer.units}; transform: ${layer.transform}; provenance: ${layer.provenance}`,
+          `Mask source: ${layer.mask_source}; required samples: ${data.dataset.observation_ids.length}; layer samples: ${layer.observation_ids.length}; jointly observed finite: ${p.joint_observed_count}`,
+          `Query observed finite: ${p.query_indices.length}; finite originally unobserved: ${p.query_unobserved_indices.length}. Candidate observed finite: ${p.candidate_indices.length}; finite originally unobserved: ${p.candidate_unobserved_indices.length}.`,
+          'Scatter uses jointly observed finite pairs only. Profiles use blue query/purple candidate unless metadata coloring selected; hollow orange marks finite originally unobserved/imputed values, excluded from observed-only summaries. Missing metadata is gray/dashed.',
+          `Pool policy: ${data.analysis_settings.pool_policy}; analysis depths: ${JSON.stringify(data.analysis_settings.depths)}; inspection depth: ${state.depth}. Display options: ${JSON.stringify(saved)}`,
+          `Embedded report scope: ${JSON.stringify(data.session_contract.scope)}; algorithm layer relationships (not attribution): ${JSON.stringify(layer.algorithm_layers)}`,
+          `Coverage: ${JSON.stringify(coverage)}`,
+          `Metadata legend: ${plots.querySelector('.metadata-legend')?.textContent||'none'}; categorical swatches: ${JSON.stringify([...plots.querySelectorAll('.legend-item')].map(item=>({label:item.textContent,color:getComputedStyle(item.querySelector('.legend-swatch')).backgroundColor})))}`,
+          `Joint-centered covariance diagnostic (sample covariance n-1): ${JSON.stringify(diagnostic)}`,
+          'Descriptive observed-data diagnostics only; not model attribution, causal effects, adjusted variance components or automatic confounding correction. No retraining, rescoring or reranking. Omission recenters retained pairs, never changes plotted cohorts or saved scores. Agreement is not correctness.',
+          `User notes: ${sessionNotes}`,
+          `Current view: ${JSON.stringify(snapshot())}`
+        ];
+        features.forEach(f=>{
+          ['label','annotations'].forEach(k=>{if(Object.hasOwn(f,k))caption.push(`${f.role} ${k}: ${f[k]}`);});
+          if(saved.group!==null)caption.push(`${f.role} marginal group summary (separate cohort): ${JSON.stringify(window.valpasDiagnostics.groupSummary(layer,data.dataset,metadata,f.namespace,f.feature_id,saved.group,{include_fraction:saved.include_fraction}))}`);
+        });
+        const description=caption.join('\n');
+        if(Array.from(description).some(c=>{const n=c.codePointAt(0);return !(n===9||n===10||n===13||n>=32&&n<=0xd7ff||n>=0xe000&&n<=0xfffd||n>=0x10000&&n<=0x10ffff);}))throw Error('Caption contains characters not representable in XML 1.0; no IDs or notes were silently changed.');
+        const ns='http://www.w3.org/2000/svg', svg=document.createElementNS(ns,'svg');
+        const desc=shape('desc',{id:'valpas-caption'},svg);desc.textContent=description;
+        let y=10;
+        plots.querySelectorAll('svg').forEach(source=>{
+          const copy=source.cloneNode(true), originals=[source,...source.querySelectorAll('*')], copies=[copy,...copy.querySelectorAll('*')];
+          // Freeze only known presentation properties; never copy external CSS/URLs.
+          originals.forEach((node,i)=>{const style=getComputedStyle(node);['fill','stroke','stroke-width','stroke-dasharray','font-family','font-size'].forEach(k=>copies[i].style.setProperty(k,style.getPropertyValue(k)));});
+          copy.setAttribute('x','10');copy.setAttribute('y',String(y));svg.append(copy);y+=250;
+        });
+        caption.forEach(paragraph=>{
+          // Exact unwrapped text is retained in desc; visible lines are bounded.
+          const chars=Array.from(paragraph);
+          for(let i=0;i<Math.max(1,chars.length);i+=110){const t=shape('text',{x:15,y:y+15,'font-size':11,'font-family':'sans-serif',fill:'#163247','xml:space':'preserve'},svg);t.textContent=chars.slice(i,i+110).join('');y+=15;}
+          y+=5;
+        });
+        svg.setAttribute('width','760');svg.setAttribute('height',String(y+20));svg.setAttribute('viewBox',`0 0 760 ${y+20}`);
+        const serialized=new XMLSerializer().serializeToString(svg);
+        const parsed=new DOMParser().parseFromString(serialized,'image/svg+xml');
+        if(parsed.querySelector('parsererror, script, foreignObject, a, image')||[...parsed.querySelectorAll('*')].some(n=>[...n.attributes].some(a=>a.localName==='href'||a.name.startsWith('on'))))throw Error('Unsafe or invalid SVG; download cancelled.');
+        portable.download('valpas-query-figure.svg',serialized,'image/svg+xml');
+        exportStatus.textContent='Downloaded bounded browser SVG; inspect caption before sharing.';
+      } catch(error){exportStatus.textContent='Export rejected: '+error.message;}
+    });
+    exportButton.className='download-query-figure';
   }
-  renderOverview();renderQueries();renderWorkspace();
-  document.documentElement.dataset.reportReady='true';
+  const sessionPanel=section('7 · User decisions, sessions and shortlists');
+  el('p','User-authored investigation notes only — never model predictions or automatic correctness labels. JSON preserves exact IDs and full decision view snapshots. Imports replace the entire view, notes and decision list atomically (no merge or duplicates). CSV is spreadsheet-safe display text, not an import format. Column-heading sorts are temporary; portable order selectors are saved. Nothing is written until you explicitly download.',sessionPanel,'notice');
+  el('p','Notes, rationales, identifiers and reference selections may be sensitive. Metadata omission does not redact notes entered here; inspect downloads before sharing. The full bundle is not redacted.',sessionPanel,'notice');
+  const notes=el('textarea',null,el('label','Session notes ',sessionPanel));notes.id='session-notes';notes.addEventListener('input',()=>{sessionNotes=notes.value;});
+  const rationale=el('textarea',null,el('label','Decision rationale (required) ',sessionPanel));rationale.id='decision-rationale';
+  const action=el('select',null,el('label','User decision ',sessionPanel));action.id='decision-action';
+  [['investigate','Investigate candidate'],['retain_alternative','Retain alternative candidate'],['abstain','Abstain for this query']].forEach(([v,t])=>{const o=el('option',t,action);o.value=v;});
+  const status=el('p','No file imported.',sessionPanel);status.id='session-status';status.setAttribute('role','status');
+  const decisionRows=el('div',null,sessionPanel);
+  function renderDecisions(){decisionRows.replaceChildren();table(decisions.map(({view,...d})=>d),decisionRows);}
+  function restore(doc){Object.assign(state,portable.clone(doc.view),{hidden:new Set(doc.view.hidden),pins:new Set(doc.view.pins)});decisions=portable.clone(doc.decisions);sessionNotes=doc.notes;notes.value=sessionNotes;depth.value=state.depth;search.value=state.search;queryOrder.value=state.queryOrder;visibility.querySelectorAll('input').forEach(c=>{c.checked=!state.hidden.has(c.dataset.outputId);});renderOverview();renderQueries();renderWorkspace();renderDecisions();}
+  function operation(fn){return async()=>{try{await fn();}catch(error){status.textContent='Rejected: '+error.message;}};}
+  button('Record user decision',sessionPanel,operation(async()=>{
+    const v=snapshot();if(action.value==='abstain')v.candidate=null;
+    const d={decision_id:crypto.randomUUID(),comparison_id:data.comparison_id,query_id:v.query,candidate_id:v.candidate,pool_policy:data.analysis_settings.pool_policy,depth:v.depth,inspected_output_ids:data.session_contract.scope.output_ids.filter(o=>!v.hidden.includes(o)),decision:action.value,rationale:rationale.value,timestamp:new Date().toISOString(),view:v};
+    const doc=await portable.document('valpas-session',snapshot(),sessionNotes,[...decisions,d]);decisions=doc.decisions;renderDecisions();status.textContent='User decision recorded; download to persist.';
+  })).id='record-decision';
+  for(const kind of ['session','shortlist']){
+    button('Download '+kind+' JSON',sessionPanel,operation(async()=>{const doc=await portable.document('valpas-'+kind,snapshot(),sessionNotes,decisions);portable.download('valpas-'+kind+'.json',portable.safe(doc),'application/json');status.textContent=kind+' download requested.';})).id='download-'+kind;
+    const input=el('input',null,el('label','Import '+kind+' JSON (replace current state) ',sessionPanel));input.type='file';input.accept='.json,application/json';input.id='import-'+kind;
+    input.addEventListener('change',operation(async()=>{const file=input.files[0];if(!file)return;try{if(file.size>50*1024*1024)throw Error('Import exceeds 50 MiB');const doc=await portable.validate(portable.parse(await file.text()),'valpas-'+kind);restore(doc);status.textContent='Imported '+kind+'; replaced view, notes and decisions.';}finally{input.value='';}}));
+  }
+  button('Download shortlist CSV (spreadsheet-safe)',sessionPanel,operation(async()=>{const doc=await portable.document('valpas-shortlist',snapshot(),sessionNotes,decisions);portable.download('valpas-shortlist.csv',portable.csv(doc),'text/csv');status.textContent='Spreadsheet-safe CSV requested; canonical IDs remain in JSON.';})).id='download-shortlist-csv';
+  renderOverview();renderQueries();renderWorkspace();renderDecisions();
+  if(data.initial_session){portable.validate(data.initial_session,'valpas-session').then(doc=>{restore(doc);document.documentElement.dataset.reportReady='true';}).catch(error=>{status.textContent='Initial session rejected: '+error.message;});}
+  else document.documentElement.dataset.reportReady='true';
 })();

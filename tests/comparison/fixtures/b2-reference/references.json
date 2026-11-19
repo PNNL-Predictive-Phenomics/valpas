@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "dataset": {
+    "dataset_id": "demo-01",
+    "observation_ids": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06"
+    ],
+    "query_namespace": {
+      "id": "demo-metabolites",
+      "modality": "metabolomics"
+    },
+    "candidate_namespace": {
+      "id": "demo-proteins",
+      "modality": "proteomics"
+    },
+    "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+    "dataset_evidence": {
+      "type": "attestation",
+      "source": "synthetic:valpas:a0:demo-01",
+      "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+      "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint_id": "direct",
+      "source": "curated",
+      "version": "v1",
+      "evidence_type": "reaction",
+      "support_class": "direct",
+      "assessed_query_ids": [
+        "q0",
+        "q1",
+        "q2",
+        "q6",
+        "qU"
+      ],
+      "candidate_universe": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "outside"
+      ],
+      "description": "Synthetic local evidence, not biological validation"
+    },
+    {
+      "endpoint_id": "inferred",
+      "source": "curated",
+      "version": "v1",
+      "evidence_type": "reaction",
+      "support_class": "inferred",
+      "assessed_query_ids": [
+        "q0",
+        "q1",
+        "q2",
+        "q6",
+        "qU"
+      ],
+      "candidate_universe": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "outside"
+      ],
+      "description": "Synthetic local evidence, not biological validation"
+    },
+    {
+      "endpoint_id": "pathway",
+      "source": "curated",
+      "version": "v1",
+      "evidence_type": "pathway",
+      "support_class": "co_membership",
+      "assessed_query_ids": [
+        "q0",
+        "q1",
+        "q2",
+        "q6",
+        "qU"
+      ],
+      "candidate_universe": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "outside"
+      ],
+      "description": "Synthetic local evidence, not biological validation"
+    },
+    {
+      "endpoint_id": "other-source",
+      "source": "other",
+      "version": "v1",
+      "evidence_type": "reaction",
+      "support_class": "direct",
+      "assessed_query_ids": [
+        "q0",
+        "q1",
+        "q2",
+        "q6",
+        "qU"
+      ],
+      "candidate_universe": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "outside"
+      ],
+      "description": "Synthetic local evidence, not biological validation"
+    },
+    {
+      "endpoint_id": "other-version",
+      "source": "curated",
+      "version": "v2",
+      "evidence_type": "reaction",
+      "support_class": "direct",
+      "assessed_query_ids": [
+        "q0",
+        "q1",
+        "q2",
+        "q6",
+        "qU"
+      ],
+      "candidate_universe": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f",
+        "outside"
+      ],
+      "description": "Synthetic local evidence, not biological validation"
+    }
+  ],
+  "evidence": [
+    {
+      "endpoint_id": "direct",
+      "query_id": "q1",
+      "candidate_id": "a",
+      "evidence_id": "q1-a"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q2",
+      "candidate_id": "a",
+      "evidence_id": "q2-a"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q2",
+      "candidate_id": "b",
+      "evidence_id": "q2-b"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q2",
+      "candidate_id": "outside",
+      "evidence_id": "q2-outside"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q6",
+      "candidate_id": "a",
+      "evidence_id": "q6-a"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q6",
+      "candidate_id": "b",
+      "evidence_id": "q6-b"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q6",
+      "candidate_id": "c",
+      "evidence_id": "q6-c"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q6",
+      "candidate_id": "d",
+      "evidence_id": "q6-d"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q6",
+      "candidate_id": "e",
+      "evidence_id": "q6-e"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q6",
+      "candidate_id": "f",
+      "evidence_id": "q6-f"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "qU",
+      "candidate_id": "outside",
+      "evidence_id": "qU-outside"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q1",
+      "candidate_id": "a",
+      "evidence_id": "second-record",
+      "description": "one-to-many record"
+    },
+    {
+      "endpoint_id": "direct",
+      "query_id": "q1",
+      "candidate_id": "a",
+      "evidence_id": "q1-a"
+    },
+    {
+      "endpoint_id": "inferred",
+      "query_id": "q1",
+      "candidate_id": "b",
+      "evidence_id": "inferred-q1"
+    },
+    {
+      "endpoint_id": "pathway",
+      "query_id": "q1",
+      "candidate_id": "c",
+      "evidence_id": "pathway-q1"
+    },
+    {
+      "endpoint_id": "other-source",
+      "query_id": "q1",
+      "candidate_id": "d",
+      "evidence_id": "other-source-q1"
+    },
+    {
+      "endpoint_id": "other-version",
+      "query_id": "q1",
+      "candidate_id": "e",
+      "evidence_id": "other-version-q1"
+    }
+  ]
+}

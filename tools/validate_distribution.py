@@ -24,18 +24,21 @@ import time
 import traceback
 import zipfile
 
-ASSETS = ("dashboard.css", "dashboard.js", "shell.html")
+ASSETS = ("dashboard.css", "dashboard.js", "sessions.js", "shell.html")
+MODULES = ("reference.py", "session.py", "figures.py")
+B2_FIXTURE_FILES = ("README.md", "manifest.json", "references.json", "query-groups.json")
 SDIST_FILES = (
     "pyproject.toml", "README.md", "LICENSE", "PKG-INFO",
     "docs/COMPARISON_RELEASE_A.md", "docs/COMPARISON_SCHEMA_V1.md",
     "docs/DISTRIBUTION_VALIDATION.md", "examples/compare_saved_results.py",
     "examples/inspect_comparison_inputs.py", "tools/validate_distribution.py",
-    "tools/distribution_smoke.py",
+    "tools/distribution_smoke.py", "tools/distribution_browser.py",
+    "tests/comparison/chrome_cdp.py", "docs/COMPARISON_FIGURES.md",
 )
 FIXTURE_FILES = (
     "README.md", "manifest.json", "manifest-with-profiles.json", "profiles.json",
     "metadata.json", "expected.json", "pearson-run.csv", "ae-seed-42.csv", "ae-seed-123.csv",
-    "manifest-with-b1.json", "sample-metadata.json", "b1-profiles.json",
+    "manifest-with-b1.json", "sample-metadata.json", "b1-profiles.json", "manifest-with-b2.json",
 )
 
 
@@ -68,6 +71,8 @@ def inspect_wheel(path):
         names = archive.namelist()
         for asset in ASSETS:
             require(bool(archive.read("valpas/comparison/assets/" + asset)), "empty asset " + asset)
+        for module in MODULES:
+            require(bool(archive.read("valpas/comparison/" + module)), "empty module " + module)
         metadata_names = [n for n in names if n.endswith(".dist-info/METADATA")]
         require(len(metadata_names) == 1, "expected one wheel METADATA")
         metadata = BytesParser().parsebytes(archive.read(metadata_names[0]))
@@ -98,6 +103,8 @@ def extract_sdist(path, destination):
         required = set(SDIST_FILES)
         required.update("src/valpas/comparison/assets/" + a for a in ASSETS)
         required.update("tests/comparison/fixtures/demo-01/" + f for f in FIXTURE_FILES)
+        required.update("tests/comparison/fixtures/b2-reference/" + f for f in B2_FIXTURE_FILES)
+        required.update("src/valpas/comparison/" + m for m in MODULES)
         require(required <= files, "sdist missing documented files: " + str(sorted(required - files)))
         require(not any(".git" in PurePosixPath(m.name).parts for m in members), "sdist contains .git")
         # Destination is exclusively owned by this run. Python's data filter is
@@ -341,6 +348,9 @@ def validate_install(runner, label, wheel, fixture, helper, chrome, reuse=None):
     for args in ([cli, "--help"], [cli, "compare", "--help"], [python, "-I", "-m", "valpas.cli", "--help"]):
         output = runner.run(args, cwd=work)
         require("usage:" in output and "compare" in output, "missing CLI help")
+    for command in ([cli], [python, "-I", "-m", "valpas.cli"]):
+        output = runner.run([*command, "export-query", "--help"], cwd=work)
+        require("--bundle" in output and "--candidate" in output, "missing figure CLI help")
     examples = work / "installed-examples"
     (examples / "examples").mkdir(parents=True)
     shutil.copytree(fixture, examples / "tests/comparison/fixtures/demo-01")
@@ -360,9 +370,17 @@ def validate_install(runner, label, wheel, fixture, helper, chrome, reuse=None):
         ("no-profile", "manifest.json", []),
         ("b1-html", "manifest-with-b1.json", []),
         ("b1-tables", "manifest-with-b1.json", ["--tables-only"]),
+        ("b2-html", "manifest-with-b2.json", []),
+        ("b2-tables", "manifest-with-b2.json", ["--tables-only"]),
     ):
         runner.run([cli, "compare", "--manifest", copied / manifest, "--outdir", work / name,
                     "--pool", "common", "--depths", "1", "2", "5", *extra], cwd=work)
+    reference_inputs = work / "reference-inputs"
+    shutil.copytree(fixture.parent / "b2-reference", reference_inputs)
+    runner.run([cli, "compare", "--manifest", reference_inputs / "manifest.json",
+                "--outdir", work / "reference-only"], cwd=work)
+    shutil.rmtree(reference_inputs)
+    runner.run([python, "-I", helper, "session", work, work / "session-api.json"], cwd=work)
     # Change only disposable fixture metadata, not source inputs or emitted HTML.
     hostile = '</script><script>globalThis.b1Pwned=true</script>\u2028Ω'
     metadata_path = copied / "sample-metadata.json"
@@ -372,15 +390,23 @@ def validate_install(runner, label, wheel, fixture, helper, chrome, reuse=None):
     runner.run([cli, "compare", "--manifest", copied / "manifest-with-b1.json", "--outdir", work / "b1-hostile",
                 "--pool", "common", "--depths", "1", "2", "5"], cwd=work)
     shutil.rmtree(copied)
-    for name in ("html", "tables", "b1-html", "b1-tables"):
+    for name in ("html", "tables", "b1-html", "b1-tables", "b2-html", "b2-tables", "b2-session", "b2-session-tables", "reference-only"):
         runner.run([cli, "compare", "--bundle", work / name, "--outdir", work / (name + "-regenerated")], cwd=work)
+    for suffix in ("svg", "pdf"):
+        runner.run([cli, "export-query", "--bundle", work / "b2-session-regenerated",
+                    "--query", "M01", "--candidate", "P01", "--layer", "b1-observed",
+                    "--color", "condition", "--group", "condition", "--h", "1", "--omission",
+                    "--output", work / ("cli-figure." + suffix)], cwd=work)
     runner.run([python, "-I", helper, "bundles", work, work / "bundles.json"], cwd=work)
+    runner.run([python, "-I", helper, "figures", work, work / "figures.json"], cwd=work)
     expected = json.loads((work / "browser-expected.json").read_text())
     runner.summary["checks"][label] = {
         "dependency_installation": "retained full dependencies; new wheel force-reinstalled without dependency resolution" if reuse else "fresh full dependencies",
         "environment": json.loads((work / "environment.json").read_text()),
         "installed_examples": example_checks,
         "bundles": json.loads((work / "bundles.json").read_text()),
+        "session_api": json.loads((work / "session-api.json").read_text()),
+        "figures": json.loads((work / "figures.json").read_text()),
         "inputs_removed_before_regeneration": not copied.exists(),
         "browser": {},
     }
@@ -392,6 +418,11 @@ def validate_install(runner, label, wheel, fixture, helper, chrome, reuse=None):
         runner.summary["checks"][label]["browser"][mode] = browser_check(
             runner, chrome, work / bundle / "report.html", work / directory, mode=mode, expected=expected)
         runner.save()
+    browser_helper = helper.with_name("distribution_browser.py")
+    runner.run([python, "-I", browser_helper, chrome, work / "b2-session-regenerated",
+                work / "browser-b2", work / "browser-b2.json"], cwd=work)
+    runner.summary["checks"][label]["browser"]["b2"] = json.loads((work / "browser-b2.json").read_text())
+    runner.save()
     # Separate process: resolving legacy public exports imports torch but never
     # invokes training, scoring, model loading or GPU operations.
     runner.run([python, "-I", helper, "legacy", work / "legacy.json"], cwd=work)
@@ -439,8 +470,13 @@ def main(argv=None):
         if reuse:
             for label in ("checkout-wheel-env", "sdist-wheel-env"):
                 retained_python(reuse, label)
-            # Installs only missing tooling into the explicitly retained build venv.
-            runner.run([build_python, "-I", "-m", "pip", "install", "build", "hatchling", "hatch-vcs"])
+            # Probe first: avoid even a pip index request when tooling is present.
+            probe = subprocess.run([str(build_python), "-I", "-c", "import build, hatchling, hatch_vcs"],
+                                   env=runner.env, capture_output=True)
+            if probe.returncode:
+                runner.run([build_python, "-I", "-m", "pip", "install", "build", "hatchling", "hatch-vcs"])
+            else:
+                runner.run([build_python, "-I", "-c", "import build, hatchling, hatch_vcs; print('retained tooling available')"])
         else:
             runner.run([build_python, "-I", "-m", "pip", "install", "build"])
         isolation = ["--no-isolation"] if reuse else []
@@ -473,6 +509,8 @@ def main(argv=None):
         runner.save()
         helper = workspace / "distribution_smoke.py"
         shutil.copy2(extracted / "tools/distribution_smoke.py", helper)
+        shutil.copy2(extracted / "tools/distribution_browser.py", workspace / "distribution_browser.py")
+        shutil.copy2(extracted / "tests/comparison/chrome_cdp.py", workspace / "chrome_cdp.py")
         fixture = extracted / "tests/comparison/fixtures/demo-01"
         for label, artifact in (("checkout-wheel", wheel), ("sdist-wheel", rebuilt_wheels[0])):
             validate_install(runner, label, artifact, fixture, helper, chrome, reuse)
@@ -492,7 +530,7 @@ def main(argv=None):
             # Delete only fixed children of our newly allocated private workspace.
             for name in ("build-env", "checkout-wheel-env", "sdist-wheel-env",
                          *(f"{label}/{browser}/chrome" for label in ("checkout-wheel", "sdist-wheel")
-                           for browser in ("browser", "browser-b1", "browser-hostile", "browser-no-profile"))):
+                           for browser in ("browser", "browser-b1", "browser-hostile", "browser-no-profile", "browser-b2"))):
                 path = workspace / name
                 if path.exists():
                     try:

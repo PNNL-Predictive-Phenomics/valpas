@@ -4,12 +4,13 @@ VaLPAS (Variation-Leveraged Phenomic Association Study) identifies associations 
 
 This guide is the central user-facing reference for selecting a method, preparing inputs, configuring the autoencoder, and interpreting outputs. For API signatures, see the [online API reference](https://pnnl-predictive-phenomics.github.io/valpas/). For an interactive walkthrough, see the [demonstration notebook](../notebooks/valpas_demonstration.ipynb).
 
-For comparing **saved outputs without training**, start with the [Release A offline comparison guide](COMPARISON_RELEASE_A.md). It provides CLI-first no-profile and profile-enabled examples, an overview-first browser, scope limits, complete scientific exports and source-free regeneration. No target query, server or network is required.
+For comparing **saved outputs without training**, start with the [complete B2 offline comparison guide](COMPARISON_RELEASE_A.md) (historical filename retained). It covers the combined demo, overview-first inspection, references, portable decisions, SVG/PDF figures and source-free regeneration. No target query, server or network is required. B2 is DONE; B3 production metadata capture/export integration and target-scale validation remain future, not full Release B/project completion.
 
 ## Contents
 
 - [Installation](#installation)
 - [Command-line interface](#command-line-interface)
+- [Compare saved outputs and export query figures](#compare-saved-outputs-and-export-query-figures)
 - [Data conventions](#data-conventions)
 - [Choose an analysis method](#choose-an-analysis-method)
 - [Quick start: association analysis in Python](#quick-start-association-analysis-in-python)
@@ -104,9 +105,35 @@ valpas visualize \
 
 `--visualization_type graph` is accepted by the CLI but is not yet implemented. Use `valpas visualize --help` for display and Excel-sheet options.
 
+### Compare saved outputs and export query figures
+
+From a source checkout with dependencies installed, use the [combined B2 manifest](../tests/comparison/fixtures/demo-01/manifest-with-b2.json). These synthetic saved outputs require neither fitting nor a target query. Choose new destinations and keep figures outside the bundle:
+
+```sh
+PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest-with-b2.json --outdir demo-b2 --pool common --depths 1 2 5
+PYTHONPATH=src python3 -m valpas.cli export-query --bundle demo-b2 --query M01 --candidate P01 --layer b1-observed --output query-figure.svg
+PYTHONPATH=src python3 -m valpas.cli export-query --bundle demo-b2 --query M01 --candidate P01 --layer b1-observed --color condition --group condition --order metadata --h 1 --omission --output query-figure.pdf
+```
+
+Open the generated HTML directly from disk. Start at dataset/output/configuration/coverage summaries and agreement with evaluable denominators, then inspect separate run recurrence and query/candidate profiles. Common-pool analysis above is explicit; the default is strict. Methods, configurations and runs remain distinct. Agreement is not correctness, and seed recurrence is not biological replication. Synthetic profile layers are explicitly different from the score-generation layers.
+
+Keep direct reaction, inferred reaction and pathway co-membership endpoints separate. Reference-supported fraction divides by actual nomination-list size and is **not biological precision**; recovery divides by known reachable support, reachability by total known support, with zero/unknown denominators unavailable rather than zero. All-assessed and positive-reachable cohorts differ; strata are 0, 1, 2–5 and 6+, with unknown opportunity separate. Default equal-feature weighting differs from explicit equal-group weighting (within-group feature means, then equal nonempty-group means, no best peak). Each metric has its own denominators/exclusions. Evidence filters change display, never nominations or pools. The [reference walkthrough](COMPARISON_RELEASE_A.md#b2-interpret-reference-endpoints-before-filtering) illustrates duplicate evidence, assessed-zero, unassessed and unreachable support.
+
+After inspecting a pair, record **investigate** or **retain alternative** with a nonblank rationale; use query **abstention** to defer without a candidate. Explicit session and shortlist JSON downloads preserve view, notes and decisions; the corresponding imports atomically replace state and are idempotent. Formula-safe shortlist CSV prefixes every data cell with an apostrophe and is display-only, **not importable**. Scientific/content/report-scope mismatches are rejected without mutating the old state. Even expanded scope requires explicit Python rebinding, allowed only if every current setting and decision snapshot survives unchanged. See the [decision/import workflow](COMPARISON_RELEASE_A.md#b2-decisions-downloads-and-strict-restoration) and [strict session schema/API](COMPARISON_SCHEMA_V1.md#b2-portable-sessions-user-decisions-and-shortlists).
+
+The browser's **Download this query figure (SVG)** uses only the embedded current view. The [CLI/Python figure exporter](COMPARISON_FIGURES.md) uses full normalized bundle data for SVG/PDF, including profiles outside HTML scope; it is not the same renderer/layout/bytes. An attached initial session is not implicitly applied to Python figures; pass it explicitly. Query abstention cannot supply a candidate figure. No original source files, models or network are needed after bundle creation:
+
+```sh
+PYTHONPATH=src python3 -m valpas.cli compare --bundle demo-b2 --outdir regenerated
+```
+
+New result bundles use v3 with strict optional schema-v1 reference/session extensions; input/scientific schemas remain v1. Reload of v1/v2/v3 is same-software/policy only, not migration. The [schema reference](COMPARISON_SCHEMA_V1.md) covers exact metadata contracts, table inventories and authoritative binding checks. Metadata omission is **HTML-only**, not anonymization: full bundles retain IDs, profiles, metadata, references and optional sessions. Omitted HTML with an attached initial session is rejected; detach explicitly. Notes entered afterward still appear in downloads. No browser storage, automatic writes or network; hashes detect corruption, not authentication. Keep matching HTML/bundle with session JSON and inspect downloads before sharing.
+
+[Integrated validation](../plans/B2_VALIDATION_HANDOFF.md) passed **232 full-dependency comparison tests (zero skips), 22 harness tests, 88 installed commands and 10 actual Chrome cases across both wheels**. These were retained isolated full-dependency environments, not fresh dependency resolution. Tested artifacts precede this documentation finalization; no docs-only rebuild was performed. Target-scale performance, production capture/export hooks and full Release B completion remain outside B2.
+
 ### CLI scope and autoencoders
 
-The CLI supports file-based preparation, classical association metrics, and heatmap visualization. Direct autoencoder training and its advanced options are currently configured through the Python API below. Although `autoencoder` appears in the CLI's accepted metric choices, the current CLI execution path does not implement that metric; use [`train_proteomics_autoencoder`](../src/valpas/_core/autoencoder.py) or the high-level Python API for autoencoder analyses.
+The CLI supports file-based preparation, classical association metrics, heatmap visualization, saved-output comparison and query-figure export. Direct autoencoder training and its advanced options are currently configured through the Python API below. Although `autoencoder` appears in the CLI's accepted metric choices, the current CLI execution path does not implement that metric; use [`train_proteomics_autoencoder`](../src/valpas/_core/autoencoder.py) or the high-level Python API for autoencoder analyses.
 
 ## Data conventions
 

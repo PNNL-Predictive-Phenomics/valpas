@@ -120,26 +120,31 @@ Run the test suite with:
 pytest
 ```
 
-## Saved-output comparison (Release A workflow + B1 diagnostics)
+## Saved-output comparison (B2 complete)
 
 Compare two or more saved outputs—including two runs of one configuration—without training, scoring, checkpoints or network access. The lightweight [comparison API and schema](docs/COMPARISON_SCHEMA_V1.md) now provide full available ranks, coverage/exclusions, output-pair agreement, separate run recurrence, and dataset/query summaries. **No target metabolite or protein is required up front:** compare all declared queries under an explicit pool policy, inspect the overview, then select queries for detail.
 
-Run the [saved-comparison example](examples/compare_saved_results.py), or use the [manifest-driven CLI](src/valpas/cli.py:304) with the [validated synthetic manifest](tests/comparison/fixtures/demo-01/manifest.json):
+Start with the [manifest-driven CLI](src/valpas/cli.py:304) and [combined B2 synthetic manifest](tests/comparison/fixtures/demo-01/manifest-with-b2.json), which includes profiles, metadata, diagnostics, separate reference endpoints and query groups. From the checkout with dependencies installed, choose new destinations:
 
 ```sh
-PYTHONPATH=src python3 examples/compare_saved_results.py
-PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest.json --outdir demo-comparison --pool common --depths 1 2 5
+PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest-with-b2.json --outdir demo-b2 --pool common --depths 1 2 5
+PYTHONPATH=src python3 -m valpas.cli export-query --bundle demo-b2 --query M01 --candidate P01 --layer b1-observed --output query-figure.svg
+PYTHONPATH=src python3 -m valpas.cli export-query --bundle demo-b2 --query M01 --candidate P01 --layer b1-observed --color condition --group condition --order metadata --h 1 --omission --output query-figure.pdf
 ```
 
 The result bundle retains normalized saved values, stable content/settings identity, source fingerprints and complete machine-readable tables. It reloads without original sources/models. CSV data cells are JSON encoded; large detail tables are compressed. Existing destinations are refused by default; explicit overwrite is restricted to intact owned result bundles containing no consumed inputs or foreign files. The [A1 input inspection/export example](examples/inspect_comparison_inputs.py) remains available separately.
 
-Open the generated single-file HTML directly from disk: no server, network or browser filesystem permission is needed. The [Release A quick start](docs/COMPARISON_RELEASE_A.md) covers overview heatmaps/depth charts, separate recurrence, searchable query/candidate drilldown, optional original-mask profiles, 50 MiB report limits, metadata omission and source-free regeneration. HTML is now the default; explicit tables-only remains available. Use the [profile-enabled manifest](tests/comparison/fixtures/demo-01/manifest-with-profiles.json) for synthetic profile examples.
+Open the generated report HTML directly from disk: no server, network or browser filesystem permission is needed. The [complete B2 workflow](docs/COMPARISON_RELEASE_A.md) (historical filename retained) starts at the overview, then covers reference denominators/filters, query/candidate inspection, **investigate**, **retain alternative** and query **abstention** with required rationale. Explicitly download/import session or shortlist JSON; formula-safe shortlist CSV is display-only, not importable. Imports strictly reject scientific/content/scope mismatches; scope rebinding is explicit Python work, never silent migration. HTML defaults on; tables-only and [no-profile input](tests/comparison/fixtures/demo-01/manifest.json) remain supported.
+
+The browser's **Download this query figure (SVG)** captures the bounded embedded view. The [Python/CLI figure workflow](docs/COMPARISON_FIGURES.md) uses full normalized bundle data for SVG/PDF, including profiles outside HTML scope, without reopening original inputs. Write figures outside the owned bundle. Synthetic profiles illustrate diagnostics, not measurements used to derive the saved scores.
 
 B1 adds optional exact-ID sample metadata (categorical/continuous coloring and explicit display ordering), marginal observed-value group summaries, joint-centered covariance products and an explicit recentered omission preview. Use the separate [B1 manifest](tests/comparison/fixtures/demo-01/manifest-with-b1.json) and [hand-calculated fixture guide](tests/comparison/fixtures/demo-01/README.md); the runnable example now defaults to this fixture. Its single requested diagnostic pair does not restrict the all-query overview. Browser diagnostics are on demand for embedded pairs; exported diagnostics cover only explicit requests. Colors, ordering and diagnostics never change scientific identity, saved scores or ranks and do not imply causality, model attribution, retraining or new association scoring.
 
 New result bundles use schema v3; A2 v1/A3 v2 reload remains supported only with the same software/policy versions. The [schema reference](docs/COMPARISON_SCHEMA_V1.md) documents exact metadata/request APIs, nested JSON table cells, null/status meanings and legacy HTML checks. Metadata is included in the report payload budget. Metadata omission is **HTML-only**; full bundles retain sensitive IDs, profiles, metadata and diagnostic tables.
 
-Agreement is not correctness; seed recurrence is not biological replication. B1 is implemented; B2/B3 references, sessions, publication figures, production hooks and target-scale validation remain unfinished. Neither release is declared finally complete for the modified B1 tree. Existing association and training workflows are unchanged.
+Agreement is not correctness; seed recurrence is not biological replication. Reference-supported fraction is not biological precision; endpoints stay separate and display filtering never changes nominations or denominators. Metadata omission is HTML-only: full bundles retain references and optional sessions as well as profiles/metadata. Notes and rationales may be sensitive.
+
+**B2 is DONE; B3 production metadata capture/export integration and target-scale validation remain future. The full Release B/project is not complete.** [Integrated validation](plans/B2_VALIDATION_HANDOFF.md) passed **232 full-dependency comparison tests (zero skips), 22 harness tests, 88 installed validation commands and 10 actual Chrome cases across both wheels**. The wheels used retained isolated full-dependency environments, **not fresh dependency resolution**. Those tested artifacts predate this documentation finalization; no rebuild was performed for these documentation-only changes. Existing association and training workflows are unchanged.
 
 For repeatable wheel/sdist builds, fresh full-dependency installs, source-free CLI regeneration and direct-file browser checks, run the [distribution validator](docs/DISTRIBUTION_VALIDATION.md). Browser assets ship in wheels; comparison guides, examples and demo inputs ship in source distributions, not as installed wheel data.
 

@@ -405,8 +405,12 @@ class ComparisonManifest:
     report_settings: object = None
     sample_metadata: object = None
     diagnostic_requests: tuple = ()
+    references: object = None
+    query_groups: object = None
 
     def __post_init__(self):
+        from .reference import validate_references
+        validate_references(self.dataset, self.outputs, self.references, self.query_groups)
         object.__setattr__(self, "diagnostic_requests", validate_b1(
             self.dataset, self.outputs, self.profiles, self.sample_metadata, self.diagnostic_requests))
 

@@ -363,7 +363,7 @@ def load_manifest(path):
     content, fingerprint = _read_fingerprinted(path, "manifest")
     data = _json(content, "manifest")
     keys(data, ("schema_version", "dataset", "outputs", "settings"),
-         ("profiles", "report", "sample_metadata", "diagnostic_requests"), field="manifest")
+         ("profiles", "report", "sample_metadata", "diagnostic_requests", "references", "query_groups"), field="manifest")
     if type(data["schema_version"]) is not int or data["schema_version"] != 1:
         fail("schema_version", "unsupported version")
     validate_identity(data["dataset"])
@@ -386,8 +386,12 @@ def load_manifest(path):
     if not isinstance(requests, list):
         fail("diagnostic_requests", "expected an explicit request list")
     requests = tuple(DiagnosticRequest.from_dict(r) for r in requests)
+    from .reference import load_reference_data, load_query_groups
+    references = load_reference_data(data["references"], base_dir=path.parent) if "references" in data else None
+    groups = load_query_groups(data["query_groups"], base_dir=path.parent) if "query_groups" in data else None
     return ComparisonManifest(freeze(data["dataset"]), outputs, settings, report,
-                              freeze((fingerprint,)), profiles, report_settings, metadata, requests)
+                              freeze((fingerprint,)), profiles, report_settings, metadata, requests,
+                              references, groups)
 
 
 def from_association_result(result, descriptor, *, query_axis, query_ids, candidate_ids):

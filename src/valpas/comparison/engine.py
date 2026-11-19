@@ -154,16 +154,28 @@ class ComparisonResult:
     report_settings: object = None
     sample_metadata: object = None
     diagnostic_requests: tuple = ()
+    references: object = None
+    query_groups: object = None
+    initial_session: object = None
 
     def __post_init__(self):
+        from .reference import validate_references
+        validate_references(self.dataset, self.outputs, self.references, self.query_groups)
         object.__setattr__(self, "diagnostic_requests", validate_b1(
             self.dataset, self.outputs, self.profiles, self.sample_metadata, self.diagnostic_requests))
 
     @property
+    def reference_provenance_hash(self):
+        from .reference import reference_provenance_hash
+        return reference_provenance_hash(self.references, self.query_groups)
+
+    @property
     def table_columns(self):
         from .profiles import PROFILE_COLUMNS
+        from .reference import reference_columns
         return {**TABLE_COLUMNS, **(PROFILE_COLUMNS if self.profiles is not None else {}),
-                **b1_columns(self.sample_metadata is not None, self.diagnostic_requests)}
+                **b1_columns(self.sample_metadata is not None, self.diagnostic_requests),
+                **reference_columns(self.references, self.query_groups)}
 
     @property
     def table_names(self):
@@ -172,7 +184,10 @@ class ComparisonResult:
     def iter_table(self, name):
         if name not in self.table_columns:
             fail("table", "unknown table: " + str(name))
-        if name == "sample_metadata":
+        if name.startswith("reference_") or name == "query_groups":
+            from .reference import iter_reference_table
+            yield from iter_reference_table(self, name)
+        elif name == "sample_metadata":
             yield from self.sample_metadata.iter_table(self.dataset)
         elif name in ("diagnostics", "group_summaries"):
             yield from self._iter_diagnostics(name)
@@ -280,15 +295,18 @@ def _pool_size(output, pool, policy):
 
 
 def compare_results(inputs, settings=None, *, dataset=None, profiles=None,
-                    sample_metadata=None, diagnostic_requests=()):
+                    sample_metadata=None, diagnostic_requests=(), references=None, query_groups=None):
     """Compare >=2 saved outputs over all queries selected by the pool policy.
 
     A ComparisonManifest retains its dataset anchor and consumed manifest hash.
     Passing a sequence instead uses the first canonical output's identity unless
     an explicit dataset anchor is supplied. No target feature is required.
     Metadata and requested diagnostics are descriptive, excluded from identity
-    and scientific tables. The default empty tuple inherits manifest requests;
-    an explicit empty list clears them. No diagnostics are computed eagerly.
+    and the ten base scientific tables. The default empty tuple inherits manifest
+    requests; an explicit empty list clears them. No diagnostics are computed eagerly.
+    References and query groups inherit from a manifest when None; otherwise pass
+    validated ReferenceData/QueryGroups. They add source-specific descriptive tables
+    and a separate reference_provenance_hash, never change ranks or comparison_id.
     """
     sources = ()
     report_settings = None
@@ -300,6 +318,8 @@ def compare_results(inputs, settings=None, *, dataset=None, profiles=None,
         report_settings = inputs.report_settings
         sample_metadata = inputs.sample_metadata if sample_metadata is None else sample_metadata
         diagnostic_requests = inputs.diagnostic_requests if diagnostic_requests == () else diagnostic_requests
+        references = inputs.references if references is None else references
+        query_groups = inputs.query_groups if query_groups is None else query_groups
         inputs = inputs.outputs
     outputs = tuple(sorted(inputs, key=lambda o: o.output_id))
     if len(outputs) < 2:
@@ -332,6 +352,11 @@ def compare_results(inputs, settings=None, *, dataset=None, profiles=None,
     diagnostic_requests = validate_b1(dataset, outputs, profiles, sample_metadata, diagnostic_requests)
     if sample_metadata is not None:
         sources += tuple(sample_metadata.source_fingerprints)
+    from .reference import validate_references
+    validate_references(dataset, outputs, references, query_groups)
+    for document in (references, query_groups):
+        if document is not None:
+            sources += tuple(document.source_fingerprints)
     protected = tuple(sorted({f["path"] for f in sources} | {p for o in outputs for p in o.source_files}))
     # The dataset anchor duplicates output identity checks; do not add a
     # transport-dependent warning when an implicit anchor is persisted explicitly.
@@ -341,7 +366,7 @@ def compare_results(inputs, settings=None, *, dataset=None, profiles=None,
     summaries = _summarize(result)
     return ComparisonResult(outputs, settings, dataset, report, cid, freeze(fingerprints),
                             freeze(sources), protected, warnings, freeze(summaries), profiles, report_settings,
-                            sample_metadata, diagnostic_requests)
+                            sample_metadata, diagnostic_requests, references, query_groups)
 
 
 def _summarize(result):

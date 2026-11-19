@@ -1,6 +1,6 @@
 # Saved-output comparison: input/scientific schema v1 / result schema v3
 
-A1 provides validated inputs, compatibility, ranking and pools. A2 adds comparison metrics, overview tables and normalized result bundles. A3 adds **offline HTML, optional original-mask profiles and source-free report regeneration**. B1 adds optional sample metadata, marginal group summaries and observed-data covariance diagnostics. Input/scientific schemas remain v1; new result bundles are v3, with A2 v1 and A3 v2 reload support **only under the same software/policy versions**, not cross-version migration. See the [Release A and B1 guide](COMPARISON_RELEASE_A.md). No training, association scoring, checkpoint loading, network access or annotation lookup occurs. The implementation and public imports use only the standard library; root lazy exports and existing CLI behavior are preserved.
+A1 provides validated inputs, compatibility, ranking and pools. A2 adds comparison metrics, overview tables and normalized result bundles. A3 adds **offline HTML, optional original-mask profiles and source-free report regeneration**. B1 adds sample metadata, marginal group summaries and observed-data covariance diagnostics. **B2 is complete**, adding independent reference endpoints, strict portable sessions/decisions/shortlists and SVG/PDF figures. Input/scientific schemas remain v1; new result bundles are v3 with strict optional schema-v1 reference/session extensions, and A2 v1/A3 v2 reload **only under the same software/policy versions**, not cross-version migration. See the [complete B2 workflow](COMPARISON_RELEASE_A.md). No training, association scoring, checkpoint loading, network access or annotation lookup occurs. Public imports, comparison, bundle operations and CLI help use only the standard library; actual Python figure rendering lazily imports Matplotlib. Root lazy exports and existing CLI behavior are preserved.
 
 **Overview first:** no target metabolite or protein is required. Compare all declared queries under the chosen pool policy, inspect dataset/query summaries and the offline agreement/recurrence dashboard, then select queries and candidates for detailed inspection. Report filters never redefine scientific pools.
 
@@ -25,13 +25,14 @@ All names below are exported by [the comparison namespace](../src/valpas/compari
 | [build_pools()](../src/valpas/comparison/compatibility.py:148) | Validate compatibility and return per-query native/active orders and ranks, explicit pools, coverage, controlled availability and exclusion records. Does not calculate overlap or recurrence. |
 | [export_comparison_inputs()](../src/valpas/comparison/bundles.py:21) | Opt-in, full-precision detached input bundle. Accept normalized outputs, destination, optional dataset and settings. No overwrite mode. |
 | [load_input_bundle()](../src/valpas/comparison/bundles.py:94) | Check completed A1 input-bundle inventory/checksums and reload without original input paths. Distinct from the A2 result-bundle loader. |
-| [`compare_results(inputs, settings=None, *, dataset=None, profiles=None, sample_metadata=None, diagnostic_requests=())`](../src/valpas/comparison/engine.py:282) | Accept a validated manifest or sequence of at least two normalized inputs. Profiles and metadata must be validated objects. Requests accept an explicit list/tuple of validated requests or request dictionaries. Two distinct runs of one configuration are valid. Return an immutable result over all queries under policy; B1 calculations are lazy, requested-only descriptions. |
+| [`compare_results(inputs, settings=None, *, dataset=None, profiles=None, sample_metadata=None, diagnostic_requests=(), references=None, query_groups=None)`](../src/valpas/comparison/engine.py:297) | Accept a validated manifest or sequence of at least two normalized inputs. Profiles, metadata, references and query groups must be validated objects. Requests accept an explicit list/tuple of validated requests or request dictionaries. Two distinct runs of one configuration are valid. Return an immutable result over all queries under policy; B1 calculations are lazy, requested-only descriptions. |
 | [ComparisonResult](../src/valpas/comparison/engine.py:136) | Normalized inputs, settings, identity, fingerprints, warnings and compact summaries. Complete detail tables are generated query-by-query, not retained as expanded tables. |
 | [iter_table()](../src/valpas/comparison/engine.py:157) / [materialize_table()](../src/valpas/comparison/engine.py:167) | Iterate detached row dictionaries by table name; materialization defaults to at most 10,000 rows and errors rather than silently truncating. |
 | [write_comparison()](../src/valpas/comparison/report.py:282) | Accept a result and destination; HTML plus complete tables is default, overwrite defaults false. Optional validated report settings control detail scope and payload limits, not analysis. Explicit tables-only remains supported. |
 | [`load_comparison_bundle()`](../src/valpas/comparison/report.py:266) | Validate result v1/v2/v3 completion, versions, schemas, checksums, normalized identity, exact table parity and applicable report parity. Reconstruct the result without original files or models. |
 | [`ProfileData`](../src/valpas/comparison/profiles.py:15) / [`load_profile_data(value, *, base_dir=".")`](../src/valpas/comparison/profiles.py:209) | Validated optional measurement layers; load inline schema-v1 JSON or a contained local JSON path descriptor. |
 | [`ReportSettings`](../src/valpas/comparison/browser.py:13) | Independent HTML detail scope, payload budget and metadata-omission controls. |
+| [`export_query_figure()`](../src/valpas/comparison/figures.py:261) | Existing result or saved bundle; explicit query/candidate/layer/output; lazy SVG/PDF rendering, full normalized profiles, safe separate artifact, optional strict session/decision view. See the figure contract below. |
 | [`SampleMetadata(dataset, fields, records, subset_extra_observations=False, source_fingerprints=())`](../src/valpas/comparison/diagnostics.py:19) | Frozen exact-ID metadata. All three containers are required; fields and records may be empty. Dataset binding is checked at comparison/group-summary use. Source fingerprints are transport provenance, not schema-v1 document fields. |
 | [`load_sample_metadata(value, *, base_dir=".")`](../src/valpas/comparison/diagnostics.py:105) | Load inline schema-v1 metadata or a contained local JSON path descriptor; fingerprint file bytes. Does not infer fields, types, IDs or binding. |
 | [`DiagnosticRequest(query_id, candidate_id, layer_id, h=5, omission=False, group_field=None, include_fraction=True)`](../src/valpas/comparison/diagnostics.py:121) | One explicit pair/layer request, with optional categorical marginal summaries for its two features. No schema wrapper inside the manifest request list. |
@@ -44,7 +45,7 @@ Run [the comparison example](../examples/compare_saved_results.py) from a source
 
 ## Manifest and strictness
 
-The top-level JSON object requires: schema_version (integer 1, not boolean), dataset, outputs (nonempty array), settings (object). Optional sections are profiles, report, sample_metadata and diagnostic_requests, validated by the [manifest loader](../src/valpas/comparison/adapters.py:358). Profiles/report follow the [Release A contract](COMPARISON_RELEASE_A.md); B1 sections are specified below. Omit optional metadata/profiles when absent rather than supplying null. Requests default to an empty list. References and other unsupported sections remain rejected, not silently accepted as implemented.
+The top-level JSON object requires: schema_version (integer 1, not boolean), dataset, outputs (nonempty array), settings (object). Optional sections are profiles, report, sample_metadata, diagnostic_requests, references and query_groups, validated by the [manifest loader](../src/valpas/comparison/adapters.py:358). Profiles/report follow the [Release A contract](COMPARISON_RELEASE_A.md); B1 and reference sections are specified below. Omit optional metadata/profiles when absent rather than supplying null. Requests default to an empty list. Initial sessions are supplied through the report writer API, not an additional manifest section. Other unsupported sections remain rejected.
 
 All contract objects reject unknown keys, including nested identity, namespace, evidence, completeness certificates, input options, settings and attestations. JSON duplicate keys and nonstandard NaN/Infinity constants are errors. Scientific parameters/preprocessing are intentionally **open finite-JSON metadata maps**, not executable algorithm settings: arbitrary method-specific keys are preserved, not applied or claimed to be validated against a training API. Non-seed maps may not contain seed/random_seed/random_state at any nesting level.
 
@@ -288,6 +289,232 @@ New [result-schema-v3 completion records](../src/valpas/comparison/report.py:148
 
 Report settings, profiles, sample metadata and requests are descriptive and do **not** enter the scientific comparison ID. Their persisted bytes/settings are instead covered by inventory and normalized-content/report checks. Categorical/continuous color and explicit display ordering affect only presentation. The [HTML payload budget](../src/valpas/comparison/browser.py:163) includes embedded sample metadata as well as profiles and other escaped JSON; a smaller detail-query scope does not automatically subset metadata records. Metadata omission removes profiles and sample metadata **from HTML/report-view payload only**. The complete bundle retains metadata, profiles, diagnostic tables, canonical IDs and other sensitive data; it is not redacted or anonymized. Share only inspected HTML when using omission.
 
+## B2 reference evidence
+
+### Public API and strict documents
+
+[ReferenceData](../src/valpas/comparison/reference.py:85) and [QueryGroups](../src/valpas/comparison/reference.py:41) are immutable, detached public contracts. Their [loaders](../src/valpas/comparison/reference.py:184) accept an inline schema-v1 document or an object containing only a local JSON path, relative to the manifest directory (or explicit loader base directory). Unknown keys, duplicate JSON keys, boolean schema versions, ambiguous IDs, remote paths and paths escaping containment are rejected. Consumed file bytes are fingerprinted before parsing; no later reopening supplies their digest. See the runnable [reference manifest](../tests/comparison/fixtures/b2-reference/manifest.json) and [known-math fixture notes](../tests/comparison/fixtures/b2-reference/README.md).
+
+The manifest adds optional [references and query_groups sections](../src/valpas/comparison/adapters.py:358). [compare_results()](../src/valpas/comparison/engine.py:296) accepts the same keyword arguments as validated objects, inheriting manifest values when an argument is None. To remove inherited references, compare the manifest's outputs with the desired settings/dataset instead. Groups without references are rejected. Neither references nor groups change scientific comparison identity, ranks, candidate eligibility, top lists, agreement or recurrence. The result exposes a separate [reference_provenance_hash](../src/valpas/comparison/engine.py:166).
+
+The [reference document schema](../src/valpas/comparison/reference.py:150) has required schema_version (integer 1), dataset (complete identity descriptor), endpoints (nonempty list), and evidence (possibly empty list), plus optional weighting (feature by default, or group). Binding explicitly matches every dataset field, including nulls, source evidence and namespaces; observation order is immaterial. Null equality is not an attestation of known identity. All assessed query IDs must belong to the comparison query union. Reference candidate universes may include annotated candidates outside the saved outputs, so unreachable known support remains visible.
+
+Each [endpoint](../src/valpas/comparison/reference.py:110) has exactly these required fields, plus optional nonempty description:
+
+| Field | Meaning |
+|---|---|
+| endpoint_id | Unique nonempty exact string. |
+| source, version | Explicit nonempty source and source-version strings. |
+| evidence_type | pathway or reaction; never an implicit union. |
+| support_class | co_membership for pathway; direct, inferred or unspecified for reaction. |
+| assessed_query_ids | Unique exact query IDs explicitly assessed by this endpoint; may be empty. |
+| candidate_universe | Unique exact candidate IDs covered by the endpoint; may be empty. |
+
+A source/version/type/class combination can appear only once. Direct and inferred support, pathways, different sources and different versions remain separate endpoints throughout tables, summaries and browser selection. Pathway co-membership is not direct reaction evidence. No combined endpoint or best-source score is manufactured.
+
+Each [evidence row](../src/valpas/comparison/reference.py:131) requires endpoint_id, query_id, candidate_id and evidence_id, all nonempty exact strings, with optional nonempty description. The endpoint must exist, the query must be assessed, and the candidate must belong to its reference universe. Exact duplicate complete rows normalize once; distinct IDs or descriptions remain inspectable even for the same query/candidate. All metric support counts deduplicate the endpoint/query/candidate pair, not the evidence records.
+
+The [query-group document](../src/valpas/comparison/reference.py:68) requires exactly schema_version (integer 1), dataset, and records. Each record has exactly query_id and group_id, both nonempty exact strings. Every query must exist in the comparison. Repeated query membership is rejected even when the duplicate group is identical: there is no best-peak choice or many-group assignment. Missing memberships are allowed and disclosed. Explicit group weighting requires a group document; sample/observation metadata groups are unrelated to these query-feature groups.
+
+### Retrieval mathematics, coverage and availability
+
+[Recovery rows](../src/valpas/comparison/reference.py:229) cover every declared query/output/endpoint/requested depth, including queries excluded by common-pool policy. Let S be the deduplicated known support set for an assessed query, P its existing engine active pool, T its certified nomination list, and R = S intersect P. Then:
+
+| Metric / count | Definition |
+|---|---|
+| total_known_support | Size of S; null for an unassessed query, zero for assessed-with-no-known-support. |
+| reachable_support | Size of R when the complete active order is known and certified; otherwise null. |
+| supported_nominations | Size of S intersect T when retrieval is available. |
+| hit | 1 if at least one nomination is supported, otherwise 0; null if retrieval is unavailable. |
+| reference_supported_fraction | Supported nominations divided by actual nomination-list size, **not requested depth or reference-universe intersection**. |
+| recovery | Supported nominations divided by reachable support; null when that denominator is zero or unknown. |
+| reachability_fraction | Reachable support divided by total known support; null when total is zero or reachability unknown. |
+
+Rows also disclose active pool size, actual nomination-list size, nominations inside the reference universe, assessment status, evaluation scope, status/reason and metric-specific null reasons. A nomination outside the reference universe is not a biological negative. None of these fractions is biological precision, validation accuracy or causal evidence.
+
+Strict cohort incompatibility disables retrieval; a single output's certifiable top list does not bypass strict policy. Common pools, filtered-list unavailability, namespace-aware self-exclusion and native inspection consume existing engine semantics unchanged. Native inspection is explicitly descriptive across different search spaces. A certified unexhausted prefix may establish hit/fraction at a shallow depth, but does not establish the complete reachable denominator; recovery and reachability remain null. Requests beyond certification are limited-depth, not zero retrieval. Certified exhausted short lists use their actual size. Empty scorable pools leave retrieval unavailable.
+
+[Statuses](../src/valpas/comparison/reference.py:282) distinguish unassessed, assessed_zero, unreachable, unavailable, limited_depth and available. Retrieval unavailability takes precedence over zero/unreachable status, while assessment status and counts retain the distinction. A limited-depth row can still contain a valid shallow hit/fraction. Reachability may remain available independently of retrieval. Always consult metric-specific reasons rather than dropping every row with an overall non-available status.
+
+### Cohorts, strata and weighting
+
+[Reference summaries](../src/valpas/comparison/reference.py:311) keep each endpoint, output/run and depth separate. All-assessed includes assessed-zero and known-unreachable queries; reachable includes only queries with known positive reachable support. Each cohort is reported overall and in fixed reachable-opportunity strata 0, 1, 2–5, 6+ (inclusive integer boundaries, also persisted). Empty strata remain visible. Unknown reachability is not zero opportunity.
+
+Default feature weighting is the arithmetic mean of evaluable query metrics. Explicit group weighting first takes the mean of evaluable member-feature metrics in each group, then gives each nonempty group equal weight. It is neither pooled-feature weighting nor best-feature selection. Missing membership is a named exclusion under group weighting. Group rows expose total group size, evaluable feature count, included query IDs, excluded features/reasons and within-group mean, including empty groups with null means.
+
+Each metric has independent declared/assessed/eligible/evaluable/excluded query counts, included IDs, exclusions and reason counts, declared/evaluable group counts, and an aggregation denominator. Eligibility applies assessment/cohort/stratum rules before metric availability and required membership. Excluded counts cover all declared queries not contributing to that metric, including those outside the cohort/stratum. Aggregation denominator counts evaluable features or nonempty groups according to weighting. Undefined recovery is never averaged as zero. Runs are not biological replicates and are never averaged together by this subsystem.
+
+### Optional tables, provenance, persistence and browser
+
+The exact ordered [REFERENCE_COLUMNS](../src/valpas/comparison/reference.py:378) are embedded in bundle table schemas. Reference input adds four tables: endpoint declarations/coverage, one-to-many normalized evidence, per-query recovery, and metric-specific summaries. A supplied group document adds the query-group table. Tables are absent when their optional inputs are absent; the ten base tables remain unchanged. Every CSV data cell is JSON encoded, including nested group and exclusion structures.
+
+Result schema remains **v3**, with an optional [b2_references extension](../src/valpas/comparison/report.py:163) containing exactly schema_version (integer 1), query_groups (presence boolean), and provenance_hash. The writer stores normalized [references.json](../src/valpas/comparison/report.py:141) and optional [query_groups.json](../src/valpas/comparison/report.py:143), plus the reference tables, in the exact inventory. Reload checks extension shape/version, inventory, byte digests, normalized binding/provenance and every recomputed table cell. Original reference paths need not exist. Without references, no extension or reference payload fields are added.
+
+The [separate provenance digest](../src/valpas/comparison/reference.py:206) covers normalized reference/group documents, descriptions, endpoint IDs and coverage, universe, weighting, membership, reference policy 1 and stratum boundaries. Transport paths, record ordering and exact duplicate evidence rows do not affect it; raw source-byte fingerprints are retained separately. Sessions bind both scientific comparison ID and this digest through their separate content ID. Session/decision-based figures validate that same binding; the reference digest alone does not version diagnostics or report presentation.
+
+The [offline payload](../src/valpas/comparison/browser.py:159) retains full-cohort reference recovery/summaries for analysis and interactive depths even with a detail-query subset. Evidence records are bounded to embedded query/candidate unions and explicit pins; endpoint coverage/universes remain explicit. The browser selects one independent endpoint and displays precomputed metrics. Supported/unsupported evidence filtering only filters candidate display, never nominations or denominators. Unassessed and outside-universe candidates are distinguished from unsupported-by-this-source candidates. Labels/evidence are inserted as text, not executable markup.
+
+All escaped reference payload bytes count toward the HTML budget; overflow fails explicitly rather than sampling. Metadata omission removes reference endpoints, evidence, groups, recovery and summaries from HTML with an explicit disclosure. The provenance digest remains. Complete bundles retain all canonical reference data and sensitive IDs and are **not redacted**. Reference documents and summary computation currently materialize records; full-cohort embedded metrics can dominate payload size. No target-scale benchmark is claimed.
+
+References, sessions/decisions/shortlists and [figure export](COMPARISON_FIGURES.md) passed [integrated B2 validation](../plans/B2_VALIDATION_HANDOFF.md); B2 is DONE. B3 production capture/export integration and target-scale validation remain future. The [reference handoff](../plans/B2_REFERENCE_HANDOFF.md) preserves the earlier reference-only checkpoint and its focused evidence.
+
+## B2 portable sessions, user decisions and shortlists
+
+### APIs and identity
+
+[Session](../src/valpas/comparison/session.py:223) and [Shortlist](../src/valpas/comparison/session.py:315) are immutable, detached schema-v1 documents. [Session.create()](../src/valpas/comparison/session.py:241) derives the exact report scope and default view from a comparison and optional report settings. [load_session()](../src/valpas/comparison/session.py:347) and [load_shortlist()](../src/valpas/comparison/session.py:352) accept a document mapping or explicit local JSON file path. A string is a path, not raw JSON. Unknown keys at every nested level, duplicate JSON object keys, duplicate IDs, invalid types, invalid settings and checksum mismatches fail with a validation error. Without a result the loaders validate document structure/integrity only; supply result and the intended report settings for authoritative compatibility validation.
+
+[session_content_id()](../src/valpas/comparison/session.py:33) is a separate SHA-256 binding over policy 1, scientific comparison ID, complete dataset descriptor, normalized output descriptors sorted by output ID (including labels/descriptive provenance), profiles, sample metadata and reference provenance digest. Saved scores/settings are bound through the scientific ID. Source locations are not required for restore. This binding does **not** change the scientific comparison ID. Report scope and payload byte budget are not part of content identity; scope is checked separately and the byte budget is only a resource limit.
+
+[validate()](../src/valpas/comparison/session.py:273) requires exact comparison ID, content ID, pool policy and scope. No migration, clamping, discarded decisions, default replacement or automatic metadata redaction occurs. [rebind_scope()](../src/valpas/comparison/session.py:277) is the explicit Python-only scope-change operation: it returns a newly sealed document only if **all** saved settings and decision snapshots fit the new scope unchanged. Narrower scopes fail if any selected query, candidate, pin, layer, metadata field, reference endpoint or depth would be lost. Expanded scope is also an explicit operation, not automatic restore.
+
+### Complete schema 1
+
+All fields below are required, even when null or empty; no additional fields are allowed. All identifiers are exact, case-sensitive strings: leading zeros, whitespace and Unicode are preserved, never coerced to numbers. ID lists contain distinct nonempty strings. Positive integer settings are bounded by the exact browser integer range, 1 through 9007199254740991; booleans are not integers.
+
+The [document envelope](../src/valpas/comparison/session.py:25) has exactly:
+
+| Field | Contract |
+|---|---|
+| schema_version | Integer 1. |
+| kind | valpas-session or valpas-shortlist, matching the selected loader/input. |
+| comparison_id | Exact scientific comparison ID. |
+| content_id | Lowercase 64-character SHA-256 content binding. |
+| pool_policy | strict, common, or native_inspection; must match the comparison. |
+| scope | Complete explicit scope below. |
+| view | Current portable view below. |
+| notes | User-authored text, possibly empty; not a model label. |
+| decisions | Ordered list of decision rows below; possibly empty. |
+| integrity_sha256 | Lowercase SHA-256 over canonical UTF-8 JSON of the envelope **without this field**. |
+
+Canonical JSON has no insignificant whitespace, Unicode text without ASCII coercion, object keys sorted by Unicode code point and unchanged array order. Export escapes ampersand, angle brackets and U+2028/U+2029; these transport escapes do not change parsed values or the digest. Integrity is corruption detection, **not authentication or proof against a deliberately re-signed document**. Use the public constructors instead of manufacturing a checksum.
+
+The [scope](../src/valpas/comparison/session.py:102) has exactly:
+
+| Field | Contract |
+|---|---|
+| query_ids | Nonempty ordered list of embedded detail queries. |
+| candidates | One row per query, in query order; each row has exactly query_id and candidate_ids (possibly empty). |
+| max_depth | Maximum embedded interactive depth. |
+| report_pins | Export-time candidate pins, within the embedded candidate union. |
+| omit_metadata | Strict boolean describing this report's omission policy. |
+| output_ids | Nonempty ordered output inventory. |
+| layer_ids | Ordered embedded profile-layer IDs; possibly empty. |
+| metadata_fields | Field-name map to categorical or continuous. |
+| reference_endpoint_ids | Ordered embedded reference endpoints; possibly empty. |
+
+Omitted scopes expose no layers, metadata fields or reference endpoints. Scope equality includes array order and all these fields. The embedded candidate set is not the scientific active pool: it is bounded display capability. The exact comparison ID, pool policy, query and inspected outputs identify the fixed scientific pool in the accompanying saved report/bundle. Hidden outputs never redefine that pool.
+
+The [view](../src/valpas/comparison/session.py:126) has exactly:
+
+| Field | Contract |
+|---|---|
+| depth | Positive integer no greater than scope max_depth. |
+| query | Embedded query ID or null. |
+| candidate | Candidate embedded for the selected query, or null. |
+| pair | Null or two distinct output IDs, retaining left/right order. |
+| search, candidateSearch | Exact query/candidate search strings. |
+| hidden | Hidden output IDs; visible outputs are the scope-order complement. |
+| pins | Browser pins within the embedded candidate union. |
+| referenceEndpoint | An embedded endpoint; null only when none are embedded. |
+| evidenceFilter | all, supported, unsupported; only all without references. |
+| selectedLayer | An embedded layer ID, or null to show all layers. |
+| layers | Exactly one settings row for every embedded layer, in scope order. |
+| queryOrder, candidateOrder | id_asc or id_desc, using Unicode code-point order. |
+
+Every layer settings row has exactly layer_id, color (metadata overlay field or null), group (categorical metadata field or null), order (dataset, id, metadata), include_fraction (boolean), h (positive exact integer), and omission (boolean). Color/group/order are presentation only. Metadata order with no color field explicitly retains dataset order; it does not choose a field silently. Omission requests the existing B1 descriptive recentering preview, never model rescoring. Changing h through the UI clears the preview until requested again. Generic table-header sorts and expanded disclosure panels are temporary UI details; use the portable order selectors for saved query/candidate order. Unsubmitted decision-form text is not a recorded decision.
+
+Each [decision row](../src/valpas/comparison/session.py:178) has exactly:
+
+| Field | Contract |
+|---|---|
+| decision_id | Nonempty user-action ID, unique within the document. Browser actions generate UUIDs. |
+| comparison_id | Must exactly equal envelope comparison_id. |
+| query_id | Embedded query, exactly matching snapshot query. |
+| candidate_id | Selected candidate for investigate/retain_alternative; null for abstain. |
+| pool_policy | Must equal envelope pool_policy. |
+| depth | Must equal snapshot depth. |
+| inspected_output_ids | Nonempty list equal to the snapshot's visible outputs in scope order. |
+| decision | investigate, retain_alternative, or abstain only. |
+| rationale | User text containing non-whitespace characters; never generated automatically. |
+| timestamp | Actual UTC RFC3339 calendar timestamp with seconds, optional 1–6 fractional digits and terminal Z; year 1970 or later. |
+| view | Full view snapshot at the action, with the same strict schema. |
+
+Abstention is query-level: both candidate_id and snapshot candidate must be null. Python [add_decision()](../src/valpas/comparison/session.py:290) requires an explicit per-action timestamp and rationale; the browser timestamps the actual click. There is no fabricated session-wide timestamp, automatic candidate verdict, deduplicating merge or inferred model correctness label. Several distinct actions concerning the same candidate are allowed, with distinct decision IDs. Shortlists retain abstentions, notes, current view, scope and every decision snapshot, not merely candidate names.
+
+### Executable API example
+
+This example uses the checked-in B1 fixture, explicit report settings and new output paths. Constructors produce all required fields and integrity hashes; [to_dict()](../src/valpas/comparison/session.py:252) returns a detached editable copy, not mutable internal state.
+
+```python
+from valpas.comparison import (
+    ComparisonSettings, ReportSettings, Session, compare_results,
+    load_manifest, load_comparison_bundle,
+    load_session, load_shortlist, write_comparison,
+)
+
+manifest = load_manifest(
+    "tests/comparison/fixtures/demo-01/manifest-with-b1.json"
+)
+result = compare_results(manifest, ComparisonSettings(pool_policy="common", depths=(1, 2)))
+settings = ReportSettings(query_ids=("M01",), max_interactive_depth=2)
+session = Session.create(result, settings, notes="User investigation, not validation")
+view = session.to_dict()["view"]
+view.update(query="M01", candidate="P01", depth=1)
+session = session.with_view(view).add_decision(
+    decision_id="review-001", decision="investigate",
+    rationale="Inspect original-mask evidence before retaining this candidate",
+    timestamp="2026-11-19T14:00:00Z",
+)
+session = session.add_decision(
+    decision_id="review-002", decision="abstain",
+    rationale="Evidence is insufficient to choose a candidate",
+    timestamp="2026-11-19T14:05:00Z",
+)
+session.write("review-session.json")  # exclusive create; refuses overwrite
+shortlist = session.shortlist()
+shortlist.write("review-shortlist.json")
+assert load_session("review-session.json", result=result, settings=settings) == session
+assert load_shortlist("review-shortlist.json", result=result, settings=settings) == shortlist
+bundle = write_comparison(result, "review-bundle", report_settings=settings,
+                          initial_session=session)
+assert load_comparison_bundle(bundle).initial_session == session
+```
+
+[Shortlist.create()](../src/valpas/comparison/session.py:241) and the inherited immutable view/decision operations also work directly. [to_json()](../src/valpas/comparison/session.py:255) returns script-safe canonical JSON; [to_csv()](../src/valpas/comparison/session.py:321) returns spreadsheet-oriented decision rows. CSV uses decision field order from the table above, structured values encoded as JSON, and **an apostrophe prefix on every data cell**, including IDs, numeric values and rationales. This blocks formula interpretation and preserves leading-zero display. CSV is intentionally not canonical/importable; use JSON for exact IDs, notes, bindings, scope and lossless reproduction. Scientific bundle CSV contracts are unchanged.
+
+### Offline workflow, persistence and privacy
+
+The report's **User decisions, sessions and shortlists** section provides explicit session JSON, shortlist JSON and shortlist CSV download buttons, plus separate real file inputs for session and shortlist JSON. Select a query/candidate, set depth/output visibility/B1/reference controls, enter notes and a rationale, and explicitly record an action. Reopen the matching report and import the downloaded JSON. Import validates before replacing the complete view, notes and decision list; repeated imports are idempotent and do not append duplicates. Errors leave the previous state intact. No browser storage, server, automatic filesystem writes or network requests are used. The browser asks for files through ordinary download/upload mechanisms and caps each imported file at 50 MiB.
+
+Downloads carry enough state and rationale to reproduce inspection against the matching self-contained HTML or source-free result bundle; they are **not copies of the saved scientific score/profile data**. Keep the matching report/bundle. There is no implicit transfer across scientific comparisons or metadata/reference revisions. Browser restore requires exact scope; use explicit Python rebind and re-export when changing scope.
+
+[write_comparison()](../src/valpas/comparison/report.py:417) accepts an optional initial_session and validates it against the selected report settings. The result's initial_session field also survives reload. An optional schema-v1 b2_session marker inside result schema v3 has exactly schema_version: 1 and requires an inventoried [initial_session.json](../src/valpas/comparison/report.py:147). The HTML embeds the initial state; all escaped state bytes count toward the default 50 MiB payload budget before HTML wrapping. Tables-only export can retain the initial session without rendering HTML. To remove an attached initial session, explicitly replace that result field with None; the writer's default None means retain any attached session, not erase it.
+
+**Privacy:** notes, rationales, canonical IDs and reference selections can identify sensitive material. Metadata omission removes reference/profile/sample metadata from HTML, but cannot safely redact arbitrary notes. Exporting metadata-omitted HTML with any initial session is rejected; explicitly detach it rather than silently losing notes or changing settings. Notes entered later in an omitted report remain in explicit session/shortlist downloads. Full bundles retain original data, references and any initial session and are **not redacted or anonymized**. Review every shared artifact.
+
+## B2 figure API and artifact contract
+
+[`export_query_figure()`](../src/valpas/comparison/figures.py:261) is public and accepts an existing result or saved result-bundle path. Required keyword arguments are exact query ID, candidate ID, layer ID and caller-chosen output path. It returns the absolute output path. Only SVG/PDF are accepted, with format determined by suffix. See the [CLI-first guide](COMPARISON_FIGURES.md).
+
+| Keyword | Contract |
+| --- | --- |
+| query_id, candidate_id, layer_id, output | Required explicit IDs/path. IDs never determine filenames. Query/candidate must be declared output features; both namespace-specific profiles and original masks must be available. |
+| color, group | Optional exact metadata fields; default no overlay/group. Group must be categorical. |
+| order | Dataset (default), ID or metadata display order; no cohort change. Metadata order without color retains dataset order. |
+| h, omission, include_fraction | Defaults 5, false, true. Positive exact integer h; strict booleans. Descriptive diagnostic/group controls only. |
+| depth, notes | Optional positive inspection depth and literal user notes; default no selected depth and empty notes. No scientific pool/depth override. |
+| session, decision_id | Optional validated session object, local path or document; optional exact decision selects its snapshot. Explicit pair/layer must match; conflicting options/notes/depth are rejected. No implicit use of bundle initial state. |
+| report_settings | Optional exact scope for session validation, using existing strict report/session contracts. No implicit rebinding. |
+
+Without a session, full normalized profiles are authoritative, independent of bounded/metadata-omitted HTML. With a session, scientific and descriptive content IDs and exact scope are validated. No result fields, session fields, scientific tables or schema versions are added. SVG/PDF are separate artifacts outside owned input/result bundles, not inventoried bundle members. Matplotlib imports occur only for actual rendering; no dependency is added and lightweight imports/help retain warning state.
+
+Scatter includes jointly observed finite pairs only; marginal profiles visibly distinguish finite originally unobserved/imputed values. Captions preserve exact identities, units, transform, mask/cohort counts, exclusions, overlay and ordering, algorithm-layer relationships, pool/analysis/inspection depths, annotations/notes and descriptive B1 diagnostics. SVG has an exact unwrapped description; PDF has exact caption Subject metadata. TeX/mathtext are disabled; XML-incompatible control characters cause rejection instead of ID mutation. Captions are descriptive, not model attribution or causal/confounding correction.
+
+Publication renders to a temporary sibling, syncs the file and atomically creates a no-clobber hard link, then removes staging. Existing paths, symlinks, traversal, absent parents, source collisions and paths within owned bundles are rejected. A failed render never publishes a partial final file. Parent-directory replacement by a hostile concurrent process and crash durability are outside this local filesystem contract.
+
+The offline browser offers an explicit per-layer SVG download with bounded-scope/caption/privacy warning and a fixed generic download name. It serializes text-only nodes and inline plot styles, without scripts/external links. Browser and Python outputs are intentionally different renderings. Existing B1/session controls and strict schemas are unchanged; browser download naming/collision behavior belongs to the browser.
+
 ## Result bundles, identity and publication
 
 An A2 result bundle is distinct from an A1 input bundle. Its [completion record](../src/valpas/comparison/report.py:87) stores ownership kind, schema/software/policy versions, resolved settings, dataset scope, comparison ID, warnings, normalized descriptors, source fingerprints, table schemas/row counts and exact file inventory with SHA-256/byte counts. Gzip JSONL members contain explicit full-precision saved pair records; original completeness and implicit missing semantics remain in the descriptors. Candidate-rank, recurrence and exclusion CSV tables are gzip-compressed; the other tables are plain CSV. Original source files can be deleted after export; reload never opens recorded original paths.
@@ -298,15 +525,15 @@ The comparison ID hashes canonical normalized IDs/values/statuses, scientific de
 
 Reload validates member names, no symlink members, exact inventory, checksums, completion/schema/version, normalized contracts, comparison identity, warnings, and every table row against recomputed saved-value ranks/metrics and requested B1 descriptions. This recomputation is not fitting or association scoring. The writer emits result v3, including when B1 data is absent. A2 v1 and A3 v2 reload are supported only with the **same software/policy versions and expected table schemas**; no cross-software-version migration is implemented. Checksums are integrity checks, not proof against forged provenance.
 
-For A3 v2 HTML bundles, [legacy report validation](../src/valpas/comparison/report.py:335) checks inventory hashes/sizes for the old HTML/assets rather than demanding byte equality with today's assets. The stored and embedded payload must agree and match normalized saved values/settings under the known A3 projection (removing only the additive B1 metadata field and corresponding omission wording); the stored payload hash, byte count and old budget are also checked. Legacy payloads cannot carry B1 metadata. Regeneration deliberately writes **current assets and result v3**, subject to the current payload budget. Current v3 HTML/payload is checked against current rendering exactly.
+For A3 v2 and v3 HTML bundles, [report validation](../src/valpas/comparison/report.py:379) checks inventory hashes/sizes for old HTML/assets rather than demanding byte equality with today's assets, including session-bearing v3 bundles. Stored and embedded payloads must agree and match normalized saved values/settings. V2 uses the known A3 projection (removing additive B1 metadata and corresponding omission wording). Only bundles without the session extension may omit the three additive session payload fields; any present fields are checked, not ignored. Session-bearing bundles require exact complete normalized session/payload parity, with no field projection. Stored payload hash, byte count and old budget are checked. Legacy v2 cannot carry B1 metadata; reference data requires its extension and non-null initial state requires the session extension. Regeneration writes **current assets and result v3**, subject to the current budget. All paths require the same software/policy versions; this is not a general migration facility or authentication of saved scripts.
 
 Publication writes to a temporary sibling and writes completion last, then publishes by rename. Existing destinations, including empty directories, are refused by default. Explicit overwrite accepts only a fully validated owned A2 bundle with no foreign members, never a consumed-source directory, A1 bundle, symlink, or unrelated directory. The old bundle is moved to a sibling backup and restored on publication failure; exporter-owned staging is cleaned. A result loaded from a bundle cannot overwrite that supplying bundle. Use a new destination to re-export it. This is staged local publication with rollback, not a crash-durable filesystem transaction or protection against hostile concurrent modifications; a process crash during replacement may leave a sibling backup requiring recovery.
 
 ## CLI and example workflow
 
-The [compare command](../src/valpas/cli.py:304) accepts an input manifest or saved result bundle, required outdir, report scope/pin/depth/budget controls, optional manifest analysis pool/depth overrides, explicit tables-only, and safe overwrite. HTML is the default. It calls the public loader, engine and writer; resolved overrides are persisted. Failures exit nonzero with field/reason/remediation rather than proceeding with partial scientific results. No target-query argument is required. See the [Release A guide](COMPARISON_RELEASE_A.md) for all options and regeneration.
+The [compare command](../src/valpas/cli.py:304) accepts an input manifest or saved result bundle, required outdir, report scope/pin/depth/budget controls, optional manifest analysis pool/depth overrides, explicit tables-only, and safe overwrite. HTML is the default. It calls the public loader, engine and writer; resolved overrides are persisted. Failures exit nonzero with field/reason/remediation rather than proceeding with partial scientific results. No target-query argument is required. See the [complete B2 guide](COMPARISON_RELEASE_A.md) for the combined-demo CLI-first workflow, references, sessions, figures and regeneration.
 
-From a source checkout, run the following command against the [demo manifest](../tests/comparison/fixtures/demo-01/manifest.json), choosing a new output directory:
+For an alternative score-only, tables-only example, run the following command from a source checkout against the [no-profile manifest](../tests/comparison/fixtures/demo-01/manifest.json), choosing a new output directory:
 
 ```sh
 PYTHONPATH=src python3 -m valpas.cli compare --manifest tests/comparison/fixtures/demo-01/manifest.json --outdir demo-comparison --pool common --depths 1 2 5 --tables-only
@@ -316,10 +543,10 @@ The [Python example](../examples/compare_saved_results.py) prints the overview b
 
 ## Phase boundary and limitations
 
-- A0–A3 and B1 are implemented; B2/B3 remain unfinished. Neither release is being declared finally complete for the modified B1 tree.
-- B2 reference/session/figure features and export-query command, and B3 production export hooks/target-scale checks remain unimplemented. No placeholder APIs for those phases are exported. The [implementation plan](../plans/METHOD_COMPARISON_IMPLEMENTATION_PLAN.md) separates original A3 packaging evidence from pending final validation of modified B1 assets.
+- **A0–A3, B1 and B2 are DONE**. B3 production metadata capture/export integration and target-scale checks remain future; full Release B/project completion is not claimed.
+- [Integrated validation](../plans/B2_VALIDATION_HANDOFF.md) passed **232 full-dependency comparison tests (zero skips), 22 harness tests, 88 installed commands and 10 actual Chrome cases across both wheels**. Wheels used retained isolated full-dependency environments, not fresh dependency resolution. Tested artifacts predate this documentation finalization; no docs-only rebuild was performed. The [implementation plan](../plans/METHOD_COMPARISON_IMPLEMENTATION_PLAN.md) separates this completion record from historical evidence; the [reference](../plans/B2_REFERENCE_HANDOFF.md), [session](../plans/B2_SESSION_HANDOFF.md) and [figure](../plans/B2_FIGURE_HANDOFF.md) handoffs retain chronological focused checkpoints.
 - NumPy loading is deliberately omitted; all required representations work with JSON/CSV/TSV and standard-library code.
 - The adapter reads structural labeled matrices; it does not introspect omics objects to guess namespaces or provenance. It requires explicit metadata and selections.
 - File loaders materialize parsed input contents and complete inputs use per-pair Python records. A2 processes detail tables one query at a time and streams export/reload validation; compact summaries scale with query/output-pair/depth counts. No giant expanded rank/exclusion/recurrence table is retained. A 20-query × 100-candidate × 3-output smoke test verifies 6,000 full-rank rows and streamed write/reload, not target-scale performance. The B3 1,000 × 5,000 × 8 measurement and compact input storage remain future work.
 - Bundle export is opt-in and separate from legacy production/save methods. Legacy filenames, behavior and precision are unchanged.
-- Earlier full-dependency legacy imports, documentation/Sphinx and cross-attention environmental follow-ups remain separate from comparison validation. No dependencies are installed or training suites run for A2.
+- Full-dependency legacy imports passed the integrated installed gate. Sphinx rendering, broad training/cross-attention suites, other OS/Python/browser combinations and manual visual/accessibility certification remain separate unverified work; none was run for documentation finalization.

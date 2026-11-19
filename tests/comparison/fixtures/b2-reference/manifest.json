@@ -1,0 +1,378 @@
+{
+  "schema_version": 1,
+  "dataset": {
+    "dataset_id": "demo-01",
+    "observation_ids": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06"
+    ],
+    "query_namespace": {
+      "id": "demo-metabolites",
+      "modality": "metabolomics"
+    },
+    "candidate_namespace": {
+      "id": "demo-proteins",
+      "modality": "proteomics"
+    },
+    "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+    "dataset_evidence": {
+      "type": "attestation",
+      "source": "synthetic:valpas:a0:demo-01",
+      "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+      "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+    }
+  },
+  "outputs": [
+    {
+      "schema_version": 1,
+      "output_id": "A",
+      "method_id": "pearson",
+      "configuration_id": "pearson-base",
+      "run_id": "A",
+      "seed": null,
+      "label": "A",
+      "identity": {
+        "dataset_id": "demo-01",
+        "observation_ids": [
+          "S01",
+          "S02",
+          "S03",
+          "S04",
+          "S05",
+          "S06"
+        ],
+        "query_namespace": {
+          "id": "demo-metabolites",
+          "modality": "metabolomics"
+        },
+        "candidate_namespace": {
+          "id": "demo-proteins",
+          "modality": "proteomics"
+        },
+        "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+        "dataset_evidence": {
+          "type": "attestation",
+          "source": "synthetic:valpas:a0:demo-01",
+          "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+          "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+        }
+      },
+      "configuration": {
+        "parameters": {
+          "missing_values": "pairwise_complete",
+          "minimum_joint_observations": 3
+        },
+        "preprocessing": {
+          "transform": "none",
+          "imputation": "none"
+        },
+        "score_semantics": "signed_pearson_correlation",
+        "supervision": "none",
+        "observation_selection": "all_declared_observations",
+        "training_features": {
+          "namespace": {
+            "id": "demo-combined-features",
+            "modality": "multiomics"
+          },
+          "ids": [
+            "M01",
+            "M02",
+            "P01",
+            "P02",
+            "P03"
+          ]
+        }
+      },
+      "provenance": {
+        "software": "hand-authored A0 fixture",
+        "source": "synthetic:valpas:a0:demo-01",
+        "limitations": "Illustrative scores, not measured correlations or trained model outputs. Configuration records describe hypothetical runs only. This is test scaffolding, not the A1 manifest schema."
+      },
+      "query_ids": [
+        "q0",
+        "q1",
+        "q2",
+        "q6",
+        "qU",
+        "qN"
+      ],
+      "candidate_ids": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f"
+      ],
+      "orientation": "query_rows_candidate_columns",
+      "representation": "score_matrix",
+      "ranking_policy": "absolute_descending",
+      "tie_policy": "canonical_candidate_id_unicode_ascending",
+      "completeness": {
+        "kind": "complete"
+      },
+      "missing_policy": {
+        "blank": "unscored",
+        "nan": "reject",
+        "absent": "reject"
+      },
+      "data": {
+        "format": "json",
+        "inline": {
+          "row_ids": [
+            "q0",
+            "q1",
+            "q2",
+            "q6",
+            "qU",
+            "qN"
+          ],
+          "column_ids": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f"
+          ],
+          "values": [
+            [
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "schema_version": 1,
+      "output_id": "B",
+      "method_id": "pearson",
+      "configuration_id": "pearson-base",
+      "run_id": "B",
+      "seed": null,
+      "label": "B",
+      "identity": {
+        "dataset_id": "demo-01",
+        "observation_ids": [
+          "S01",
+          "S02",
+          "S03",
+          "S04",
+          "S05",
+          "S06"
+        ],
+        "query_namespace": {
+          "id": "demo-metabolites",
+          "modality": "metabolomics"
+        },
+        "candidate_namespace": {
+          "id": "demo-proteins",
+          "modality": "proteomics"
+        },
+        "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+        "dataset_evidence": {
+          "type": "attestation",
+          "source": "synthetic:valpas:a0:demo-01",
+          "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+          "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+        }
+      },
+      "configuration": {
+        "parameters": {
+          "missing_values": "pairwise_complete",
+          "minimum_joint_observations": 3
+        },
+        "preprocessing": {
+          "transform": "none",
+          "imputation": "none"
+        },
+        "score_semantics": "signed_pearson_correlation",
+        "supervision": "none",
+        "observation_selection": "all_declared_observations",
+        "training_features": {
+          "namespace": {
+            "id": "demo-combined-features",
+            "modality": "multiomics"
+          },
+          "ids": [
+            "M01",
+            "M02",
+            "P01",
+            "P02",
+            "P03"
+          ]
+        }
+      },
+      "provenance": {
+        "software": "hand-authored A0 fixture",
+        "source": "synthetic:valpas:a0:demo-01",
+        "limitations": "Illustrative scores, not measured correlations or trained model outputs. Configuration records describe hypothetical runs only. This is test scaffolding, not the A1 manifest schema."
+      },
+      "query_ids": [
+        "q0",
+        "q1",
+        "q2",
+        "q6",
+        "qU",
+        "qN"
+      ],
+      "candidate_ids": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "f"
+      ],
+      "orientation": "query_rows_candidate_columns",
+      "representation": "score_matrix",
+      "ranking_policy": "absolute_descending",
+      "tie_policy": "canonical_candidate_id_unicode_ascending",
+      "completeness": {
+        "kind": "complete"
+      },
+      "missing_policy": {
+        "blank": "unscored",
+        "nan": "reject",
+        "absent": "reject"
+      },
+      "data": {
+        "format": "json",
+        "inline": {
+          "row_ids": [
+            "q0",
+            "q1",
+            "q2",
+            "q6",
+            "qU",
+            "qN"
+          ],
+          "column_ids": [
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f"
+          ],
+          "values": [
+            [
+              5,
+              6,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              5,
+              6,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              5,
+              6,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              5,
+              6,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              5,
+              6,
+              4,
+              3,
+              2,
+              1
+            ],
+            [
+              5,
+              6,
+              4,
+              3,
+              2,
+              1
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "settings": {
+    "pool_policy": "strict",
+    "depths": [
+      1,
+      2,
+      10
+    ]
+  },
+  "references": {
+    "path": "references.json"
+  },
+  "query_groups": {
+    "path": "query-groups.json"
+  },
+  "report": {
+    "max_interactive_depth": 2
+  }
+}

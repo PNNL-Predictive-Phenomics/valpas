@@ -30,6 +30,7 @@ from .browser import ReportSettings, render_report, safe_json
 
 
 from .diagnostics import SampleMetadata, DiagnosticRequest
+from .reference import ReferenceData, QueryGroups, reference_columns
 
 
 B1_SCHEMA = {
@@ -49,7 +50,10 @@ B1_SCHEMA = {
 
 
 def table_schema(columns):
-    return {name: {**TABLE_SCHEMA["coverage"], **B1_SCHEMA.get(name, {}), "columns": cols}
+    return {name: {**TABLE_SCHEMA["coverage"], **B1_SCHEMA.get(name, {}),
+                  **({"units": "source-specific descriptive reference counts/fractions, not biological negatives or precision",
+                      "null": "Unavailable or undefined; consult assessment_status, status, reason and metric_reasons; summaries have metric-specific denominators"}
+                     if name.startswith("reference_") or name == "query_groups" else {}), "columns": cols}
             for name, cols in columns.items()}
 
 
@@ -71,7 +75,10 @@ B1 diagnostic tables cover only explicit requests, with nested products, exclusi
 and reasons; group summaries are deduplicated per feature/layer/field/fraction scope.
 Browser diagnostics are on demand, independent of requested exports. These describe
 observed data, never model attribution. Report subsets never change full scientific
-tables. No reference analysis or session state. Agreement is not correctness;
+tables. Optional reference tables retain independent endpoints, assessment coverage,
+universes and metric-specific denominators. Optional initial_session.json contains user
+notes/decisions, not model predictions. Notes and references may be sensitive; the full
+bundle is never redacted. Browser saves require explicit downloads. Agreement is not correctness;
 seed runs are not biological replicates. Native inspection is descriptive only.
 All declared queries are compared under the explicit pool policy. No target
 metabolite/protein is required. Canonical exports retain sensitive IDs/metadata
@@ -133,6 +140,16 @@ def _write_payload(result, staging, tables_only=False, report_settings=None):
         _write_json(staging / "profiles.json", result.profiles.to_dict())
     if result.sample_metadata is not None:
         _write_json(staging / "sample_metadata.json", result.sample_metadata.to_dict())
+    if result.references is not None:
+        _write_json(staging / "references.json", result.references.to_dict())
+    if result.query_groups is not None:
+        _write_json(staging / "query_groups.json", result.query_groups.to_dict())
+    if result.initial_session is not None:
+        from .session import Session
+        if not isinstance(result.initial_session, Session) or result.initial_session.kind != "valpas-session":
+            fail("bundle.initial_session", "expected validated Session")
+        result.initial_session.validate(result, settings)
+        _write_json(staging / "initial_session.json", result.initial_session.to_dict())
     normalized = []
     for i, output in enumerate(result.outputs):
         filename = f"normalized-{i:04d}.jsonl.gz"
@@ -151,6 +168,10 @@ def _write_payload(result, staging, tables_only=False, report_settings=None):
         "settings": result.settings.to_dict(), "dataset": thaw(result.dataset),
         "scope": {"analysis": "all_declared_queries_under_pool_policy", "tables_only": tables_only, "html": not tables_only},
         "report": report,
+        **({"b2_session": {"schema_version": 1}} if result.initial_session is not None else {}),
+        **({"b2_references": {"schema_version": 1, "query_groups": result.query_groups is not None,
+                              "provenance_hash": result.reference_provenance_hash}}
+           if result.references is not None else {}),
         "b1": {"sample_metadata": result.sample_metadata is not None,
                "diagnostic_requests": [r.to_dict() for r in result.diagnostic_requests]},
         "normalized_inputs": normalized, "input_fingerprints": thaw(result.input_fingerprints),
@@ -170,7 +191,8 @@ def _checked_metadata(directory):
     keys(m, ("schema_version", "kind", "complete", "comparison_id", "created_at", "software_version",
              "policy_versions", "settings", "dataset", "scope", "normalized_inputs", "input_fingerprints",
              "source_fingerprints", "warnings", "table_schema", "tables", "inventory"),
-         ("report", "b1") if m.get("schema_version") in (2, 3) else ("b1",), field="bundle")
+         ("report", "b1", "b2_references", "b2_session") if m.get("schema_version") == 3 else
+         ("report", "b1") if m.get("schema_version") == 2 else ("b1",), field="bundle")
     if type(m["schema_version"]) is not int or m["schema_version"] not in (1, 2, 3) or m["kind"] != KIND or m["complete"] is not True:
         fail("bundle", "not a completed supported comparison-result bundle", remediation="Use load_input_bundle for A1 input bundles; regenerate incomplete comparison bundles.")
     columns = dict(TABLE_COLUMNS)
@@ -193,6 +215,12 @@ def _checked_metadata(directory):
         # Accept an empty extension on synthetic legacy fixtures, never B1 data
         # masquerading as an older schema. Genuine A2/A3 bundles have no b1 key.
         fail("bundle.b1", "B1 data requires schema version 3")
+    if "b2_references" in m:
+        extension = m["b2_references"]
+        keys(extension, ("schema_version", "query_groups", "provenance_hash"), field="bundle.b2_references")
+        if type(extension["schema_version"]) is not int or extension["schema_version"] != 1 or type(extension["query_groups"]) is not bool:
+            fail("bundle.b2_references", "unsupported reference extension schema")
+        columns.update(reference_columns(True, True if extension["query_groups"] else None))
     if m["software_version"] != __version__ or m["policy_versions"] != POLICY_VERSIONS or m["table_schema"] != table_schema(columns):
         fail("bundle.schema", "unsupported policy versions or table schema")
     scope = m["scope"]
@@ -204,6 +232,15 @@ def _checked_metadata(directory):
     if not isinstance(m["normalized_inputs"], list) or len(m["normalized_inputs"]) < 2:
         fail("bundle.normalized_inputs", "at least two normalized outputs required")
     named = {"README.md"}
+    if "b2_session" in m:
+        keys(m["b2_session"], ("schema_version",), field="bundle.b2_session")
+        if type(m["b2_session"]["schema_version"]) is not int or m["b2_session"]["schema_version"] != 1:
+            fail("bundle.b2_session", "unsupported session extension")
+        named.add("initial_session.json")
+    if "b2_references" in m:
+        named.add("references.json")
+        if m["b2_references"]["query_groups"]:
+            named.add("query_groups.json")
     if m["schema_version"] == 3 and m["b1"]["sample_metadata"]:
         named.add("sample_metadata.json")
     if m["schema_version"] >= 2:
@@ -298,21 +335,28 @@ def load_comparison_bundle(directory):
             if m["b1"]["sample_metadata"]:
                 metadata = SampleMetadata.from_dict(_json(_read(directory / "sample_metadata.json"), "bundle.sample_metadata"))
             requests = tuple(DiagnosticRequest.from_dict(r) for r in m["b1"]["diagnostic_requests"])
+        references, groups = None, None
+        if "b2_references" in m:
+            references = ReferenceData.from_dict(_json(_read(directory / "references.json"), "bundle.references"))
+            if m["b2_references"]["query_groups"]:
+                groups = QueryGroups.from_dict(_json(_read(directory / "query_groups.json"), "bundle.query_groups"))
         result = compare_results(outputs, ComparisonSettings.from_dict(m["settings"]), dataset=m["dataset"],
-                                 profiles=profiles, sample_metadata=metadata, diagnostic_requests=requests)
+                                 profiles=profiles, sample_metadata=metadata, diagnostic_requests=requests,
+                                 references=references, query_groups=groups)
+        if "b2_references" in m and result.reference_provenance_hash != m["b2_references"]["provenance_hash"]:
+            fail("bundle.b2_references", "normalized reference provenance hash mismatch")
         result = replace(result, report_settings=report_settings)
+        if "b2_session" in m:
+            from .session import load_session
+            session = load_session(directory / "initial_session.json", result=result, settings=report_settings)
+            result = replace(result, initial_session=session)
         if result.comparison_id != m["comparison_id"] or thaw(result.input_fingerprints) != m["input_fingerprints"]:
             fail("bundle.comparison_id", "normalized content/settings identity mismatch (including software/policy version)")
         if canonical_json([asdict(w) for w in result.warnings]) != canonical_json(m["warnings"]):
             fail("bundle.warnings", "warnings differ from normalized metadata")
         _validate_tables(result, directory, m)
         if m["scope"]["html"]:
-            if m["schema_version"] == 2:
-                _validate_legacy_report(result, directory, m, report_settings)
-            else:
-                html, payload, record = render_report(result, report_settings)
-                if record != m["report"]["payload"] or (directory / "report_payload.json").read_text(encoding="utf-8") != safe_json(payload) or (directory / "report.html").read_text(encoding="utf-8") != html:
-                    fail("bundle.report", "report differs from normalized saved values/settings")
+            _validate_legacy_report(result, directory, m, report_settings)
         # Prevent overwrite of a bundle actively supplying this result, even
         # though the original pre-export paths are not needed for reproduction.
         protected = tuple(str(p.resolve()) for p in directory.iterdir())
@@ -348,13 +392,27 @@ def _validate_legacy_report(result, directory, metadata, settings):
     html = (directory / "report.html").read_text(encoding="utf-8")
     opening = '<script id="comparison-data" type="application/json">'
     embedded = html.split(opening)
+    projection = _legacy_payload_projection if metadata["schema_version"] == 2 else thaw
+    if "b2_references" not in metadata and ("references" in actual or "reference_provenance_hash" in actual):
+        fail("bundle.report", "reference payload requires the reference extension")
+    # Pre-session v3 (including references) validates saved assets/inventory and
+    # exact normalized payload, not today's changed JS. Only known absent keys
+    # are projected; present session keys remain fully checked.
+    if "b2_session" not in metadata:
+        if actual.get("initial_session") is not None:
+            fail("bundle.report", "initial session requires the session extension")
+        for name in ("session_content_id", "session_contract", "initial_session"):
+            if name not in actual:
+                expected.pop(name, None)
+    # Session-bearing bundles retain exact complete normalized session/payload
+    # parity. Only inventoried presentation assets may predate current assets.
     if (record != metadata["report"]["payload"] or len(data) > settings.max_payload_bytes or
-            canonical_json(_legacy_payload_projection(actual)) != canonical_json(_legacy_payload_projection(expected)) or
+            canonical_json(projection(actual)) != canonical_json(projection(expected)) or
             len(embedded) != 2 or embedded[1].split("</script>", 1)[0] != safe_json(actual)):
         fail("bundle.report", "report differs from normalized saved values/settings")
 
 
-def write_comparison(result, destination, *, tables_only=False, overwrite=False, report_settings=None):
+def write_comparison(result, destination, *, tables_only=False, overwrite=False, report_settings=None, initial_session=None):
     """Stage complete tables and an optional offline HTML report; publish atomically.
 
     Default refusal includes empty destinations. Explicit overwrite accepts only
@@ -369,6 +427,8 @@ def write_comparison(result, destination, *, tables_only=False, overwrite=False,
         fail("tables_only", "tables_only and overwrite must be boolean")
     if report_settings is not None and not isinstance(report_settings, ReportSettings):
         fail("report_settings", "expected ReportSettings")
+    if initial_session is not None:
+        result = replace(result, initial_session=initial_session)
     destination = Path(destination)
     if ".." in destination.parts or destination.is_symlink():
         fail("destination", "parent traversal and destination symlinks prohibited")

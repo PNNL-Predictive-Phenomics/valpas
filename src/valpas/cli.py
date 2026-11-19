@@ -323,6 +323,25 @@ def main():
                            help="Replace only an intact owned comparison bundle containing no consumed inputs.")
     p_compare.set_defaults(func=compare)
 
+    p_figure = command_parsers.add_parser(
+        "export-query", description="Export a descriptive SVG/PDF from a saved bundle, without original inputs or training.")
+    p_figure.add_argument("--bundle", required=True, type=Path)
+    p_figure.add_argument("--query", required=True, help="Exact canonical query ID.")
+    p_figure.add_argument("--candidate", required=True, help="Exact canonical candidate ID.")
+    p_figure.add_argument("--layer", required=True, help="Exact measurement layer ID.")
+    p_figure.add_argument("--output", required=True, type=Path, help="New .svg or .pdf outside the bundle; never overwritten.")
+    p_figure.add_argument("--color", help="Exact metadata field for coloring.")
+    p_figure.add_argument("--group", help="Exact categorical metadata field for marginal summaries.")
+    p_figure.add_argument("--order", choices=("dataset", "id", "metadata"))
+    p_figure.add_argument("--h", type=int)
+    p_figure.add_argument("--omission", action="store_true", default=None)
+    p_figure.add_argument("--no-fraction", action="store_false", dest="include_fraction", default=None)
+    p_figure.add_argument("--depth", type=int, help="Inspection context only; never changes scientific pools.")
+    p_figure.add_argument("--notes", help="Literal user notes included in the caption.")
+    p_figure.add_argument("--session", type=Path, help="Optional strictly bound saved session.")
+    p_figure.add_argument("--decision-id", help="Use an exact decision view from that session.")
+    p_figure.set_defaults(func=export_query)
+
     # small check if a command / subparser has been passed to valpas.py
     # if not then the help will be printed (this is not standard
     # behaviour in argparse for what ever reason...)
@@ -336,6 +355,22 @@ def main():
     except ValueError as e:
         sys.exit(e)
     args.func(args)
+
+def export_query(args):
+    """Delegate saved-bundle figure export to the public API."""
+    from valpas.comparison import export_query_figure
+    try:
+        destination = export_query_figure(
+            args.bundle, query_id=args.query, candidate_id=args.candidate,
+            layer_id=args.layer, output=args.output, color=args.color, group=args.group,
+            order=args.order, h=args.h, omission=args.omission,
+            include_fraction=args.include_fraction, depth=args.depth, notes=args.notes,
+            session=args.session, decision_id=args.decision_id)
+        print(f"Descriptive figure: {destination}; no scores or ranks changed.")
+    except (ValueError, OSError) as exc:
+        print("export-query: " + str(exc), file=sys.stderr)
+        raise SystemExit(2) from None
+
 
 def compare(args):
     """Manifest CLI delegates all science and persistence to the public API."""

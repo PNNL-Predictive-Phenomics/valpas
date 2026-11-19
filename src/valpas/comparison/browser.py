@@ -44,12 +44,12 @@ def safe_json(value):
 
 
 def asset_text(name):
-    if name not in ("dashboard.js", "dashboard.css", "shell.html"):
+    if name not in ("dashboard.js", "sessions.js", "dashboard.css", "shell.html"):
         fail("report.asset", "unknown packaged asset")
     return files("valpas.comparison").joinpath("assets", name).read_text(encoding="utf-8")
 
 
-def build_report_payload(result, settings=None):
+def build_report_payload(result, settings=None, *, include_session=True):
     """Embed whole-cohort overview; details only for explicit queries/top unions.
 
     Auxiliary depths use exactly the engine functions, without changing the
@@ -157,6 +157,35 @@ def build_report_payload(result, settings=None):
             row["configuration"] = "omitted from HTML"
         for row in summaries["configuration_differences"]:
             row["left"] = row["right"] = "omitted from HTML"
+    if result.references is not None:
+        payload["reference_provenance_hash"] = result.reference_provenance_hash
+        payload["references"] = None
+        if settings.omit_metadata:
+            payload["omissions"].append("HTML only: all reference endpoints, evidence identifiers/descriptions, query groups and reference summaries omitted. Full bundle retains references and groups; omission is not anonymization.")
+        else:
+            from .reference import iter_reference_recovery, reference_summaries
+            recovery = list(iter_reference_recovery(view))
+            payload["references"] = {
+                "endpoints": list(result.iter_table("reference_endpoints")),
+                "weighting": result.references.weighting,
+                "recovery": recovery,
+                "summary": list(reference_summaries(view, recovery)),
+                "evidence": [r for r in result.iter_table("reference_evidence")
+                             if r["query_id"] in unions and r["candidate_id"] in unions[r["query_id"]]],
+                "scope": "Whole-cohort query metrics and summaries; evidence records only for embedded query/candidate unions and pins. Endpoint universes are explicit. Display filters never redefine nominations or denominators.",
+            }
+    from .session import session_content_id, report_scope, default_view, Session
+    payload["session_content_id"] = session_content_id(result)
+    payload["session_contract"] = {"schema_version": 1, "scope": report_scope(payload),
+                                   "default_view": default_view(report_scope(payload))}
+    payload["initial_session"] = None
+    if include_session and result.initial_session is not None:
+        if not isinstance(result.initial_session, Session) or result.initial_session.kind != "valpas-session":
+            fail("report.initial_session", "expected validated Session")
+        result.initial_session.validate_payload(payload)
+        if settings.omit_metadata:
+            fail("report.initial_session", "metadata omission does not redact user notes; explicitly remove initial session before exporting omitted HTML")
+        payload["initial_session"] = result.initial_session.to_dict()
     return thaw(payload)
 
 
@@ -168,6 +197,6 @@ def render_report(result, settings=None):
     if size > settings.max_payload_bytes:
         fail("report.max_payload_bytes", f"embedded payload estimate {size} bytes exceeds limit {settings.max_payload_bytes} bytes before HTML wrapping",
              remediation="Choose explicit query_ids, lower max_interactive_depth, fewer pinned_candidate_ids, omit_metadata, increase the explicit limit, or use tables_only=True. No sampling or partial publication occurred.")
-    js, css = asset_text("dashboard.js"), asset_text("dashboard.css")
+    js, css = asset_text("sessions.js") + "\n" + asset_text("dashboard.js"), asset_text("dashboard.css")
     html = asset_text("shell.html").replace("/*PACKAGED_STYLE*/", css).replace("/*PACKAGED_SCRIPT*/", js).replace("{PAYLOAD}", data)
     return html, payload, {"payload_bytes": size, "payload_sha256": hashlib.sha256(data.encode("utf-8")).hexdigest()}

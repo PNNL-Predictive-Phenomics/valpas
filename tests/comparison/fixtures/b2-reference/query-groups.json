@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "dataset": {
+    "dataset_id": "demo-01",
+    "observation_ids": [
+      "S01",
+      "S02",
+      "S03",
+      "S04",
+      "S05",
+      "S06"
+    ],
+    "query_namespace": {
+      "id": "demo-metabolites",
+      "modality": "metabolomics"
+    },
+    "candidate_namespace": {
+      "id": "demo-proteins",
+      "modality": "proteomics"
+    },
+    "context": "Score-only, same-source synthetic comparison; no observed profiles.",
+    "dataset_evidence": {
+      "type": "attestation",
+      "source": "synthetic:valpas:a0:demo-01",
+      "value": "All three synthetic outputs represent the same hypothetical measurement source and observations; no source measurements or fingerprint are supplied.",
+      "limitations": "Hand-authored synthetic scores, no measured source artifact or training."
+    }
+  },
+  "records": [
+    {
+      "query_id": "q0",
+      "group_id": "G1"
+    },
+    {
+      "query_id": "q1",
+      "group_id": "G1"
+    },
+    {
+      "query_id": "q2",
+      "group_id": "G1"
+    },
+    {
+      "query_id": "q6",
+      "group_id": "G2"
+    },
+    {
+      "query_id": "qU",
+      "group_id": "G3"
+    },
+    {
+      "query_id": "qN",
+      "group_id": "G3"
+    }
+  ]
+}

@@ -50,6 +50,8 @@ class HarnessCase(unittest.TestCase):
         names = set(validator.SDIST_FILES)
         names.update("src/valpas/comparison/assets/" + n for n in validator.ASSETS)
         names.update("tests/comparison/fixtures/demo-01/" + n for n in validator.FIXTURE_FILES)
+        names.update("tests/comparison/fixtures/b2-reference/" + n for n in validator.B2_FIXTURE_FILES)
+        names.update("src/valpas/comparison/" + n for n in validator.MODULES)
         names.discard(omit)
         with tarfile.open(path, "w:gz") as archive:
             for name in sorted(names):
@@ -156,6 +158,76 @@ class HarnessCase(unittest.TestCase):
         self.assertEqual(len(smoke.expected_tables(self.marker(True))), 12)
         self.assertEqual(len(smoke.expected_tables(self.marker())), 10)
 
+    def test_b2_exact_optional_inventory_with_and_without_groups_sessions(self):
+        references = {"reference_endpoints", "reference_evidence", "reference_recovery", "reference_summary"}
+        for profiles, metadata, requests in ((False, False, []), (True, False, []), (True, True, [smoke.B1_REQUEST])):
+            for groups in (False, True):
+                for session in (False, True):
+                    with self.subTest(profiles=profiles, metadata=metadata, groups=groups, session=session):
+                        marker = self.marker(profiles, metadata, requests)
+                        base = smoke.expected_tables(marker)
+                        marker["b2_references"] = {"schema_version": 1, "query_groups": groups, "provenance_hash": "a" * 64}
+                        if session:
+                            marker["b2_session"] = {"schema_version": 1}
+                        expected = base | references | ({"query_groups"} if groups else set())
+                        self.assertEqual(smoke.expected_tables(marker), expected)
+                        marker.update(tables=dict.fromkeys(expected), table_schema=dict.fromkeys(expected))
+                        self.assertEqual(smoke.check_table_inventory(marker), expected)
+                        for key in ("tables", "table_schema"):
+                            original = marker[key]
+                            marker[key] = {**original, "fake_reference": None}
+                            marker[key].pop("reference_recovery")
+                            with self.assertRaisesRegex(AssertionError, "inventory"):
+                                smoke.check_table_inventory(marker)
+                            marker[key] = original
+        marker = self.marker(True, True, [smoke.B1_REQUEST])
+        marker["b2_references"] = {"schema_version": 1, "query_groups": True, "provenance_hash": "a" * 64}
+        self.assertEqual(len(smoke.expected_tables(marker)), 20)
+        marker["b2_session"] = {"schema_version": 1}
+        self.assertEqual(len(smoke.expected_tables(marker)), 20)  # session is a document, not a scientific table
+
+    def test_b2_extension_shape_flags_and_digests_strict(self):
+        valid = {"schema_version": 1, "query_groups": True, "provenance_hash": "a" * 64}
+        for extension in (None, {}, valid | {"schema_version": True}, valid | {"query_groups": 1},
+                          valid | {"unknown": 1}, valid | {"provenance_hash": "wrong"}, valid | {"provenance_hash": "z" * 64}):
+            marker = self.marker()
+            marker["b2_references"] = extension
+            with self.subTest(extension=extension), self.assertRaises(AssertionError):
+                smoke.expected_tables(marker)
+        for extension in (None, {}, {"schema_version": True}, {"schema_version": 2}, {"schema_version": 1, "unknown": 0}):
+            marker = self.marker()
+            marker["b2_session"] = extension
+            with self.subTest(extension=extension), self.assertRaises(AssertionError):
+                smoke.expected_tables(marker)
+
+    def test_sdist_requires_all_b2_modules_assets_fixtures_helpers_guide(self):
+        required = ["src/valpas/comparison/assets/sessions.js", "tools/distribution_browser.py",
+                    "tests/comparison/chrome_cdp.py", "docs/COMPARISON_FIGURES.md",
+                    "tests/comparison/fixtures/demo-01/manifest-with-b2.json"]
+        required += ["src/valpas/comparison/" + n for n in validator.MODULES]
+        required += ["tests/comparison/fixtures/b2-reference/" + n for n in validator.B2_FIXTURE_FILES]
+        for name in required:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                self.archive(root / "source.tar.gz", omit=name)
+                with self.assertRaisesRegex(ValueError, "missing documented"):
+                    validator.extract_sdist(root / "source.tar.gz", root / "extracted")
+                self.assertFalse((root / "extracted").exists())
+
+    def test_figure_validation_rejects_non_vector_or_external_content(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            pdf = root / "bad.pdf"
+            pdf.write_bytes(b"not a pdf")
+            with self.assertRaisesRegex(AssertionError, "PDF"):
+                smoke.check_figure(pdf)
+            svg = root / "bad.svg"
+            for content in ('<html/>', '<svg xmlns="http://www.w3.org/2000/svg"><script/></svg>',
+                            '<svg xmlns="http://www.w3.org/2000/svg"><use href="https://example.org/x"/></svg>'):
+                svg.write_text(content)
+                with self.assertRaises(AssertionError):
+                    smoke.check_figure(svg)
+
     def test_reuse_requires_explicit_isolated_environment(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -177,10 +249,24 @@ class HarnessCase(unittest.TestCase):
             with zipfile.ZipFile(path, "w") as archive:
                 for name in validator.ASSETS:
                     archive.writestr("valpas/comparison/assets/" + name, "asset")
+                for name in validator.MODULES:
+                    archive.writestr("valpas/comparison/" + name, "module")
                 archive.writestr("valpas-1.2.3.dist-info/METADATA", "Name: valpas\nVersion: 1.2.3\nRequires-Python: >=3.12\nRequires-Dist: torch\n")
             record = validator.inspect_wheel(path)
             self.assertEqual(record["requires_dist"], ["torch"])
             self.assertEqual(record["version"], "1.2.3")
+
+    def test_wheel_rejects_missing_b2_assets_and_modules(self):
+        members = ["assets/" + n for n in validator.ASSETS] + list(validator.MODULES)
+        for omitted in ("assets/sessions.js", *validator.MODULES):
+            with self.subTest(omitted=omitted), tempfile.TemporaryDirectory() as temp:
+                path = Path(temp) / "bad.whl"
+                with zipfile.ZipFile(path, "w") as archive:
+                    for name in members:
+                        if name != omitted:
+                            archive.writestr("valpas/comparison/" + name, "content")
+                with self.assertRaises(KeyError):
+                    validator.inspect_wheel(path)
 
     def test_command_failure_is_recorded_and_propagates(self):
         with tempfile.TemporaryDirectory() as temp:

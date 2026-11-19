@@ -1,6 +1,6 @@
 # Implementation plan: within-dataset method comparison
 
-**Status:** A0–A3 and B1 implemented and focused validation passed: **174 full-dependency comparison tests, zero skips; 17 packaging-harness tests, zero skips; newly built checkout and Git-free-sdist wheels passed installed checks and eight actual direct-file Chrome cases**. The offline workflow includes optional sample metadata, marginal grouping and covariance diagnostics. B2/B3 remain unfinished; **the two-release project is not complete**. New result bundles use v3, with A2 v1/A3 v2 reload restricted to the same software/policy versions; A1 input bundles remain distinct. B1 packaging reused retained isolated full dependencies, not a fresh dependency-resolution gate; see the B1 record below.
+**Current status — 2026-11-19: A0–A3, B1 and B2 DONE.** Integrated B2 validation passed **232 full-dependency comparison tests, zero skips; 22 packaging-harness tests; 88 installed validation commands; 10 actual direct-file Chrome cases across checkout and Git-free-sdist wheels**. Both wheels used retained isolated full-dependency environments, **not fresh dependency resolution**. B3 production metadata capture/export integration and target-scale validation remain future; **the full Release B/two-release project is not complete**. Result bundles use v3 with strict optional schema-v1 references/sessions; v1/v2/v3 reload is same-software/policy only. Input/scientific contracts remain v1; A1 input bundles are distinct. See the integrated completion record below and [final validation handoff](B2_VALIDATION_HANDOFF.md). Tested artifacts precede this docs-only finalization; no rebuild was performed or claimed.
 
 **Historical packaging evidence only:** the original A3 tree passed **134 full-dependency tests without skips**, **12 packaging-harness tests**, and checkout-wheel/Git-free-sdist-wheel fresh-install, outside-checkout CLI/resource/table/regeneration, real direct-file Chrome and legacy-import checks on macOS arm64 / Python 3.12.3. That resolved the original A3 packaging blocker, but **does not validate subsequently modified B1 code, browser assets, guides or fixtures**. The separate B1 evidence below validates newly built modified artifacts.
 
@@ -51,7 +51,7 @@ Implement the handoff's proposed contracts and API names in the new [comparison 
 
 Add narrowly scoped helpers for manifest loading, comparison-ready input export, and saved-bundle loading. The bundle loader is necessary for offline report regeneration, session validation, and figure export without original source paths. Finalize these helper names in A1 before documentation/examples depend on them.
 
-These are target contracts across phases, not a claim that all exist. Implemented names are documented in the [schema/API reference](../docs/COMPARISON_SCHEMA_V1.md) and [Release A/B1 guide](../docs/COMPARISON_RELEASE_A.md). A3 adds validated profiles/report settings; B1 adds validated sample metadata, requests and observed-data helpers. Reference and figure APIs remain future work.
+These were target contracts across phases; exact implemented names and module locations are documented in the [schema/API reference](../docs/COMPARISON_SCHEMA_V1.md) and [complete B2 workflow](../docs/COMPARISON_RELEASE_A.md). A3 adds validated profiles/report settings; B1 adds validated sample metadata, requests and observed-data helpers. B2 adds reference/group contracts, strict sessions/shortlists, explicit decisions and full-result/bundle figure export.
 
 ### Internal representation and scaling
 
@@ -76,7 +76,7 @@ Browser depth/output/filter controls operate within the exported scope. Hiding a
 
 The [compare command](../src/valpas/cli.py:304) accepts a manifest or saved result bundle and an output directory. A3 defaults to offline HTML plus full tables and supports report query/pin/depth/budget/metadata controls, tables-only export, source-free regeneration and safe overwrite. Manifest analysis pool/summary-depth overrides remain separate from report settings. All resolved settings are recorded.
 
-Add **export-query** for a saved comparison bundle with explicit query/candidate, layer, and output destination. Both commands delegate to the public API. Training configuration and the earlier autoencoder CLI proposal are separate concerns.
+B2 implements **export-query** for a saved comparison bundle with explicit query/candidate, layer, and output destination, SVG/PDF rendering and optional strict saved-session/decision context. Both commands delegate to the public API. Training configuration and the earlier autoencoder CLI proposal are separate concerns.
 
 ## 4. Implementation increments
 
@@ -232,6 +232,8 @@ Deliverables:
 
 #### B1 implementation and validation record — 2026-11-19
 
+**Historical B1 checkpoint:** counts, artifacts and statements about then-future B2/transient UI below are preserved. Current B2 status is recorded separately after the chronological slice records.
+
 - Implemented exact-ID, immutable [`SampleMetadata`](../src/valpas/comparison/diagnostics.py:19), [`DiagnosticRequest`](../src/valpas/comparison/diagnostics.py:121), [`load_sample_metadata()`](../src/valpas/comparison/diagnostics.py:105), [`group_summary()`](../src/valpas/comparison/diagnostics.py:188), and [`covariance_diagnostic()`](../src/valpas/comparison/diagnostics.py:320), with manifest sections and [`compare_results()`](../src/valpas/comparison/engine.py:282) keyword integration. Metadata may be absent or incomplete; types/IDs/binding are explicit, extras require permission, and missing grouping takes precedence in disjoint exclusions.
 - Group counts/means and optional between-group/total SS fraction use marginal known-group observed finite values. Covariance uses joint observed finite values, signed centered products, absolute shares, default h = 5, exact Unicode tie order and explicit omission with recentering. Counts, masks, included/excluded/retained IDs and independent covariance/correlation/fraction reasons are exposed. Imputed values are excluded; zero variation, insufficient counts and numeric range have honest unavailable states.
 - Lazy requested-only diagnostic exports and deduplicated group summaries preserve all ten A2 scientific tables and comparison identity. Result schema v3 persists normalized metadata/requests and optional nested-JSON-cell tables, with source-free parity checks. A2 v1/A3 v2 reload requires the same software/policy versions; legacy HTML uses verified old inventory hashes and normalized old-shape payload checks, then regenerates current assets.
@@ -247,7 +249,7 @@ Deliverables:
 
 B1 acceptance is met for this focused scope. B2 reference evidence/notes/sessions/publication figures is next; B3 production hooks and target-scale validation remain future. The two-release project is not complete. Other OS/Python/browser combinations, Sphinx, manual visual/accessibility review, broad training suites and target-scale performance remain unverified. UI display settings are transient, not portable B2 session state; legacy bundle reload retains the same-software/policy-version restriction. Full bundles remain sensitive even when HTML metadata is omitted.
 
-### B2 — Reference evidence, decisions, sessions, figures (unfinished)
+### B2 — Reference evidence, decisions, sessions, figures (DONE)
 
 Implement [reference evaluation](../src/valpas/comparison/reference.py) and extend reporting/session/figure APIs.
 
@@ -257,12 +259,41 @@ Deliverables:
 2. Total/reachable support, supported nominations, hit, reference-supported fraction, recovery, and reachability, with explicit assessed/unassessed/unsupported/unreachable statuses.
 3. All-assessed versus reachable-query summaries, recorded opportunity strata, and equal-feature or explicit equal-group weighting. Reject ambiguous feature/group membership.
 4. Candidate decisions including query-level abstention, notes, inspected outputs, pool/depth, and timestamps.
-5. Explicit session/shortlist download and import; comparison-ID matching, ID validation, safe note rendering, and visible migration warnings. Browser storage is optional, not authoritative persistence.
+5. Explicit session/shortlist download and import; scientific/content/scope matching, ID validation and safe note rendering. Implemented policy is strict rejection, **not migration**, with explicit Python scope rebind only when all current settings and every decision snapshot survive unchanged. Browser storage is not used; JSON is authoritative, formula-safe shortlist CSV is display-only/nonimportable.
 6. Python SVG/PDF query figure export and CLI bundle-based export; browser SVG or print path with documented rendering differences.
 
 **Acceptance:** evidence filtering never changes nominations; duplicated evidence does not inflate support; weighting matches fixtures; session/notes round-trip; figures disclose layer/masks/counts/overlay and regenerate without fitting.
 
+The following three records are **historical slice checkpoints**. Their partial-completion statements and counts remain as recorded; the integrated completion record afterward supersedes them for current status.
+
+#### Reference-only implementation record — 2026-11-19
+
+Reference deliverables 1–3 are implemented with strict local reference/group schemas, independent source/version/evidence endpoints, explicit denominators/strata/group weighting, optional exact-integrity tables and normalized documents, separate reference provenance, full-cohort overview and display-only evidence filtering. Result schema remains v3 with an optional version-one reference extension; existing same-version v1/v2/v3 reference-free reload remains supported. The [reference handoff](B2_REFERENCE_HANDOFF.md) records interfaces, persistence boundaries, known limitations and exact focused validation: 109 tests passed, including existing and new real Chrome cases. Full-suite and packaging checks are deferred to parent integration. **Overall B2 remains unfinished:** decisions, notes, sessions, shortlists and figures/export-query are not implemented by this reference-only task.
+
+#### Sessions/decisions/shortlists implementation record — 2026-11-19
+
+Deliverables 4–5 are implemented: strict immutable session/shortlist contracts, explicit user decisions including query-level abstention, separate content/report-scope binding, portable B1/reference settings, real offline JSON download/file import, spreadsheet-safe shortlist CSV, and optional inventoried initial sessions. Imports replace state deterministically and reject incompatible content/scope without migration or silent loss. The [session handoff](B2_SESSION_HANDOFF.md) records APIs/schema, privacy and compatibility behavior, and focused validation: **179 tests passed, zero skips**, including four actual Chrome download/upload cases. Existing reference changes are retained. Figures/export-query, parent full-suite/install checks and B3 work remain pending; **overall B2 is not complete**.
+
+#### Figure implementation record — 2026-11-19
+
+Deliverable 6 is implemented: public full-result/saved-bundle SVG/PDF export with lazy Matplotlib, explicit IDs and safe no-clobber staged paths, bundle-based CLI delegation, and an explicit bounded browser SVG download. Captions preserve masks/cohorts, exact literal IDs and annotations/notes, units/transform, metadata, pool/depth and descriptive diagnostic interpretation. Optional sessions/decision snapshots use existing strict content/scope contracts; no new session fields. Session-bearing old assets reload by inventoried-byte integrity plus exact normalized payload/session parity. The [figure handoff](B2_FIGURE_HANDOFF.md) records exact focused tests, actual Chrome download/XML evidence, interfaces and integration limitations. Existing reference/session work is retained. Parent full-suite/install checks and B3 remain pending; **overall B2 is not declared complete**.
+
+#### Integrated B2 completion record — 2026-11-19
+
+**B2 acceptance is met; B2 is DONE.** The [complete workflow](../docs/COMPARISON_RELEASE_A.md), [user guide](../docs/USER_GUIDE.md), [combined synthetic manifest](../tests/comparison/fixtures/demo-01/manifest-with-b2.json), [schema](../docs/COMPARISON_SCHEMA_V1.md) and [figure guide](../docs/COMPARISON_FIGURES.md) cover CLI-first overview, independent reference endpoints/denominators, strict decisions/session restoration, bounded browser SVG and full-bundle SVG/PDF, privacy and source-free reproduction.
+
+- **232 full-dependency comparison tests, zero skips**, before and after builds (90.818 s / 90.971 s); **22 harness tests**, zero skips before and after (0.605 s / 0.497 s). **88 successful installed validation commands** and **10 actual Chrome cases**: A3, B1, hostile metadata, no-profile and B2 for each wheel. Exact commands/logs and limitations are in the [validation handoff](B2_VALIDATION_HANDOFF.md); these are prior integrated results, not reruns during documentation finalization.
+- Artifact version **1.0.1.dev30+g4d572bc23.d20261119**. Checkout wheel and extracted-Git-free-sdist wheel: **215680 bytes each**, SHA-256 **cc70f3da10a73d1b0903b945f8527986ff90b9d71ea7196f275c329d3e08443e**. Sdist: **269049 bytes**, SHA-256 **da5c1088ceebe4d869336b3046b9cc20c7b94fe493c0bd82173fa2959bdaffef**. Observed wheel byte equality is not a general reproducible-build guarantee.
+- Evidence root: `/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-eabker0i`; the summary records 15:23:27–15:24:51 UTC, artifacts, commands, dependencies, inventories and restored source/version state. macOS 26.7.2 arm64, Python 3.12.3, Chrome 157.0.8103.80. Both wheels were force-reinstalled noneditably into retained isolated full-dependency environments under `/private/var/folders/zg/2qynpgpn60qf_kd5d0lrnvrr0000gn/T/valpas-distribution-8evqy102`, **not freshly resolved dependencies**; installed checks ran outside the checkout.
+- Exact inventories: ten base tables, twelve with profiles, fifteen B1, fifteen reference-only with groups, **twenty combined B2 tables**. The combined common-pool/depths 1, 2, 5 case retains three endpoints, five evidence rows, 54 recovery rows, 1080 summary rows and two group-membership rows; sessions add an inventoried document, not a table. The handoff retains every table count. Eighteen demo variants plus two reference-only bundles passed; copied inputs were deleted before source-free regeneration/vector exports.
+- Each installed B2 browser case restored two initial decisions, added three for five total, downloaded session/shortlist JSON, formula-safe CSV and SVG, then imported each JSON twice with exact restoration. Hostile notes remained inert; tampering was atomically rejected; scientific payload was unchanged. Direct/inferred/pathway filters retained independent support. Downloaded M01/P01 SVG had six scatter circles, twelve profile circles and zero imputed marks.
+- Same-software/policy v1/v2/v3 reload is not migration. Session-bearing old HTML is accepted only with inventory integrity and exact normalized/stored/embedded payload parity; current asset bytes are not required. Strict content/scope binding, explicit lossless scope rebind, HTML-only omission and full-bundle sensitivity remain boundaries.
+- **Artifact/documentation boundary:** tested wheels/sdist precede the validation handoff and this final README/workflow/user-guide/plan update. They contain the validated implementation, harness, fixtures and then-current guides, not these final docs. No rebuild is needed or performed for docs-only finalization; documentation CLI smoke/static checks are separate evidence, not installed-artifact revalidation. Parent final review follows this documentation report.
+- **Still unverified/out of scope:** B3 opt-in production metadata capture/export hooks and the 1,000 × 5,000 × 8 elapsed-time/peak-memory benchmark; other OS/Python/browser combinations, manual visual/accessibility certification, Sphinx and broad training suites. Synthetic evidence is not biological validation. No full Release B/project-complete claim.
+
 ### B3 — Production boundaries, packaging, documentation, final validation (unfinished)
+
+B2 now supplies the documented saved-data workflow, synthetic example, installed packaging and actual offline browser evidence for this scope (deliverables 3–5 and part of 7 below). This does **not** complete B3: opt-in production capture/export integration, its focused regressions and target-scale elapsed-time/peak-memory validation remain future.
 
 Deliverables:
 
